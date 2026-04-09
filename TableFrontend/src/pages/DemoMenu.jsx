@@ -88,7 +88,7 @@ export default function DemoMenu() {
     <div className="bg-[#faf7f2] min-h-screen font-body shadow-2xl relative pb-24 lg:pb-0">
       <div className="bg-[#faf7f2] min-h-screen max-w-md mx-auto relative lg:border-x lg:border-[#e0d9ce]">
         {/* Header Image */}
-        <div className="relative h-48 w-full bg-slate-200">
+        <div className="relative h-56 w-full bg-slate-200">
           <img 
             src="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&q=80" 
             alt="Restaurant Banner"
@@ -97,22 +97,24 @@ export default function DemoMenu() {
           <div className="absolute inset-0 bg-gradient-to-t from-[#0f0e0b]/90 via-[#0f0e0b]/30 to-transparent" />
           
           {/* Top Navbar */}
-          <div className="absolute top-0 left-0 w-full p-4 flex items-center justify-between">
-            <Link to="/" className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white hover:bg-white/30 transition-colors">
+          <div className="absolute top-0 left-0 w-full p-4 flex items-center justify-between z-10">
+            <Link to="/" className="w-10 h-10 rounded-full bg-black/20 backdrop-blur-md flex items-center justify-center text-white hover:bg-black/40 transition-colors border border-white/10">
               <ArrowLeft size={20} />
             </Link>
-            <button className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white hover:bg-white/30 transition-colors">
+            <button className="w-10 h-10 rounded-full bg-black/20 backdrop-blur-md flex items-center justify-center text-white hover:bg-black/40 transition-colors border border-white/10">
               <Search size={20} />
             </button>
           </div>
 
           {/* Restaurant Info */}
-          <div className="absolute bottom-0 left-0 w-full p-5">
-            <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center mb-3 shadow-lg">
-              <span className="text-xl font-black text-[#0f0e0b] font-display">SG</span>
+          <div className="absolute bottom-0 left-0 w-full px-5 py-4 flex items-end gap-4 z-10">
+            <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-[0_4px_20px_rgba(0,0,0,0.2)] flex-shrink-0">
+              <span className="text-2xl font-black text-[#0f0e0b] font-display">SG</span>
             </div>
-            <h1 className="text-white text-2xl font-bold mb-1">Spice Garden</h1>
-            <p className="text-white/80 text-sm">North Indian • Table 04</p>
+            <div className="pb-1">
+              <h1 className="text-white text-3xl font-bold mb-1 leading-tight drop-shadow-md">Spice Garden</h1>
+              <p className="text-white/90 text-sm font-medium drop-shadow-md">North Indian • Table 04</p>
+            </div>
           </div>
         </div>
 
