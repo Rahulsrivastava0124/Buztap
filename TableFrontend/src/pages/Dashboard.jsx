@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { 
-  ArrowUpRight, ArrowDownRight, Clock, CheckCircle2, 
+import {
+  ArrowUpRight, ArrowDownRight, Clock, CheckCircle2,
   BarChart3, Banknote, UtensilsCrossed, Smartphone,
   CreditCard, TrendingUp, Wallet, Receipt, Users, Clock4
 } from "lucide-react";
@@ -15,7 +15,7 @@ ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, T
 // ── MOCK DATA & CHART SETUP ──
 const getChartData = (timeRange) => {
   let labels = [], data = [];
-  switch(timeRange) {
+  switch (timeRange) {
     case '1D': labels = ['9 AM', '11 AM', '1 PM', '3 PM', '5 PM', '7 PM', '9 PM', '11 PM']; data = [1200, 2400, 5800, 3200, 1800, 6500, 8900, 4200]; break;
     case '7D': labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']; data = [12500, 14200, 13800, 15600, 24500, 31000, 28000]; break;
     case '1M': labels = ['Week 1', 'Week 2', 'Week 3', 'Week 4']; data = [85000, 92000, 89000, 105000]; break;
@@ -50,7 +50,7 @@ const chartOptions = {
   responsive: true, maintainAspectRatio: false,
   plugins: { legend: { display: false }, tooltip: { backgroundColor: '#0f0e0b', titleColor: '#e8e0d4', bodyColor: '#fff', padding: 12, displayColors: false, callbacks: { label: (c) => '₹' + c.parsed.y.toLocaleString() } } },
   scales: {
-    y: { grid: { color: '#e0d9ce', drawBorder: false }, ticks: { color: '#857c6e', font: { size: 10, weight: '600', family: 'Inter' }, callback: (v) => '₹' + (v >= 1000 ? (v/1000) + 'k' : v) }, border: { display: false } },
+    y: { grid: { color: '#e0d9ce', drawBorder: false }, ticks: { color: '#857c6e', font: { size: 10, weight: '600', family: 'Inter' }, callback: (v) => '₹' + (v >= 1000 ? (v / 1000) + 'k' : v) }, border: { display: false } },
     x: { grid: { display: false }, ticks: { color: '#857c6e', font: { size: 10, weight: '600', family: 'Inter' } }, border: { display: false } },
   },
   interaction: { intersect: false, mode: 'index' },
@@ -130,7 +130,7 @@ export function OverviewTab() {
                   <span className="flex items-center gap-1 text-[10px] text-[#857c6e]"><Clock size={12} /> {o.time}</span>
                   {o.status === "preparing" && <span className="text-[10px] font-bold text-[#e8720c] bg-[#fef0e4] px-2 py-0.5 rounded">Preparing</span>}
                   {o.status === "ready" && <span className="text-[10px] font-bold text-white bg-[#e8720c] px-2 shadow-sm py-0.5 rounded">Ready to Serve</span>}
-                  {o.status === "served" && <span className="text-[10px] font-bold text-[#3a6348] bg-[#e8f2eb] px-2 py-0.5 rounded flex items-center gap-1"><CheckCircle2 size={12}/> Served</span>}
+                  {o.status === "served" && <span className="text-[10px] font-bold text-[#3a6348] bg-[#e8f2eb] px-2 py-0.5 rounded flex items-center gap-1"><CheckCircle2 size={12} /> Served</span>}
                 </div>
               </div>
             ))}
@@ -152,7 +152,7 @@ export function FinanceTab() {
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white border border-[#e0d9ce] rounded-xl p-6">
-          <h2 className="font-bold mb-4 flex items-center gap-2"><CreditCard size={18} className="text-[#e8720c]"/> Payment Methods Breakup</h2>
+          <h2 className="font-bold mb-4 flex items-center gap-2"><CreditCard size={18} className="text-[#e8720c]" /> Payment Methods Breakup</h2>
           <div className="space-y-4 pt-2">
             <div>
               <div className="flex justify-between text-sm font-semibold mb-1"><span>Card & UPI</span><span>₹32,450</span></div>

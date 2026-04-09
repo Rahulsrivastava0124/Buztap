@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import Landing from "./pages/Landing";
 import AuthPage from "./pages/AuthPage";
 import DemoMenu from "./pages/DemoMenu";
+import ContactUs from "./pages/ContactUs";
 import AdminLayout from "./layouts/AdminLayout";
 import { OverviewTab, FinanceTab, MenuTab, OperationsTab } from "./pages/Dashboard";
 import PosSystem from "./pages/PosSystem";
@@ -16,6 +17,7 @@ export default function App() {
         <Route path="/" element={<Landing />} />
         <Route path="/auth" element={<AuthPage />} />
         <Route path="/demo" element={<DemoMenu />} />
+        <Route path="/contact" element={<ContactUs />} />
 
         {/* Protected Admin Routes */}
         <Route element={<ProtectedRoute />}>

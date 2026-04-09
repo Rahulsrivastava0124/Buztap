@@ -71,18 +71,22 @@ export default function AuthPage() {
         </button>
 
         {/* Mobile Header */}
-        <div className="md:hidden flex items-center justify-between mb-8">
+        <div className="md:hidden absolute top-6 left-6 right-6 flex items-center justify-between">
+          <button 
+            onClick={() => navigate("/")} 
+            className="flex items-center justify-center w-8 h-8 rounded-full bg-[#f5f0e8] text-[#0f0e0b] hover:bg-[#e0d9ce] transition-colors"
+          >
+            <ArrowLeft size={18} />
+          </button>
+          
           <Link to="/" className="flex items-center gap-2 flex-shrink-0">
-            <span className="w-8 h-8 bg-[#e8720c] rounded-lg flex items-center justify-center">
-              <Utensils size={16} className="text-white" strokeWidth={2.2} />
-            </span>
             <span className="font-display font-bold text-[#0f0e0b] text-xl tracking-tight">
               restroMenu
             </span>
+            <span className="w-8 h-8 bg-[#e8720c] rounded-lg flex items-center justify-center shadow-[0_2px_10px_rgba(232,114,12,0.3)]">
+              <Utensils size={16} className="text-white" strokeWidth={2.2} />
+            </span>
           </Link>
-          <button onClick={() => navigate("/")} className="text-[#857c6e] hover:text-[#0f0e0b]">
-            <ArrowLeft size={20} />
-          </button>
         </div>
 
         <div className="w-full max-w-md mx-auto">

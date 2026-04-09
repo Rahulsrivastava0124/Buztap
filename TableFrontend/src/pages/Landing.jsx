@@ -39,7 +39,6 @@ const fadeUp = {
 const stagger = { show: { transition: { staggerChildren: 0.1 } } };
 
 /* ── Data ──────────────────────────────────────────── */
-const NAV_LINKS = ["Features", "How It Works", "Pricing", "FAQ"];
 
 const NAV_ITEMS = [
   { label: "Home", id: "home" },
@@ -47,6 +46,7 @@ const NAV_ITEMS = [
   { label: "How It Works", id: "how-it-works" },
   { label: "Live Demo", id: "live-demo" },
   { label: "FAQ", id: "faq" },
+  { label: "Contact Us", path: "/contact" },
 ];
 
 const STATS = [
@@ -1286,7 +1286,7 @@ function FaqItem({ q, a, open, onToggle }) {
 }
 
 /* ── App ───────────────────────────────────────────── */
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 
 export default function Landing() {
   const navigate = useNavigate();
@@ -1359,7 +1359,10 @@ export default function Landing() {
             {NAV_ITEMS.map((item) => (
               <button
                 key={item.label}
-                onClick={() => item.id && scrollTo(item.id)}
+                onClick={() => {
+                  if (item.path) navigate(item.path);
+                  else if (item.id) scrollTo(item.id);
+                }}
                 className="px-3.5 py-2 text-sm font-medium text-[#2a2720] hover:text-[#0f0e0b] hover:bg-[#f0ebe0] transition-colors rounded-md"
               >
                 {item.label}
@@ -1401,13 +1404,17 @@ export default function Landing() {
               animate={{ height: "auto", opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
               transition={{ duration: 0.25 }}
-              className="lg:hidden overflow-hidden border-t border-[#e0d9ce] bg-white"
+              className="lg:hidden absolute top-[68px] left-0 w-full overflow-hidden border-t border-b border-[#e0d9ce] bg-white shadow-2xl"
             >
               <div className="px-4 py-4 flex flex-col gap-0.5">
                 {NAV_ITEMS.map((item) => (
                   <button
                     key={item.label}
-                    onClick={() => item.id && scrollTo(item.id)}
+                    onClick={() => {
+                      if (item.path) navigate(item.path);
+                      else if (item.id) scrollTo(item.id);
+                      setMobileOpen(false);
+                    }}
                     className="w-full flex items-center px-3 py-2.5 text-sm font-semibold text-[#0f0e0b] rounded-lg hover:bg-[#faf7f2] transition-colors text-left"
                   >
                     {item.label}
@@ -1454,7 +1461,7 @@ export default function Landing() {
             whileInView="show"
             viewport={{ once: true }}
             transition={{ duration: 0.5, delay: 0.08 }}
-            className="font-display text-4xl sm:text-5xl lg:text-6xl font-bold leading-[1.12] tracking-tight text-[#0f0e0b] mb-5"
+            className="font-display text-4xl sm:text-5xl lg:text-6xl font-bold leading-[1.12] tracking-wide text-[#0f0e0b] mb-5"
           >
             Digital Menus.
             <br />
@@ -2200,19 +2207,18 @@ export default function Landing() {
             </p>
             <ul className="space-y-2.5 text-sm">
               {[
-                "About",
-                "Careers",
-                "Privacy Policy",
-                "Terms of Service",
-                "Contact",
+                { label: "About", to: "#" },
+                { label: "Careers", to: "#" },
+                { label: "Privacy Policy", to: "#" },
+                { label: "Terms of Service", to: "#" },
+                { label: "Contact", to: "/contact" },
               ].map((l) => (
-                <li key={l}>
-                  <a
-                    href="#"
-                    className="hover:text-[#e8720c] transition-colors"
-                  >
-                    {l}
-                  </a>
+                <li key={l.label}>
+                  {l.to.startsWith("/") ? (
+                    <Link to={l.to} className="hover:text-[#e8720c] transition-colors">{l.label}</Link>
+                  ) : (
+                    <a href={l.to} className="hover:text-[#e8720c] transition-colors">{l.label}</a>
+                  )}
                 </li>
               ))}
             </ul>
