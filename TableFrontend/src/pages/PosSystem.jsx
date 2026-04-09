@@ -5,14 +5,14 @@ import { motion as Motion, AnimatePresence } from "framer-motion";
 const MENU_CATEGORIES = ["All", "Starters", "Mains", "Breads", "Desserts", "Beverages"];
 
 const MENU_ITEMS = [
-  { id: 1, name: "Paneer Butter Masala", price: 280, cat: "Mains", img: "https://images.unsplash.com/photo-1631452180519-c014fe946bc7?w=300&q=70" },
-  { id: 2, name: "Garlic Naan", price: 60, cat: "Breads", img: "https://images.unsplash.com/photo-1601050690597-df0568f70950?w=300&q=70" },
-  { id: 3, name: "Dal Makhani", price: 220, cat: "Mains", img: "https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=300&q=70" },
+  { id: 1, name: "Paneer Butter Masala", price: 280, cat: "Mains", img: "https://images.unsplash.com/photo-1565557623262-b51c2513a695?w=300&q=70" },
+  { id: 2, name: "Garlic Naan", price: 60, cat: "Breads", img: "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=300&q=70" },
+  { id: 3, name: "Dal Makhani", price: 220, cat: "Mains", img: "https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=300&q=70" },
   { id: 4, name: "Chicken Tikka", price: 320, cat: "Starters", img: "https://images.unsplash.com/photo-1599487405613-2b63b2f1aa0c?w=300&q=70" },
-  { id: 5, name: "Mango Lassi", price: 120, cat: "Beverages", img: "https://images.unsplash.com/photo-1550454318-c266a01d51a6?w=300&q=70" },
+  { id: 5, name: "Mango Lassi", price: 120, cat: "Beverages", img: "https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?w=300&q=70" },
   { id: 6, name: "Veg Samosa (2pcs)", price: 80, cat: "Starters", img: "https://images.unsplash.com/photo-1601050690117-94f5f6af8bc7?w=300&q=70" },
   { id: 7, name: "Butter Chicken", price: 380, cat: "Mains", img: "https://images.unsplash.com/photo-1603894584373-baefe11e86a5?w=300&q=70" },
-  { id: 8, name: "Tandoori Roti", price: 30, cat: "Breads", img: "https://images.unsplash.com/photo-1565557623262-b51c2513a695?w=300&q=70" },
+  { id: 8, name: "Tandoori Roti", price: 30, cat: "Breads", img: "https://images.unsplash.com/photo-1565958011703-44f9829ba187?w=300&q=70" },
 ];
 
 export default function PosSystem() {

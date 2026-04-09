@@ -9,23 +9,31 @@ import {
   LogOut, 
   Menu, 
   X,
-  Bell
+  Bell,
+  Banknote,
+  UtensilsCrossed,
+  Smartphone
 } from "lucide-react";
 import { motion as Motion, AnimatePresence } from "framer-motion";
+import { useAuth } from "../context/AuthContext";
 
 const SIDEBAR_ITEMS = [
-  { path: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
-  { path: "/pos", icon: MonitorSmartphone, label: "POS" },
-  { path: "#", icon: MenuSquare, label: "Menu Editor" },
+  { path: "/dashboard/overview", icon: LayoutDashboard, label: "Overview" },
+  { path: "/dashboard/finance", icon: Banknote, label: "Sales & Finance" },
+  { path: "/dashboard/menu", icon: UtensilsCrossed, label: "Menu & Products" },
+  { path: "/dashboard/operations", icon: Smartphone, label: "Operations & Tables" },
+  { path: "/pos", icon: MonitorSmartphone, label: "Point of Sale" },
   { path: "#", icon: Settings, label: "Settings" },
 ];
 
 export default function AdminLayout() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
+  const { logout } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = () => {
+    logout();
     navigate("/");
   };
 
@@ -120,7 +128,11 @@ export default function AdminLayout() {
               <Menu size={20} />
             </button>
             <h1 className="font-semibold text-[#0f0e0b] text-lg">
-              {location.pathname === "/pos" ? "Point of Sale" : "Analytics Dashboard"}
+              {location.pathname.includes("/overview") && "Executive Overview"}
+              {location.pathname.includes("/finance") && "Sales & Finance"}
+              {location.pathname.includes("/menu") && "Menu & Products"}
+              {location.pathname.includes("/operations") && "Operations & Tables"}
+              {location.pathname === "/pos" && "Point of Sale"}
             </h1>
           </div>
           

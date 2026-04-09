@@ -1,11 +1,30 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion as Motion, AnimatePresence } from "framer-motion";
-import { Utensils, Mail, Lock, Building, User, ArrowRight, ArrowLeft } from "lucide-react";
+import { Utensils, Mail, Lock, Building, User, ArrowRight, ArrowLeft, AlertCircle, Eye, EyeOff } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
 
 export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showRegisterPassword, setShowRegisterPassword] = useState(false);
+  const [error, setError] = useState("");
+  
+  const { login } = useAuth();
   const navigate = useNavigate();
+
+  const handleLogin = (e) => {
+    e.preventDefault();
+    setError("");
+    const success = login(email, password);
+    if (success) {
+      navigate("/dashboard");
+    } else {
+      setError("Invalid username or password.");
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#faf7f2] flex flex-col md:grid md:grid-cols-2 font-[Inter,sans-serif]">
@@ -42,6 +61,15 @@ export default function AuthPage() {
 
       {/* ── Right Side Form ── */}
       <div className="flex flex-col justify-center p-6 sm:p-12 lg:p-20 relative bg-white min-h-screen md:min-h-0">
+        
+        {/* Desktop Back Button */}
+        <button 
+          onClick={() => navigate("/")} 
+          className="hidden md:flex absolute top-8 right-8 items-center gap-2 text-sm font-semibold text-[#857c6e] hover:text-[#0f0e0b] transition-colors"
+        >
+          <ArrowLeft size={18} /> Back to Home
+        </button>
+
         {/* Mobile Header */}
         <div className="md:hidden flex items-center justify-between mb-8">
           <Link to="/" className="flex items-center gap-2 flex-shrink-0">
@@ -106,17 +134,26 @@ export default function AuthPage() {
                   </p>
                 </div>
 
-                <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
+                <form className="space-y-4" onSubmit={handleLogin}>
+                  {error && (
+                    <div className="flex items-center gap-2 p-3 text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg">
+                      <AlertCircle size={16} />
+                      {error}
+                    </div>
+                  )}
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-[#0f0e0b]">Email Address</label>
+                    <label className="text-xs font-semibold text-[#0f0e0b]">Email Address (Username)</label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <Mail className="h-4 w-4 text-[#b0a898]" />
                       </div>
                       <input
-                        type="email"
+                        type="text"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
                         className="w-full pl-10 pr-4 py-2.5 bg-[#faf7f2] border border-[#e0d9ce] rounded-lg text-sm text-[#0f0e0b] placeholder-[#b0a898] focus:outline-none focus:border-[#e8720c] focus:ring-1 focus:ring-[#e8720c] transition-shadow"
-                        placeholder="owner@restaurant.com"
+                        placeholder="admin"
+                        required
                       />
                     </div>
                   </div>
@@ -133,14 +170,24 @@ export default function AuthPage() {
                         <Lock className="h-4 w-4 text-[#b0a898]" />
                       </div>
                       <input
-                        type="password"
-                        className="w-full pl-10 pr-4 py-2.5 bg-[#faf7f2] border border-[#e0d9ce] rounded-lg text-sm text-[#0f0e0b] placeholder-[#b0a898] focus:outline-none focus:border-[#e8720c] focus:ring-1 focus:ring-[#e8720c] transition-shadow"
+                        type={showPassword ? "text" : "password"}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="w-full pl-10 pr-10 py-2.5 bg-[#faf7f2] border border-[#e0d9ce] rounded-lg text-sm text-[#0f0e0b] placeholder-[#b0a898] focus:outline-none focus:border-[#e8720c] focus:ring-1 focus:ring-[#e8720c] transition-shadow"
                         placeholder="••••••••"
+                        required
                       />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-[#b0a898] hover:text-[#0f0e0b] transition-colors"
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
                     </div>
                   </div>
 
-                  <button onClick={() => navigate("/dashboard")} className="w-full py-3 mt-6 bg-[#e8720c] hover:bg-[#d4620a] text-white text-sm font-semibold rounded-lg transition-colors shadow-[0_4px_14px_rgba(232,114,12,0.25)] flex items-center justify-center gap-2">
+                  <button type="submit" className="w-full py-3 mt-6 bg-[#e8720c] hover:bg-[#d4620a] text-white text-sm font-semibold rounded-lg transition-colors shadow-[0_4px_14px_rgba(232,114,12,0.25)] flex items-center justify-center gap-2">
                     Sign In <ArrowRight size={16} />
                   </button>
                 </form>
@@ -212,10 +259,17 @@ export default function AuthPage() {
                         <Lock className="h-4 w-4 text-[#b0a898]" />
                       </div>
                       <input
-                        type="password"
-                        className="w-full pl-10 pr-4 py-2.5 bg-[#faf7f2] border border-[#e0d9ce] rounded-lg text-sm text-[#0f0e0b] placeholder-[#b0a898] focus:outline-none focus:border-[#e8720c] focus:ring-1 focus:ring-[#e8720c] transition-shadow"
+                        type={showRegisterPassword ? "text" : "password"}
+                        className="w-full pl-10 pr-10 py-2.5 bg-[#faf7f2] border border-[#e0d9ce] rounded-lg text-sm text-[#0f0e0b] placeholder-[#b0a898] focus:outline-none focus:border-[#e8720c] focus:ring-1 focus:ring-[#e8720c] transition-shadow"
                         placeholder="••••••••"
                       />
+                      <button
+                        type="button"
+                        onClick={() => setShowRegisterPassword(!showRegisterPassword)}
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-[#b0a898] hover:text-[#0f0e0b] transition-colors"
+                      >
+                        {showRegisterPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
                     </div>
                   </div>
 

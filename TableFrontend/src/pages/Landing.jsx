@@ -1579,6 +1579,111 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* ════════════════ 4.5. ADVANTAGES ════════════════════════════ */}
+      <section className="bg-[#0f0e0b] py-24 relative overflow-hidden">
+        {/* Subtle background glow to fit theme */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-4xl h-[400px] bg-[#e8720c] opacity-[0.03] blur-[120px] pointer-events-none" />
+        
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 relative z-10">
+          <div className="text-center mb-16 reveal visible">
+            <p className="inline-flex items-center gap-2 bg-[#1a1814] border border-[#2a2720] text-[#e8720c] text-xs font-semibold px-3 py-1.5 rounded-full mb-5 uppercase tracking-widest">
+              Features
+            </p>
+            <h2 className="font-display text-4xl sm:text-5xl font-bold text-white mb-5 max-w-3xl mx-auto leading-tight">
+              Transforming Dining with Digital QR Code Menu Advantages
+            </h2>
+            <p className="text-[#857c6e] text-lg max-w-2xl mx-auto leading-relaxed">
+              Provides a faster, smarter, and more interactive dining experience while simplifying restaurant operations.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-6 lg:gap-8">
+            {/* Card 1 */}
+            <Motion.div
+              variants={fadeUp}
+              initial="hidden"
+              whileInView="show"
+              viewport={{ once: true, amount: 0.1 }}
+              className="bg-[#1a1814] border border-[#2a2720] rounded-2xl overflow-hidden flex flex-col group hover:border-[#e8720c]/30 hover:shadow-[0_8px_32px_rgba(232,114,12,0.05)] transition-all duration-300"
+            >
+              <div className="h-56 overflow-hidden relative">
+                <img 
+                  src="https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=600&q=80" 
+                  alt="Staff holding tablet" 
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" 
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#1a1814] via-[#1a1814]/40 to-transparent" />
+              </div>
+              <div className="p-8 pt-4 flex-1 flex flex-col relative z-10">
+                <h3 className="text-[17px] font-bold text-white mb-3 tracking-tight">Enhancing Customer Experience</h3>
+                <p className="text-[#857c6e] text-sm leading-relaxed mb-6 flex-1">
+                  Digital menus load faster, are easier to use, and provide more useful information to customers, including dish ingredients and allergen warnings directly in their hands.
+                </p>
+                <button className="text-[#e8720c] font-semibold text-[13px] flex items-center gap-1.5 hover:gap-2.5 transition-all self-start">
+                  Read more <ArrowRight size={14} />
+                </button>
+              </div>
+            </Motion.div>
+
+            {/* Card 2 */}
+            <Motion.div
+              variants={fadeUp}
+              initial="hidden"
+              whileInView="show"
+              viewport={{ once: true, amount: 0.1 }}
+              transition={{ delay: 0.1 }}
+              className="bg-[#1a1814] border border-[#2a2720] rounded-2xl overflow-hidden flex flex-col group hover:border-[#e8720c]/30 hover:shadow-[0_8px_32px_rgba(232,114,12,0.05)] transition-all duration-300"
+            >
+              <div className="h-56 overflow-hidden relative">
+                <img 
+                  src="https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=600&q=80" 
+                  alt="Restaurant storefront" 
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" 
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#1a1814] via-[#1a1814]/40 to-transparent" />
+              </div>
+              <div className="p-8 pt-4 flex-1 flex flex-col relative z-10">
+                <h3 className="text-[17px] font-bold text-white mb-3 tracking-tight">Attracting New Customers</h3>
+                <p className="text-[#857c6e] text-sm leading-relaxed mb-6 flex-1">
+                  Guests can leave reviews directly through the QR menu. Plus, built-in multilingual support helps attract foreign customers and turn foot traffic into loyal dining patrons.
+                </p>
+                <button className="text-[#e8720c] font-semibold text-[13px] flex items-center gap-1.5 hover:gap-2.5 transition-all self-start">
+                  Read more <ArrowRight size={14} />
+                </button>
+              </div>
+            </Motion.div>
+
+            {/* Card 3 */}
+            <Motion.div
+              variants={fadeUp}
+              initial="hidden"
+              whileInView="show"
+              viewport={{ once: true, amount: 0.1 }}
+              transition={{ delay: 0.2 }}
+              className="bg-[#1a1814] border border-[#2a2720] rounded-2xl overflow-hidden flex flex-col group hover:border-[#e8720c]/30 hover:shadow-[0_8px_32px_rgba(232,114,12,0.05)] transition-all duration-300"
+            >
+              <div className="h-56 overflow-hidden relative">
+                <img 
+                  src="https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=600&q=80" 
+                  alt="Customers scanning QR code" 
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" 
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#1a1814] via-[#1a1814]/40 to-transparent" />
+              </div>
+              <div className="p-8 pt-4 flex-1 flex flex-col relative z-10">
+                <h3 className="text-[17px] font-bold text-white mb-3 tracking-tight">QR Code Menu Increases Sales</h3>
+                <p className="text-[#857c6e] text-sm leading-relaxed mb-6 flex-1">
+                  Food photos and an interactive menu presentation encourage customers to order more items and upsells, meaningfully increasing the average bill amount effortlessly.
+                </p>
+                <button className="text-[#e8720c] font-semibold text-[13px] flex items-center gap-1.5 hover:gap-2.5 transition-all self-start">
+                  Read more <ArrowRight size={14} />
+                </button>
+              </div>
+            </Motion.div>
+          </div>
+        </div>
+      </section>
+
       {/* ════════════════ 5. HOW IT WORKS ═════════════════════════ */}
       <section id="how-it-works" className="bg-[#f5f0e8] py-24">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
@@ -1661,6 +1766,33 @@ export default function Landing() {
             <GuestPhone />
           </div>
           <div className="max-w-sm space-y-6">
+            {/* Scannable live demo QR */}
+            <Motion.div
+              variants={fadeUp}
+              initial="hidden"
+              whileInView="show"
+              viewport={{ once: true }}
+              className="bg-[#fef0e4] border border-[#e8720c]/30 p-5 rounded-2xl flex items-center gap-5 relative overflow-hidden"
+            >
+              {/* Decorative scan line */}
+              <div className="absolute top-0 left-6 w-16 h-full bg-gradient-to-b from-transparent via-[#e8720c]/10 to-transparent scan-line" />
+              
+              <div className="w-20 h-20 bg-white p-1.5 rounded-xl shadow-[0_2px_10px_rgba(232,114,12,0.15)] flex-shrink-0 relative z-10 border border-[#e8720c]/20">
+                <img 
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(window.location.origin + "/demo")}&bgcolor=ffffff&color=0f0e0b`}
+                  alt="Scan to view responsive demo" 
+                  className="w-full h-full object-contain rounded-lg"
+                />
+              </div>
+              <div className="relative z-10">
+                <p className="text-[10px] font-bold text-[#e8720c] uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#e8720c] pulse-dot" /> Interactive Demo
+                </p>
+                <p className="font-bold text-[#0f0e0b] text-[15px] mb-1.5 leading-tight tracking-tight">Scan with your phone</p>
+                <p className="text-xs text-[#857c6e] leading-snug">Experience the fast, responsive guest menu exactly as they do.</p>
+              </div>
+            </Motion.div>
+
             {[
               {
                 icon: Smartphone,
