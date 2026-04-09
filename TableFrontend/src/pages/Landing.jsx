@@ -1580,9 +1580,12 @@ export default function Landing() {
           </div>
           
           {/* Right QR Code */}
-          <div className="flex-shrink-0 bg-white p-2.5 sm:p-3 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] relative z-10 group overflow-hidden border border-white">
+          <div 
+            onClick={() => navigate("/demo")}
+            className="flex-shrink-0 bg-white p-2.5 sm:p-3 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] relative z-10 group overflow-hidden border border-white cursor-pointer hover:scale-[1.02] transition-transform"
+          >
              <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-transparent via-[#e8720c]/15 to-transparent scan-line pointer-events-none" />
-             <div className="border border-[#e0d9ce]/50 rounded-xl overflow-hidden bg-white">
+             <div className="border border-[#e0d9ce]/50 rounded-xl overflow-hidden bg-white group-hover:border-[#e8720c]/50 transition-colors">
                <img 
                  src={`https://api.qrserver.com/v1/create-qr-code/?size=350x350&data=${encodeURIComponent(window.location.origin + "/demo")}&bgcolor=ffffff&color=0f0e0b`}
                  alt="Live Demo QR"
@@ -1591,8 +1594,9 @@ export default function Landing() {
              </div>
              <div className="text-center mt-3 mb-1">
                <p className="font-bold text-[#0f0e0b] text-sm uppercase tracking-widest flex items-center justify-center gap-2">
-                 <QrCode size={16} className="text-[#e8720c]"/> Scan QR Code
+                 <QrCode size={16} className="text-[#e8720c]"/> Scan or Click
                </p>
+               <p className="text-[10px] text-[#857c6e] mt-1 font-medium uppercase tracking-wider">Demo Link</p>
              </div>
           </div>
         </Motion.div>
