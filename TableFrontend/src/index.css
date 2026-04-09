@@ -1,0 +1,185 @@
+@import "tailwindcss";
+
+/* ── Custom DaisyUI restromenu theme ─────────────────────────── */
+@plugin "daisyui/theme" {
+  name: "restromenu";
+  default: true;
+  prefersdark: false;
+  color-scheme: light;
+
+  --color-base-100: oklch(98% 0.006 75);
+  --color-base-200: oklch(94% 0.01 75);
+  --color-base-300: oklch(89% 0.015 75);
+  --color-base-content: oklch(8% 0.003 65);
+
+  --color-primary: oklch(65% 0.22 46);
+  --color-primary-content: oklch(100% 0 0);
+  --color-secondary: oklch(40% 0.08 155);
+  --color-secondary-content: oklch(100% 0 0);
+  --color-accent: oklch(65% 0.22 46);
+  --color-accent-content: oklch(100% 0 0);
+  --color-neutral: oklch(8% 0.003 65);
+  --color-neutral-content: oklch(98% 0.006 75);
+
+  --color-info: oklch(68% 0.19 220);
+  --color-info-content: oklch(98% 0.01 220);
+  --color-success: oklch(63% 0.23 145);
+  --color-success-content: oklch(98% 0.01 145);
+  --color-warning: oklch(78% 0.23 82);
+  --color-warning-content: oklch(20% 0.05 82);
+  --color-error: oklch(63% 0.28 28);
+  --color-error-content: oklch(98% 0.01 28);
+
+  --radius-selector: 0.25rem;
+  --radius-field: 0.375rem;
+  --radius-box: 0.75rem;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border: 1.5px;
+  --depth: 0;
+  --noise: 0;
+}
+
+@plugin "daisyui";
+@source "../src";
+
+/* ── Custom @theme tokens ────────────────────────────────────── */
+@theme {
+  --font-display: "Playfair Display", Georgia, serif;
+  --font-body: "Inter", system-ui, sans-serif;
+  --font-roboto: "Roboto", sans-serif;
+
+  --color-ink: #0f0e0b;
+  --color-ink2: #2a2720;
+  --color-paper: #faf7f2;
+  --color-cream: #f5f0e8;
+  --color-cream2: #ede8df;
+  --color-saffron: #e8720c;
+  --color-saffron2: #d4620a;
+  --color-saffron-lt: #fef0e4;
+  --color-sage: #3a6348;
+  --color-sage-lt: #e8f2eb;
+  --color-muted: #857c6e;
+  --color-muted2: #b0a898;
+  --color-border: #e0d9ce;
+}
+
+/* ── Base ─────────────────────────────────────────────────────── */
+html {
+  scroll-behavior: smooth;
+}
+body {
+  font-family: var(--font-body);
+  background-color: var(--color-paper);
+  color: var(--color-ink);
+  overflow-x: hidden;
+}
+.font-display {
+  font-family: var(--font-display);
+}
+.font-roboto {
+  font-family: var(--font-roboto);
+}
+
+/* ── Keyframes ────────────────────────────────────────────────── */
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes floatY {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+@keyframes scanLine {
+  0% {
+    top: 8%;
+  }
+  50% {
+    top: 82%;
+  }
+  100% {
+    top: 8%;
+  }
+}
+@keyframes phoneStep {
+  0%,
+  20% {
+    transform: translateX(0);
+  }
+  25%,
+  45% {
+    transform: translateX(-100%);
+  }
+  50%,
+  70% {
+    transform: translateX(-200%);
+  }
+  75%,
+  95% {
+    transform: translateX(-300%);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+@keyframes blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+@keyframes pulseDot {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.5);
+    opacity: 0.5;
+  }
+}
+
+/* ── Utilities ────────────────────────────────────────────────── */
+.float-anim {
+  animation: floatY 4s ease-in-out infinite;
+}
+.scan-line {
+  animation: scanLine 2.4s ease-in-out infinite;
+}
+.phone-steps {
+  animation: phoneStep 12s steps(1) infinite;
+}
+.blink-anim {
+  animation: blink 1.2s ease-in-out infinite;
+}
+.pulse-dot {
+  animation: pulseDot 1.5s ease-in-out infinite;
+}
+
+/* scroll-reveal */
+.reveal {
+  opacity: 0;
+  transform: translateY(22px);
+  transition:
+    opacity 0.55s ease,
+    transform 0.55s ease;
+}
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
