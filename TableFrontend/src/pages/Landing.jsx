@@ -1540,6 +1540,64 @@ export default function Landing() {
         </Motion.div>
       </section>
 
+      {/* ════════════════ 2.5. DEMO QR STRIP ════════════════════════ */}
+      <section className="bg-[#e8720c] z-10 relative mt-10 mb-20 w-full overflow-hidden">
+        {/* Background glow effects */}
+        <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-white/10 blur-[120px] rounded-full pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-black/10 blur-[100px] rounded-full pointer-events-none" />
+        
+        <Motion.div 
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6 }}
+          className="max-w-6xl mx-auto px-4 sm:px-6 py-12 md:py-16 flex flex-col md:flex-row items-center justify-between gap-12 relative"
+        >
+          {/* Left Text */}
+          <div className="flex-1 text-left relative z-10">
+            <div className="flex items-center gap-2 mb-6">
+              <span className="w-2.5 h-2.5 rounded-full bg-white shadow-[0_0_12px_rgba(255,255,255,0.8)] pulse-dot"></span>
+              <span className="text-[11px] font-bold text-white tracking-widest uppercase bg-white/20 px-2.5 py-1 rounded-md">Live Interactive Demo</span>
+            </div>
+            <h3 className="font-display text-3xl sm:text-4xl lg:text-[42px] font-bold text-white mb-5 leading-[1.15] tracking-tight drop-shadow-sm">
+              Experience the zero-friction guest menu.
+            </h3>
+            <p className="text-white/90 text-base sm:text-lg max-w-xl leading-relaxed mb-8 font-medium">
+              Don't just take our word for it. Point your smartphone camera at the QR code to instantly see exactly how your customers will browse, order, and interact with the digital menu.
+            </p>
+            
+            <div className="flex flex-wrap items-center gap-5 sm:gap-8">
+               <div className="flex items-center gap-2 text-white text-sm font-bold">
+                 <div className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center"><CheckCircle2 size={12} className="text-white" /></div> Instant Loading
+               </div>
+               <div className="flex items-center gap-2 text-white text-sm font-bold">
+                 <div className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center"><CheckCircle2 size={12} className="text-white" /></div> Native App Feel
+               </div>
+               <div className="flex items-center gap-2 text-white text-sm font-bold">
+                 <div className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center"><CheckCircle2 size={12} className="text-white" /></div> Table-Specific
+               </div>
+            </div>
+          </div>
+          
+          {/* Right QR Code */}
+          <div className="flex-shrink-0 bg-white p-2.5 sm:p-3 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] relative z-10 group overflow-hidden border border-white">
+             <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-transparent via-[#e8720c]/15 to-transparent scan-line pointer-events-none" />
+             <div className="border border-[#e0d9ce]/50 rounded-xl overflow-hidden bg-white">
+               <img 
+                 src={`https://api.qrserver.com/v1/create-qr-code/?size=350x350&data=${encodeURIComponent(window.location.origin + "/demo")}&bgcolor=ffffff&color=0f0e0b`}
+                 alt="Live Demo QR"
+                 className="w-56 h-56 sm:w-64 sm:h-64 object-contain mix-blend-multiply"
+               />
+             </div>
+             <div className="text-center mt-3 mb-1">
+               <p className="font-bold text-[#0f0e0b] text-sm uppercase tracking-widest flex items-center justify-center gap-2">
+                 <QrCode size={16} className="text-[#e8720c]"/> Scan QR Code
+               </p>
+             </div>
+          </div>
+        </Motion.div>
+      </section>
+
       {/* ════════════════ 3. STATS BAR ═════════════════════════════ */}
       <section className="bg-white border-y border-[#e0d9ce]">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10 grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
