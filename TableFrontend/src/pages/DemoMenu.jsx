@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Search, Plus, Minus, ShoppingBag } from 'lucide-react';
+import { ArrowLeft, Search, Plus, Minus, ShoppingBag, Instagram, Facebook, Twitter, Star } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const FOOD_ITEMS = [
@@ -63,6 +63,7 @@ export default function DemoMenu() {
   const [guestPhone, setGuestPhone] = useState("");
   const [orderStatus, setOrderStatus] = useState(0);
   const [orderNo, setOrderNo] = useState("");
+  const [rating, setRating] = useState(0);
 
   useEffect(() => {
     if (orderPlaced) {
@@ -264,6 +265,23 @@ export default function DemoMenu() {
               </div>
             </div>
           ))}
+
+          {/* Social Media Footer */}
+          <div className="pt-8 pb-4 flex flex-col items-center justify-center border-t border-[#e0d9ce]/60 mt-8 mb-4">
+            <p className="text-[10px] font-bold text-[#857c6e] uppercase tracking-widest mb-4">Follow Spice Garden</p>
+            <div className="flex items-center gap-4">
+               <a href="#" className="w-[38px] h-[38px] rounded-full bg-white border border-[#e0d9ce] flex items-center justify-center text-[#423d33] hover:bg-[#e8720c] hover:border-[#e8720c] hover:text-white hover:-translate-y-0.5 transition-all shadow-sm">
+                 <Instagram size={17} />
+               </a>
+               <a href="#" className="w-[38px] h-[38px] rounded-full bg-white border border-[#e0d9ce] flex items-center justify-center text-[#423d33] hover:bg-[#e8720c] hover:border-[#e8720c] hover:text-white hover:-translate-y-0.5 transition-all shadow-sm">
+                 <Facebook size={17} />
+               </a>
+               <a href="#" className="w-[38px] h-[38px] rounded-full bg-white border border-[#e0d9ce] flex items-center justify-center text-[#423d33] hover:bg-[#e8720c] hover:border-[#e8720c] hover:text-white hover:-translate-y-0.5 transition-all shadow-sm">
+                 <Twitter size={17} />
+               </a>
+            </div>
+            <p className="text-[10px] text-[#857c6e] mt-4 font-medium">Powered by restroMenu © 2026</p>
+          </div>
         </div>
 
         {/* Floating Cart */}
@@ -320,6 +338,7 @@ export default function DemoMenu() {
                             setCart({});
                             setOrderPlaced(false);
                             setShowCart(false);
+                            setRating(0);
                         } else {
                             setShowCart(false);
                         }
@@ -420,7 +439,42 @@ export default function DemoMenu() {
                          </div>
                        </div>
 
-                       <button onClick={() => { setCart({}); setOrderPlaced(false); setShowCart(false); }} className="mt-4 w-full text-[#e8720c] font-bold text-sm bg-[#fef0e4] px-6 py-3.5 rounded-xl transition-colors hover:bg-[#fde8e8]">
+                       {orderStatus === 2 && (
+                         <motion.div 
+                           initial={{ opacity: 0, scale: 0.95 }}
+                           animate={{ opacity: 1, scale: 1 }}
+                           transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                           className="w-full bg-white rounded-2xl p-5 shadow-[0_8px_30px_rgba(0,0,0,0.06)] border border-[#e0d9ce] mt-4 z-10 relative"
+                         >
+                           <p className="font-bold text-[#0f0e0b] mb-4 text-[15px]">Rate your experience ✨</p>
+                           <div className="flex justify-center gap-2 mb-2">
+                             {[1, 2, 3, 4, 5].map((star) => (
+                               <button 
+                                 key={star} 
+                                 onClick={() => setRating(star)} 
+                                 className="focus:outline-none transition-transform hover:scale-125 active:scale-90"
+                               >
+                                 <Star 
+                                   className={`transition-colors duration-300 ${rating >= star ? "fill-[#e8720c] text-[#e8720c]" : "text-[#d4cbb8]"}`} 
+                                   size={32} 
+                                   strokeWidth={1.5}
+                                 />
+                               </button>
+                             ))}
+                           </div>
+                           {rating > 0 && (
+                             <motion.p 
+                               initial={{ opacity: 0, y: 5 }} 
+                               animate={{ opacity: 1, y: 0 }} 
+                               className="text-xs text-[#3a6348] font-bold mt-3 bg-[#e8f2eb] inline-block px-3 py-1.5 rounded-md"
+                             >
+                               Thanks for your feedback! ❤️
+                             </motion.p>
+                           )}
+                         </motion.div>
+                       )}
+
+                       <button onClick={() => { setCart({}); setOrderPlaced(false); setShowCart(false); setRating(0); }} className="mt-4 w-full text-[#e8720c] font-bold text-sm bg-[#fef0e4] px-6 py-3.5 rounded-xl transition-colors hover:bg-[#fde8e8] hover:shadow-sm">
                          Start New Order
                        </button>
                     </motion.div>

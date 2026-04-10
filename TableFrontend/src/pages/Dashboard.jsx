@@ -56,19 +56,7 @@ const chartOptions = {
   interaction: { intersect: false, mode: 'index' },
 };
 
-const RECENT_ORDERS = [
-  { id: "#2849", table: "04", items: "Paneer Masala, Garlic Naan", total: "₹420", status: "preparing", time: "2m" },
-  { id: "#2848", table: "12", items: "Veg Biryani, Raita", total: "₹280", status: "ready", time: "8m" },
-  { id: "#2847", table: "07", items: "Tandoori Chicken", total: "₹350", status: "served", time: "15m" },
-  { id: "#2846", table: "02", items: "Mango Lassi (2)", total: "₹180", status: "served", time: "22m" },
-];
-
-const TABS = [
-  { id: "overview", label: "Overview", icon: BarChart3 },
-  { id: "finance", label: "Sales & Finance", icon: Banknote },
-  { id: "menu", label: "Menu & Products", icon: UtensilsCrossed },
-  { id: "operations", label: "Operations & Tables", icon: Smartphone },
-];
+import { RECENT_ORDERS, DASHBOARD_TABS as TABS } from "../data/database";
 
 function KpiCard({ title, value, change, isPositive, extraIcon: Icon }) {
   return (

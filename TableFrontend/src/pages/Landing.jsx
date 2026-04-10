@@ -39,243 +39,16 @@ const fadeUp = {
 const stagger = { show: { transition: { staggerChildren: 0.1 } } };
 
 /* ── Data ──────────────────────────────────────────── */
-
-const NAV_ITEMS = [
-  { label: "Home", id: "home" },
-  { label: "Features", id: "features" },
-  { label: "How It Works", id: "how-it-works" },
-  { label: "Live Demo", id: "live-demo" },
-  { label: "FAQ", id: "faq" },
-  { label: "Contact Us", path: "/contact" },
-];
-
-const STATS = [
-  { value: "12 000+", label: "Restaurants Live" },
-  { value: "₹0", label: "Setup Cost" },
-  { value: "5 min", label: "Go-Live Time" },
-  { value: "4.9 ★", label: "Avg. Rating" },
-];
-
-const FEATURES = [
-  {
-    icon: QrCode,
-    title: "QR Code Menu",
-    body: "Customers scan and instantly see your menu. No app download needed.",
-    accent: "#e8720c",
-    glow: "rgba(232,114,12,0.12)",
-    iconBg: "#fef0e4",
-  },
-  {
-    icon: Smartphone,
-    title: "Works on All Phones",
-    body: "Beautiful menu experience on any smartphone browser.",
-    accent: "#3b82f6",
-    glow: "rgba(59,130,246,0.12)",
-    iconBg: "#eff6ff",
-  },
-  {
-    icon: BarChart3,
-    title: "Free Analytics",
-    body: "See what items are popular, peak hours, and customer traffic.",
-    accent: "#3a6348",
-    glow: "rgba(58,99,72,0.12)",
-    iconBg: "#e8f2eb",
-  },
-  {
-    icon: WandSparkles,
-    title: "Easy Menu Editor",
-    body: "Add items, update prices, upload photos — all from your phone.",
-    accent: "#8b5cf6",
-    glow: "rgba(139,92,246,0.12)",
-    iconBg: "#f5f3ff",
-  },
-  {
-    icon: Zap,
-    title: "Instant Updates",
-    body: "Change a price? It updates for customers immediately.",
-    accent: "#f59e0b",
-    glow: "rgba(245,158,11,0.12)",
-    iconBg: "#fffbeb",
-  },
-  {
-    icon: ShieldCheck,
-    title: "Veg / Non-Veg Badges",
-    body: "Clear food type indicators for every item on your menu.",
-    accent: "#10b981",
-    glow: "rgba(16,185,129,0.12)",
-    iconBg: "#ecfdf5",
-  },
-  {
-    icon: Globe,
-    title: "Multi-Language Ready",
-    body: "Hindi, English, and more — serve customers in their language.",
-    accent: "#0ea5e9",
-    glow: "rgba(14,165,233,0.12)",
-    iconBg: "#f0f9ff",
-  },
-  {
-    icon: CheckCircle2,
-    title: "Zero Cost",
-    body: "No setup fees, no monthly charges, no hidden costs. Ever.",
-    accent: "#f43f5e",
-    glow: "rgba(244,63,94,0.12)",
-    iconBg: "#fff1f2",
-  },
-];
-
-const HOW_STEPS = [
-  {
-    step: "01",
-    title: "Create Your Menu",
-    desc: "Add categories, items, photos and prices from the admin panel.",
-    icon: Upload,
-    screen: "create",
-  },
-  {
-    step: "02",
-    title: "Generate QR Codes",
-    desc: "One click prints table-specific QR codes ready to display.",
-    icon: QrCode,
-    screen: "qr",
-  },
-  {
-    step: "03",
-    title: "Guest Scans & Orders",
-    desc: "Guest scans the QR, browses the live menu and places an order from their phone.",
-    icon: Smartphone,
-    screen: "order",
-  },
-  {
-    step: "04",
-    title: "Track & Grow",
-    desc: "Monitor orders, revenue, and top dishes in the real-time analytics dashboard.",
-    icon: BarChart3,
-    screen: "analytics",
-  },
-];
-
-const PLANS = [
-  {
-    name: "Single Branch",
-    price: "₹0",
-    period: "/forever",
-    highlight: false,
-    badge: null,
-    features: [
-      "1 branch completely free",
-      "Unlimited menu items",
-      "Unlimited QR scans",
-      "Basic live analytics",
-      "Email support",
-    ],
-    cta: "Start Free",
-  },
-  {
-    name: "Multi-Branch",
-    price: "₹50",
-    period: "/extra branch /month",
-    highlight: true,
-    badge: "Pay as you grow",
-    features: [
-      "2 branches and more",
-      "Everything in Single Branch",
-      "Unified multi-branch analytics",
-      "Centralized menu management",
-      "Priority 24/7 support",
-    ],
-    cta: "Get Started",
-  },
-];
-
-const TESTIMONIALS = [
-  {
-    name: "Priya Sharma",
-    role: "Owner, Spice Garden, Pune",
-    avatar: "PS",
-    stars: 5,
-    quote:
-      "We went digital in under 10 minutes. Our tables turn 20 % faster because guests order without waiting for a waiter.",
-  },
-  {
-    name: "Rajan Mehra",
-    role: "F&B Manager, The Grand Hotel, Delhi",
-    avatar: "RM",
-    stars: 5,
-    quote:
-      "The kitchen alert system is a game-changer. Zero missed orders and the analytics help us plan our daily specials.",
-  },
-  {
-    name: "Aisha Siddiqui",
-    role: "Co-founder, Bites & Brews, Bangalore",
-    avatar: "AS",
-    stars: 5,
-    quote:
-      "Our guests love the experience. Average order value is up 18 % since we added item photos and combos.",
-  },
-];
-
-const FAQS = [
-  {
-    q: "Do my guests need to download an app?",
-    a: "No. Guests simply scan the QR with any smartphone camera and the menu opens instantly in the browser.",
-  },
-  {
-    q: "Can I update my menu in real time?",
-    a: "Yes. Any change you make in the admin panel reflects on every table's QR page within seconds.",
-  },
-  {
-    q: "How many tables / QR codes can I create?",
-    a: "Starter supports up to 10 tables. Pro allows unlimited tables. Enterprise adds multi-floor mapping.",
-  },
-  {
-    q: "Is payment collection supported?",
-    a: "Online payment at checkout (UPI, card, wallet) is available on Pro and Enterprise plans.",
-  },
-  {
-    q: "Can I use my own branding on the menu page?",
-    a: "Pro and above support custom logo, accent color, and a branded subdomain for your menu.",
-  },
-  {
-    q: "What happens if there is no internet on the guest's phone?",
-    a: "The menu page is cached via service-worker after the first load, so it remains accessible offline.",
-  },
-];
-
-/* ── Phone animation screens ───────────────────────── */
-const FOOD_ITEMS = [
-  {
-    name: "Paneer Butter Masala",
-    price: 280,
-    veg: true,
-    desc: "320g",
-    color: "#f5e3cc",
-    img: "https://images.unsplash.com/photo-1631452180519-c014fe946bc7?w=200&q=70",
-  },
-  {
-    name: "Dal Makhani",
-    price: 220,
-    veg: true,
-    desc: "280g",
-    color: "#e9d4b8",
-    img: "https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=200&q=70",
-  },
-  {
-    name: "Chicken Tikka",
-    price: 360,
-    veg: false,
-    desc: "250g",
-    color: "#f0d4bb",
-    img: "https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=200&q=70",
-  },
-  {
-    name: "Garlic Naan",
-    price: 60,
-    veg: true,
-    desc: "2 pcs",
-    color: "#ede0c8",
-    img: "https://images.unsplash.com/photo-1565958011703-44f9829ba187?w=200&q=70",
-  },
-];
+import {
+  NAV_ITEMS,
+  STATS,
+  FEATURES,
+  HOW_STEPS,
+  PLANS,
+  TESTIMONIALS,
+  FAQS,
+  FOOD_ITEMS
+} from "../data/database";
 
 function FoodCard({ item, compact = false }) {
   return (
@@ -1545,8 +1318,8 @@ export default function Landing() {
         {/* Background glow effects */}
         <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-white/10 blur-[120px] rounded-full pointer-events-none" />
         <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-black/10 blur-[100px] rounded-full pointer-events-none" />
-        
-        <Motion.div 
+
+        <Motion.div
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
@@ -1565,39 +1338,39 @@ export default function Landing() {
             <p className="text-white/90 text-base sm:text-lg max-w-xl leading-relaxed mb-8 font-medium">
               Don't just take our word for it. Point your smartphone camera at the QR code to instantly see exactly how your customers will browse, order, and interact with the digital menu.
             </p>
-            
+
             <div className="flex flex-wrap items-center gap-5 sm:gap-8">
-               <div className="flex items-center gap-2 text-white text-sm font-bold">
-                 <div className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center"><CheckCircle2 size={12} className="text-white" /></div> Instant Loading
-               </div>
-               <div className="flex items-center gap-2 text-white text-sm font-bold">
-                 <div className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center"><CheckCircle2 size={12} className="text-white" /></div> Native App Feel
-               </div>
-               <div className="flex items-center gap-2 text-white text-sm font-bold">
-                 <div className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center"><CheckCircle2 size={12} className="text-white" /></div> Table-Specific
-               </div>
+              <div className="flex items-center gap-2 text-white text-sm font-bold">
+                <div className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center"><CheckCircle2 size={12} className="text-white" /></div> Instant Loading
+              </div>
+              <div className="flex items-center gap-2 text-white text-sm font-bold">
+                <div className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center"><CheckCircle2 size={12} className="text-white" /></div> Native App Feel
+              </div>
+              <div className="flex items-center gap-2 text-white text-sm font-bold">
+                <div className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center"><CheckCircle2 size={12} className="text-white" /></div> Table-Specific
+              </div>
             </div>
           </div>
-          
+
           {/* Right QR Code */}
-          <div 
+          <div
             onClick={() => navigate("/demo")}
             className="flex-shrink-0 bg-white p-2.5 sm:p-3 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] relative z-10 group overflow-hidden border border-white cursor-pointer hover:scale-[1.02] transition-transform"
           >
-             <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-transparent via-[#e8720c]/15 to-transparent scan-line pointer-events-none" />
-             <div className="border border-[#e0d9ce]/50 rounded-xl overflow-hidden bg-white group-hover:border-[#e8720c]/50 transition-colors">
-               <img 
-                 src={`https://api.qrserver.com/v1/create-qr-code/?size=350x350&data=${encodeURIComponent(window.location.origin + "/demo")}&bgcolor=ffffff&color=0f0e0b`}
-                 alt="Live Demo QR"
-                 className="w-56 h-56 sm:w-64 sm:h-64 object-contain mix-blend-multiply"
-               />
-             </div>
-             <div className="text-center mt-3 mb-1">
-               <p className="font-bold text-[#0f0e0b] text-sm uppercase tracking-widest flex items-center justify-center gap-2">
-                 <QrCode size={16} className="text-[#e8720c]"/> Scan or Click
-               </p>
-               <p className="text-[10px] text-[#857c6e] mt-1 font-medium uppercase tracking-wider">Demo Link</p>
-             </div>
+            <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-transparent via-[#e8720c]/15 to-transparent scan-line pointer-events-none" />
+            <div className="border border-[#e0d9ce]/50 rounded-xl overflow-hidden bg-white group-hover:border-[#e8720c]/50 transition-colors">
+              <img
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=350x350&data=${encodeURIComponent(window.location.origin + "/demo")}&bgcolor=ffffff&color=0f0e0b`}
+                alt="Live Demo QR"
+                className="w-56 h-56 sm:w-64 sm:h-64 object-contain mix-blend-multiply"
+              />
+            </div>
+            <div className="text-center mt-3 mb-1">
+              <p className="font-bold text-[#0f0e0b] text-sm uppercase tracking-widest flex items-center justify-center gap-2">
+                <QrCode size={16} className="text-[#e8720c]" /> Scan or Click
+              </p>
+              <p className="text-[10px] text-[#857c6e] mt-1 font-medium uppercase tracking-wider">Demo Link</p>
+            </div>
           </div>
         </Motion.div>
       </section>
@@ -1613,6 +1386,71 @@ export default function Landing() {
               <p className="text-sm text-[#857c6e] mt-1">{s.label}</p>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* ════════════════ 3.5. HOTEL ROOM SERVICE ════════════════ */}
+      <section className="py-24 bg-white border-b border-[#e0d9ce] overflow-hidden">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+          <div className="flex flex-col md:flex-row items-center gap-16">
+            <div className="flex-1 order-2 md:order-1">
+              <Motion.div
+                initial={{ opacity: 0, x: -30 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.6 }}
+              >
+                <p className="inline-flex items-center gap-2 bg-[#fef0e4] text-[#e8720c] text-xs font-bold px-3 py-1.5 rounded-full mb-5 uppercase tracking-widest">
+                  Beyond Restaurants
+                </p>
+                <h2 className="font-display text-4xl sm:text-5xl font-bold text-[#0f0e0b] mb-6 leading-tight">
+                  Seamless Room Service for <span className="text-[#e8720c]">Modern Hotels</span>
+                </h2>
+                <p className="text-[#857c6e] text-lg leading-relaxed mb-8">
+                  Elevate your guest experience with our QR-based room service solution. Guests scan the QR in their room to place orders directly. Orders are received instantly at the reception and transferred seamlessly to the kitchen for effortless room service operations.
+                </p>
+
+                <div className="space-y-4">
+                  {[
+                    { title: "In-Room QR Scanning", desc: "Guests scan the code from their bedside or desk without picking up the phone." },
+                    { title: "Reception Dashboard", desc: "Front desk receives and verifies the orders, updating room billing automatically." },
+                    { title: "Instant Kitchen Transfer", desc: "Approved orders instantly flow to the kitchen to speed up preparation." }
+                  ].map((feature, idx) => (
+                    <div key={idx} className="flex items-start gap-4 p-4 rounded-xl border border-[#e0d9ce] bg-[#faf7f2] hover:border-[#e8720c]/50 transition-colors">
+                      <div className="w-10 h-10 rounded-lg bg-white border border-[#e0d9ce] flex items-center justify-center flex-shrink-0 text-[#e8720c] font-bold text-lg">
+                        0{idx + 1}
+                      </div>
+                      <div>
+                        <p className="font-bold text-[#0f0e0b]">{feature.title}</p>
+                        <p className="text-sm text-[#857c6e] mt-1">{feature.desc}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Motion.div>
+            </div>
+            <div className="flex-1 order-1 md:order-2 flex justify-center w-full">
+              <Motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.6 }}
+                className="relative w-full max-w-md aspect-[4/5] rounded-3xl overflow-hidden shadow-2xl"
+              >
+                <img src="https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=800&q=80" alt="Luxury Hotel Room" className="w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#0f0e0b]/80 via-transparent to-transparent" />
+                <div className="absolute bottom-6 left-6 right-6 bg-white/10 backdrop-blur-md border border-white/20 p-5 rounded-2xl text-white shadow-lg">
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#27c93f] pulse-dot"></span>
+                    <span className="text-xs font-bold uppercase tracking-widest text-white/90">Live Integration</span>
+                  </div>
+                  <p className="text-sm font-medium text-white">
+                    Room 304 ordered 2x Club Sandwich. Forwarding to Kitchen queue...
+                  </p>
+                </div>
+              </Motion.div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -1639,7 +1477,7 @@ export default function Landing() {
             initial="hidden"
             whileInView="show"
             viewport={{ once: true, amount: 0.1 }}
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5"
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
           >
             {FEATURES.map((f) => (
               <FeatureCard key={f.title} feature={f} />
@@ -1652,7 +1490,7 @@ export default function Landing() {
       <section className="bg-[#e8720c] py-24 relative overflow-hidden">
         {/* Subtle background glow to fit theme */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-4xl h-[400px] bg-white opacity-10 blur-[120px] pointer-events-none" />
-        
+
         <div className="max-w-6xl mx-auto px-4 sm:px-6 relative z-10">
           <div className="text-center mb-16 reveal visible">
             <p className="inline-flex items-center gap-2 bg-white/20 border border-white/30 text-white text-xs font-semibold px-3 py-1.5 rounded-full mb-5 uppercase tracking-widest">
@@ -1676,10 +1514,10 @@ export default function Landing() {
               className="bg-white border border-transparent rounded-2xl overflow-hidden flex flex-col group hover:shadow-2xl hover:shadow-[rgba(0,0,0,0.1)] transition-all duration-300"
             >
               <div className="h-56 overflow-hidden relative">
-                <img 
-                  src="https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=600&q=80" 
-                  alt="Staff holding tablet" 
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" 
+                <img
+                  src="https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=600&q=80"
+                  alt="Staff holding tablet"
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-white via-white/50 to-transparent" />
               </div>
@@ -1704,10 +1542,10 @@ export default function Landing() {
               className="bg-white border border-transparent rounded-2xl overflow-hidden flex flex-col group hover:shadow-2xl hover:shadow-[rgba(0,0,0,0.1)] transition-all duration-300"
             >
               <div className="h-56 overflow-hidden relative">
-                <img 
-                  src="https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=600&q=80" 
-                  alt="Restaurant storefront" 
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" 
+                <img
+                  src="https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=600&q=80"
+                  alt="Restaurant storefront"
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-white via-white/50 to-transparent" />
               </div>
@@ -1732,10 +1570,10 @@ export default function Landing() {
               className="bg-white border border-transparent rounded-2xl overflow-hidden flex flex-col group hover:shadow-2xl hover:shadow-[rgba(0,0,0,0.1)] transition-all duration-300"
             >
               <div className="h-56 overflow-hidden relative">
-                <img 
-                  src="https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=600&q=80" 
-                  alt="Customers scanning QR code" 
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" 
+                <img
+                  src="https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=600&q=80"
+                  alt="Customers scanning QR code"
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-white via-white/50 to-transparent" />
               </div>
@@ -1752,6 +1590,7 @@ export default function Landing() {
           </div>
         </div>
       </section>
+
 
       {/* ════════════════ 5. HOW IT WORKS ═════════════════════════ */}
       <section id="how-it-works" className="bg-[#f5f0e8] py-24">
@@ -1776,16 +1615,14 @@ export default function Landing() {
                 <button
                   key={s.step}
                   onClick={() => setActiveStep(i)}
-                  className={`w-full flex items-start gap-4 p-4 rounded-xl border text-left transition-all ${
-                    activeStep === i
+                  className={`w-full flex items-start gap-4 p-4 rounded-xl border text-left transition-all ${activeStep === i
                       ? "border-[#e8720c] bg-white"
                       : "border-[#e0d9ce] bg-transparent hover:border-[#e8720c]/50"
-                  }`}
+                    }`}
                 >
                   <div
-                    className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors ${
-                      activeStep === i ? "bg-[#e8720c]" : "bg-[#e0d9ce]"
-                    }`}
+                    className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors ${activeStep === i ? "bg-[#e8720c]" : "bg-[#e0d9ce]"
+                      }`}
                   >
                     <s.icon
                       size={18}
@@ -1845,11 +1682,11 @@ export default function Landing() {
             >
               {/* Decorative scan line */}
               <div className="absolute top-0 left-6 w-16 h-full bg-gradient-to-b from-transparent via-[#e8720c]/10 to-transparent scan-line" />
-              
+
               <div className="w-20 h-20 bg-white p-1.5 rounded-xl shadow-[0_2px_10px_rgba(232,114,12,0.15)] flex-shrink-0 relative z-10 border border-[#e8720c]/20">
-                <img 
+                <img
                   src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(window.location.origin + "/demo")}&bgcolor=ffffff&color=0f0e0b`}
-                  alt="Scan to view responsive demo" 
+                  alt="Scan to view responsive demo"
                   className="w-full h-full object-contain rounded-lg"
                 />
               </div>
@@ -1932,11 +1769,10 @@ export default function Landing() {
               <Motion.div
                 key={plan.name}
                 variants={fadeUp}
-                className={`rounded-xl p-7 flex flex-col ${
-                  plan.highlight
+                className={`rounded-xl p-7 flex flex-col ${plan.highlight
                     ? "bg-[#3a6348] text-white shadow-xl"
                     : "bg-white border border-[#e0d9ce] text-[#0f0e0b]"
-                }`}
+                  }`}
               >
                 {plan.badge && (
                   <span className="self-start text-xs font-semibold bg-[#e8720c] text-white px-3 py-1 rounded-full mb-4">
@@ -1981,11 +1817,10 @@ export default function Landing() {
                 </ul>
                 <button
                   onClick={() => navigate("/auth")}
-                  className={`w-full py-3 rounded-md font-semibold text-sm transition-colors ${
-                    plan.highlight
+                  className={`w-full py-3 rounded-md font-semibold text-sm transition-colors ${plan.highlight
                       ? "bg-[#e8720c] hover:bg-[#d4620a] text-white"
                       : "border border-[#e0d9ce] hover:border-[#e8720c] hover:text-[#e8720c] text-[#0f0e0b]"
-                  }`}
+                    }`}
                 >
                   {plan.cta}
                 </button>
