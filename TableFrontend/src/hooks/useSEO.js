@@ -8,7 +8,7 @@ import {
 
 /**
  * Hook to update page SEO meta tags and structured data
- * 
+ *
  * Usage:
  * useSEO("landing")
  * useSEO({
@@ -28,22 +28,24 @@ export const useSEO = (config) => {
         updatePageMeta(
           pageConfig.title,
           pageConfig.description,
-          pageConfig.keywords
+          pageConfig.keywords,
         );
-        updateCanonicalURL(`https://restromenu.com/${config === "landing" ? "" : config}`);
+        updateCanonicalURL(
+          `https://restromenu.com/${config === "landing" ? "" : config}`,
+        );
       }
     } else if (typeof config === "object") {
       // Use custom config
       const { title, description, keywords, url, structuredData } = config;
-      
+
       if (title && description) {
         updatePageMeta(title, description, keywords);
       }
-      
+
       if (url) {
         updateCanonicalURL(`https://restromenu.com${url}`);
       }
-      
+
       if (structuredData) {
         addStructuredData(structuredData);
       }

@@ -12,9 +12,7 @@ const SITE_LOGO = `${SITE_URL}/logo.png`;
  */
 export const updateMetaTag = (name, content, property = null) => {
   let element = document.querySelector(
-    property
-      ? `meta[property="${property}"]`
-      : `meta[name="${name}"]`
+    property ? `meta[property="${property}"]` : `meta[name="${name}"]`,
   );
 
   if (!element) {
@@ -68,7 +66,7 @@ export const updateCanonicalURL = (url) => {
     document.head.appendChild(canonicalLink);
   }
   canonicalLink.href = url;
-  
+
   // Also update og:url
   updateMetaTag("url", url, "og:url");
 };
@@ -230,8 +228,7 @@ export const getLocalBusinessStructuredData = () => ({
   "@context": "https://schema.org",
   "@type": "LocalBusiness",
   name: "restroMenu",
-  description:
-    "Digital QR menu and POS solution for restaurants and hotels",
+  description: "Digital QR menu and POS solution for restaurants and hotels",
   image: SITE_LOGO,
   url: SITE_URL,
   telephone: "+91-XXXXXXXXXX",

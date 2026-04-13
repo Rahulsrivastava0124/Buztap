@@ -112,10 +112,7 @@ export function ProductPageExample() {
 
 import { useEffect } from "react";
 import useSEO from "../hooks/useSEO";
-import {
-  addStructuredData,
-  getBreadcrumbStructuredData,
-} from "../utils/seo";
+import { addStructuredData, getBreadcrumbStructuredData } from "../utils/seo";
 
 export function CategoryPageExample() {
   const breadcrumbPath = [
@@ -128,8 +125,7 @@ export function CategoryPageExample() {
     title: "Restaurant Management Tools - restroMenu",
     description:
       "Complete restaurant management solution: QR menus, table ordering, POS integration, and analytics.",
-    keywords:
-      "restaurant tools, restaurant management, POS, ordering system",
+    keywords: "restaurant tools, restaurant management, POS, ordering system",
     url: "/features/restaurant-tools",
   });
 
@@ -164,12 +160,10 @@ export function DynamicPageExample() {
     updatePageMeta(
       `${restaurant.name} - Order Online`,
       `Discover ${restaurant.name}. ${restaurant.description}`,
-      `${restaurant.name}, ${restaurant.cuisine} restaurant, online ordering`
+      `${restaurant.name}, ${restaurant.cuisine} restaurant, online ordering`,
     );
 
-    updateCanonicalURL(
-      `https://restromenu.com/restaurant/${restaurantId}`
-    );
+    updateCanonicalURL(`https://restromenu.com/restaurant/${restaurantId}`);
   }, [restaurantId]);
 
   return <div>{/* Dynamic page content */}</div>;
