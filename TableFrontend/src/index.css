@@ -73,6 +73,16 @@ body {
   background-color: var(--color-paper);
   color: var(--color-ink);
   overflow-x: hidden;
+  font-size: clamp(14px, 0.85rem + 0.15vw, 16px);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+h1,
+h2,
+h3 {
+  letter-spacing: -0.01em;
 }
 .font-display {
   font-family: var(--font-display);
