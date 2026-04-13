@@ -2,10 +2,8 @@ import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowRight,
-  BarChart3,
   Bell,
   CheckCircle2,
-  ChevronDown,
   Clock,
   Globe,
   Menu,
@@ -13,21 +11,32 @@ import {
   ShieldCheck,
   Smartphone,
   Star,
-  Upload,
   Users,
   Utensils,
   WandSparkles,
   X,
-  Zap,
-  BookOpen,
-  FileText,
-  LayoutGrid,
-  PlayCircle,
-  Monitor,
-  TrendingUp,
-  PieChart,
-  Activity,
 } from "lucide-react";
+import { useNavigate, Link } from "react-router-dom";
+
+import {
+  NAV_ITEMS,
+  STATS,
+  FEATURES,
+  HOW_STEPS,
+  PLANS,
+  TESTIMONIALS,
+  FAQS,
+} from "../data/database";
+
+import {
+  FeatureCard,
+  AnimatedPhone,
+  GuestPhone,
+  GuestJourneyAnimation,
+  FaqItem,
+  PosWorkflowMock,
+  DesktopAdminScreen,
+} from "../components/landing";
 
 const Motion = motion;
 
@@ -37,1029 +46,6 @@ const fadeUp = {
   show: { opacity: 1, y: 0, transition: { duration: 0.48 } },
 };
 const stagger = { show: { transition: { staggerChildren: 0.1 } } };
-
-/* ── Data ──────────────────────────────────────────── */
-import {
-  NAV_ITEMS,
-  STATS,
-  FEATURES,
-  HOW_STEPS,
-  PLANS,
-  TESTIMONIALS,
-  FAQS,
-  FOOD_ITEMS
-} from "../data/database";
-
-function FoodCard({ item, compact = false }) {
-  return (
-    <div
-      className={`bg-white rounded-xl overflow-hidden shadow-[0_1px_5px_rgba(15,14,11,0.08)]`}
-    >
-      <div
-        className="relative overflow-hidden"
-        style={{ height: compact ? 52 : 64 }}
-      >
-        <img
-          src={item.img}
-          alt={item.name}
-          className="w-full h-full object-cover"
-        />
-        <span
-          className="absolute top-1.5 left-1.5 w-2 h-2 rounded-sm border-2"
-          style={{
-            borderColor: item.veg ? "#3a6348" : "#c0392b",
-            backgroundColor: item.veg ? "#e8f2eb" : "#fde8e8",
-          }}
-        />
-      </div>
-      <div className="p-1.5">
-        <p className="text-[8px] font-semibold text-[#0f0e0b] leading-tight">
-          {item.name}
-        </p>
-        <p className="text-[7px] text-[#b0a898]">{item.desc}</p>
-      </div>
-    </div>
-  );
-}
-
-function FeatureCard({ feature }) {
-  const [pos, setPos] = useState({ x: 0, y: 0 });
-  const [hovered, setHovered] = useState(false);
-  return (
-    <Motion.div
-      variants={fadeUp}
-      onMouseMove={(e) => {
-        const r = e.currentTarget.getBoundingClientRect();
-        setPos({ x: e.clientX - r.left, y: e.clientY - r.top });
-      }}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      className="relative bg-white rounded-2xl p-6 overflow-hidden cursor-default shadow-[0_1px_4px_rgba(15,14,11,0.07)] hover:shadow-[0_8px_32px_rgba(15,14,11,0.12)] transition-shadow duration-300"
-      style={{
-        background: hovered
-          ? `radial-gradient(260px circle at ${pos.x}px ${pos.y}px, ${feature.glow}, #ffffff 65%)`
-          : "#ffffff",
-        transition: "background 0.08s, box-shadow 0.3s",
-      }}
-    >
-      <div
-        className="w-14 h-14 rounded-full flex items-center justify-center mb-5"
-        style={{ backgroundColor: feature.iconBg }}
-      >
-        <feature.icon
-          size={24}
-          strokeWidth={1.8}
-          style={{ color: feature.accent }}
-        />
-      </div>
-      <h3 className="font-bold text-[#0f0e0b] text-[15px] mb-2">
-        {feature.title}
-      </h3>
-      <p className="text-sm text-[#857c6e] leading-relaxed">{feature.body}</p>
-    </Motion.div>
-  );
-}
-
-function PhoneScreen({ screen }) {
-  /* ── Step 1: Restaurant menu home ── */
-  if (screen === "create") {
-    return (
-      <div className="h-full flex flex-col bg-[#faf7f2]">
-        {/* hero banner */}
-        <div className="relative h-24 flex-shrink-0 overflow-hidden">
-          <img
-            src="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&q=70"
-            alt="restaurant"
-            className="w-full h-full object-cover"
-          />
-          <div className="absolute inset-0 bg-[#0f0e0b]/45" />
-          <div className="absolute bottom-2 left-3">
-            <div className="w-8 h-8 bg-white rounded-xl flex items-center justify-center mb-1">
-              <span className="text-[9px] font-black text-[#0f0e0b]">SG</span>
-            </div>
-            <p className="text-white text-[11px] font-bold leading-tight">
-              Spice Garden
-            </p>
-            <p className="text-white/70 text-[7px]">North Indian · Pune</p>
-          </div>
-        </div>
-        {/* tabs */}
-
-        {/* categories */}
-        <div className="flex gap-1.5 px-3 py-2 bg-white flex-shrink-0">
-          {["Mains", "Starters", "Breads", "Drinks"].map((cat, i) => (
-            <span
-              key={cat}
-              className="text-[7px] font-semibold px-2 py-0.5 rounded-full border flex-shrink-0"
-              style={{
-                borderColor: i === 0 ? "#e8720c" : "#e0d9ce",
-                color: i === 0 ? "#e8720c" : "#857c6e",
-              }}
-            >
-              {cat}
-            </span>
-          ))}
-        </div>
-        {/* grid */}
-        <div className="flex-1 overflow-hidden px-3 pb-2">
-          <p className="text-[9px] font-bold text-[#0f0e0b] py-1.5">Mains</p>
-          <div className="grid grid-cols-2 gap-2">
-            {FOOD_ITEMS.map((item) => (
-              <FoodCard key={item.name} item={item} />
-            ))}
-          </div>
-        </div>
-        {/* bottom bar */}
-        <div className="bg-[#e8720c] text-white flex items-center justify-between px-3 py-2 flex-shrink-0">
-          <span className="text-[8px] font-semibold">Browse full menu</span>
-          <ArrowRight size={11} />
-        </div>
-      </div>
-    );
-  }
-
-  /* ── Step 2: QR Code ── */
-  if (screen === "qr") {
-    return (
-      <div className="h-full flex flex-col items-center justify-center bg-white gap-3 px-5">
-        <div className="w-10 h-10 rounded-2xl bg-[#fef0e4] flex items-center justify-center">
-          <QrCode size={20} className="text-[#e8720c]" />
-        </div>
-        <p className="text-[13px] font-bold text-[#0f0e0b]">Table 04</p>
-        <div className="w-32 h-32 bg-white border border-[#e0d9ce] rounded-2xl flex items-center justify-center relative overflow-hidden shadow-[0_2px_16px_rgba(15,14,11,0.1)]">
-          <QrCode size={84} className="text-[#0f0e0b]" strokeWidth={1} />
-          <div className="absolute left-0 right-0 h-0.5 bg-[#e8720c] scan-line opacity-70" />
-        </div>
-        <p className="text-[9px] text-[#857c6e] text-center leading-relaxed">
-          Scan with your camera
-          <br />
-          to open the live menu
-        </p>
-        <div className="flex items-center gap-1.5 bg-[#fef0e4] px-3 py-1.5 rounded-full">
-          <div className="w-1.5 h-1.5 rounded-full bg-[#e8720c] pulse-dot" />
-          <span className="text-[8px] font-semibold text-[#e8720c]">
-            restroMenu · Live
-          </span>
-        </div>
-      </div>
-    );
-  }
-
-  /* ── Step 3: Order details ── */
-  if (screen === "order") {
-    return (
-      <div className="h-full flex flex-col bg-white">
-        <div className="px-3 pt-3 pb-2 border-b border-[#f0ebe0] flex-shrink-0">
-          <p className="text-[12px] font-bold text-[#0f0e0b]">Order details</p>
-          <p className="text-[8px] text-[#857c6e]">
-            Check or complete your order
-          </p>
-        </div>
-
-        <p className="text-[9px] font-bold text-[#0f0e0b] px-3 mb-2 flex-shrink-0">
-          Order
-        </p>
-        <div className="flex-1 overflow-hidden px-3 space-y-2">
-          {[
-            {
-              name: "Paneer Butter Masala",
-              note: "Medium spicy",
-              price: 280,
-              qty: 1,
-              img: "https://images.unsplash.com/photo-1631452180519-c014fe946bc7?w=80&q=70",
-            },
-            {
-              name: "Dal Makhani",
-              note: "No garnish",
-              price: 220,
-              qty: 1,
-              img: "https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=80&q=70",
-            },
-            {
-              name: "Garlic Naan",
-              note: "Extra butter",
-              price: 60,
-              qty: 2,
-              img: "https://images.unsplash.com/photo-1565958011703-44f9829ba187?w=80&q=70",
-            },
-          ].map((item) => (
-            <div key={item.name} className="flex items-center gap-2">
-              <div className="w-10 h-10 rounded-xl flex-shrink-0 overflow-hidden">
-                <img
-                  src={item.img}
-                  alt={item.name}
-                  className="w-full h-full object-cover"
-                />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-[9px] font-semibold text-[#0f0e0b] leading-tight truncate">
-                  {item.name}
-                </p>
-                <p className="text-[7px] text-[#b0a898]">{item.note}</p>
-              </div>
-              <div className="flex items-center gap-1 border border-[#e0d9ce] rounded-full px-1.5 py-0.5 flex-shrink-0">
-                <span className="text-[9px] font-bold text-[#857c6e] w-3 text-center">
-                  −
-                </span>
-                <span className="text-[9px] font-bold text-[#0f0e0b] w-3 text-center">
-                  {item.qty}
-                </span>
-                <span className="text-[9px] font-bold text-[#857c6e] w-3 text-center">
-                  +
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
-        <div className="px-3 pb-3 pt-3 flex-shrink-0">
-          <div className="flex justify-between text-[9px] font-semibold mb-2">
-            <span className="text-[#857c6e]">Total</span>
-            <span className="text-[#0f0e0b]">₹560</span>
-          </div>
-          <button className="w-full bg-[#e8720c] text-white text-[9px] font-bold py-2.5 rounded-xl">
-            Pay ₹560
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  /* ── Step 4: Order confirmed ── */
-  return (
-    <div className="h-full flex flex-col items-center justify-center bg-white gap-4 px-5">
-      <div className="w-16 h-16 rounded-full border-4 border-[#3a6348] flex items-center justify-center">
-        <CheckCircle2 size={30} className="text-[#3a6348]" strokeWidth={1.8} />
-      </div>
-      <div className="text-center">
-        <p className="text-[9px] text-[#857c6e] mb-1">
-          Order <span className="text-[#e8720c] font-bold">#0051</span> is
-          finished
-        </p>
-        <p className="text-[12px] font-bold text-[#0f0e0b] leading-snug">
-          Did everything meet
-          <br />
-          your expectations?
-        </p>
-      </div>
-      <div className="flex gap-3">
-        <div className="w-12 h-12 rounded-xl border-2 border-[#e0d9ce] flex items-center justify-center text-xl">
-          👎
-        </div>
-        <div className="w-12 h-12 rounded-xl border-2 border-[#e8720c] bg-[#fef0e4] flex items-center justify-center text-xl">
-          👍
-        </div>
-      </div>
-      <button className="w-full border border-[#e8720c] text-[#e8720c] text-[9px] font-bold py-2 rounded-xl">
-        Rate your experience
-      </button>
-    </div>
-  );
-}
-
-/* ── Custom phone frame (no border, dark neutral, controlled width) ── */
-function PhoneFrame({ children, className = "" }) {
-  return (
-    <div className={`relative w-[300px] flex-shrink-0 ${className}`}>
-      {/* outer shell */}
-      <div className="relative bg-[#141210] rounded-[52px] p-3 shadow-[0_40px_90px_rgba(15,14,11,0.28),inset_0_1px_0_rgba(255,255,255,0.07)]">
-        {/* volume buttons */}
-        <div className="absolute -left-[3px] top-[80px] w-[3px] h-8 bg-[#1e1c18] rounded-l-sm" />
-        <div className="absolute -left-[3px] top-[122px] w-[3px] h-8 bg-[#1e1c18] rounded-l-sm" />
-        {/* power button */}
-        <div className="absolute -right-[3px] top-[100px] w-[3px] h-14 bg-[#1e1c18] rounded-r-sm" />
-        {/* dynamic island */}
-        <div className="absolute top-5 left-1/2 -translate-x-1/2 w-[90px] h-7 bg-[#141210] rounded-full z-10 flex items-center justify-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-[#2a2722]" />
-          <div className="w-[5px] h-[5px] rounded-full bg-[#232120]" />
-        </div>
-        {/* screen */}
-        <div
-          className="w-full rounded-[40px] overflow-hidden flex flex-col bg-[#faf7f2]"
-          style={{ minHeight: 580 }}
-        >
-          {/* island spacer */}
-          <div className="h-9 flex-shrink-0 " />
-          {children}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ── Custom desktop frame (mimics a browser window) ── */
-function DesktopFrame({ children, className = "" }) {
-  return (
-    <div
-      className={`mockup-browser bg-base-300 border flex-shrink-0 w-full max-w-[960px] shadow-[0_40px_90px_rgba(15,14,11,0.28)] ${className}`}
-    >
-      <div className="mockup-browser-toolbar">
-        <div className="input">https://admin.restromenu.com/analytics</div>
-      </div>
-      <div
-        className="bg-[#faf7f2] w-full flex flex-col text-left"
-        style={{ height: 450 }}
-      >
-        {children}
-      </div>
-    </div>
-  );
-}
-
-function DesktopAdminScreen() {
-  return (
-    <DesktopFrame>
-      <div className="flex h-full bg-[#faf7f2]">
-        {/* Sidebar */}
-        <div className="w-16 bg-white flex flex-col items-center py-4 gap-6 flex-shrink-0 border-r border-[#e0d9ce]">
-          <div className="w-8 h-8 rounded-lg bg-[#e8720c] flex items-center justify-center mb-4">
-            <Utensils size={16} className="text-white" />
-          </div>
-          {[Activity, TrendingUp, PieChart, FileText].map((Icon, i) => (
-            <button
-              key={i}
-              className={`p-2 rounded-lg transition-colors ${i === 0 ? "bg-[#fef0e4] text-[#e8720c]" : "text-[#857c6e] hover:text-[#0f0e0b] hover:bg-[#faf7f2]"}`}
-            >
-              <Icon size={18} />
-            </button>
-          ))}
-        </div>
-
-        {/* Main Content */}
-        <div className="flex-1 flex flex-col overflow-hidden bg-white">
-          <div className="p-4 border-b border-[#e0d9ce] flex items-center justify-between shadow-[0_1px_2px_rgba(0,0,0,0.03)] z-10">
-            <div>
-              <p className="text-[14px] font-bold text-[#0f0e0b]">
-                Resporto Hotel Analytics
-              </p>
-              <p className="text-[10px] text-[#857c6e]">
-                Today's Performance Overview
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-semibold text-[#857c6e]">
-                Last updated: Just now
-              </span>
-              <div className="w-2 h-2 rounded-full bg-[#27c93f] pulse-dot" />
-            </div>
-          </div>
-
-          <div className="flex-1 overflow-y-auto p-5 scroller">
-            {/* Key Metrics */}
-            <div className="grid grid-cols-4 gap-4 mb-6">
-              {[
-                {
-                  label: "Total Revenue",
-                  value: "₹42,850",
-                  trend: "+12.5%",
-                  positive: true,
-                },
-                {
-                  label: "Orders",
-                  value: "128",
-                  trend: "+8.2%",
-                  positive: true,
-                },
-                {
-                  label: "Avg. Order Value",
-                  value: "₹334",
-                  trend: "+2.1%",
-                  positive: true,
-                },
-                {
-                  label: "Table Turnaround",
-                  value: "42m",
-                  trend: "-4m",
-                  positive: true,
-                },
-              ].map((stat) => (
-                <div
-                  key={stat.label}
-                  className="bg-[#faf7f2] border border-[#e0d9ce] p-3 rounded-xl shadow-sm hover:border-[#e8720c] transition-colors cursor-pointer"
-                >
-                  <p className="text-[10px] text-[#857c6e] mb-1 font-semibold">
-                    {stat.label}
-                  </p>
-                  <p className="font-roboto text-xl font-bold text-[#0f0e0b] mb-1 tracking-tight">
-                    {stat.value}
-                  </p>
-                  <span
-                    className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${stat.positive ? "bg-[#e8f2eb] text-[#3a6348]" : "bg-[#fde8e8] text-[#c0392b]"}`}
-                  >
-                    {stat.trend}
-                  </span>
-                </div>
-              ))}
-            </div>
-
-            {/* Charts Area */}
-            <div className="flex gap-4">
-              {/* Main Chart */}
-              <div className="flex-[2] bg-white border border-[#e0d9ce] p-4 rounded-xl shadow-sm">
-                <p className="text-[11px] font-bold text-[#0f0e0b] mb-4">
-                  Revenue by Hour
-                </p>
-                <div className="h-32 pt-2 relative w-full group cursor-crosshair">
-                  <svg
-                    viewBox="0 0 100 100"
-                    preserveAspectRatio="none"
-                    className="w-full h-full overflow-visible"
-                  >
-                    <defs>
-                      <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#e8720c" stopOpacity="0.25" />
-                        <stop offset="100%" stopColor="#e8720c" stopOpacity="0" />
-                      </linearGradient>
-                    </defs>
-                    <polygon
-                      points={`0,100 ${[40, 65, 50, 80, 55, 90, 70, 85, 100, 75, 45, 30]
-                        .map((h, i) => `${(i * 100) / 11},${100 - h}`)
-                        .join(" ")} 100,100`}
-                      fill="url(#chartGrad)"
-                      className="transition-all duration-700 ease-in-out"
-                    />
-                    <polyline
-                      points={[40, 65, 50, 80, 55, 90, 70, 85, 100, 75, 45, 30]
-                        .map((h, i) => `${(i * 100) / 11},${100 - h}`)
-                        .join(" ")}
-                      fill="none"
-                      stroke="#e8720c"
-                      strokeWidth="2.5"
-                      vectorEffect="non-scaling-stroke"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="drop-shadow-sm"
-                    />
-                  </svg>
-                </div>
-                <div className="flex justify-between mt-2 text-[8px] text-[#857c6e] font-semibold px-1">
-                  <span>10 AM</span>
-                  <span>2 PM</span>
-                  <span>6 PM</span>
-                  <span>10 PM</span>
-                </div>
-              </div>
-
-              {/* Top Items */}
-              <div className="flex-1 bg-white border border-[#e0d9ce] p-4 rounded-xl shadow-sm">
-                <p className="text-[11px] font-bold text-[#0f0e0b] mb-4">
-                  Top Selling Items
-                </p>
-                <div className="space-y-3">
-                  {[
-                    { name: "Butter Chicken", sales: 42, color: "#e8720c" },
-                    { name: "Garlic Naan", sales: 86, color: "#f5b041" },
-                    { name: "Paneer Tikka", sales: 34, color: "#3a6348" },
-                    { name: "Mango Lassi", sales: 28, color: "#b0a898" },
-                  ].map((item, i) => (
-                    <div
-                      key={item.name}
-                      className="flex items-center justify-between text-[10px]"
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-[#857c6e] w-3">
-                          {i + 1}.
-                        </span>
-                        <span className="font-semibold text-[#0f0e0b]">
-                          {item.name}
-                        </span>
-                      </div>
-                      <span className="font-bold text-[#857c6e]">
-                        {item.sales}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </DesktopFrame>
-  );
-}
-
-function AnimatedPhone({ activeStep }) {
-  return (
-    <PhoneFrame>
-      {/* app bar */}
-      <div className=" px-4 py-2 flex items-center justify-center flex-shrink-0">
-        <span className="text-black text-[10px] font-semibold tracking-widest">
-          restroMenu
-        </span>
-      </div>
-      {/* animated content */}
-      <div className="flex-1 relative overflow-hidden">
-        <AnimatePresence mode="wait">
-          <Motion.div
-            key={activeStep}
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            transition={{ duration: 0.35 }}
-            className="absolute inset-0"
-          >
-            <PhoneScreen screen={HOW_STEPS[activeStep].screen} />
-          </Motion.div>
-        </AnimatePresence>
-      </div>
-    </PhoneFrame>
-  );
-}
-
-function GuestPhone() {
-  const [activeTab, setActiveTab] = useState(0);
-  const [activeCategory, setActiveCategory] = useState(0);
-  const [cart, setCart] = useState([]);
-  const total = cart.reduce((s, i) => s + i.price, 0);
-
-  const toggleCart = (item) =>
-    setCart((prev) =>
-      prev.find((c) => c.name === item.name)
-        ? prev.filter((c) => c.name !== item.name)
-        : [...prev, item],
-    );
-
-  return (
-    <PhoneFrame>
-      {/* status bar */}
-      <div className=" px-4 py-1.5 flex items-center text-black justify-between flex-shrink-0">
-        <span className=" text-[9px]">EN ▾</span>
-        <span className=" text-[9px] font-bold tracking-widest">
-          restroMenu
-        </span>
-        <div className="flex gap-2">
-          <Users size={11} className="" />
-          <Menu size={11} className="" />
-        </div>
-      </div>
-      {/* hero banner */}
-      <div className="relative h-32 flex-shrink-0 overflow-hidden">
-        <img
-          src="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=600&q=80"
-          alt="restaurant"
-          className="w-full h-full object-cover"
-        />
-        <div className="absolute inset-0 bg-[#0f0e0b]/45" />
-        <div className="absolute bottom-3 left-3 right-3 flex items-end">
-          <div>
-            <div className="w-9 h-9 bg-white rounded-xl flex items-center justify-center mb-1.5">
-              <div className="w-7 h-7 bg-[#0f0e0b] rounded-lg flex items-center justify-center">
-                <span className="text-white text-[8px] font-black">SG</span>
-              </div>
-            </div>
-            <p className="text-white text-[13px] font-bold leading-tight">
-              Spice Garden
-            </p>
-            <p className="text-white/70 text-[8px]">
-              Exquisite North Indian · Pune
-            </p>
-          </div>
-        </div>
-      </div>
-      {/* tabs */}
-
-      {/* address bar */}
-      <div className="px-3 py-2 bg-white flex-shrink-0">
-        <div className="flex items-center gap-2 bg-[#f5f0e8] rounded-xl px-3 py-1.5">
-          <span className="text-[8px] text-[#857c6e] truncate flex-1">
-            Table 04 · Spice Garden, Pune
-          </span>
-          <ArrowRight size={9} className="text-[#b0a898] flex-shrink-0" />
-        </div>
-      </div>
-      {/* categories */}
-      <div className="flex gap-2 px-3 py-1.5 bg-white flex-shrink-0">
-        {["Mains", "Starters", "Breads", "Drinks"].map((cat, i) => (
-          <button
-            key={cat}
-            onClick={() => setActiveCategory(i)}
-            className="text-[8px] font-semibold px-3 py-1 rounded-full flex-shrink-0 transition-all"
-            style={{
-              background: activeCategory === i ? "#e8720c" : "#f5f0e8",
-              color: activeCategory === i ? "white" : "#857c6e",
-            }}
-          >
-            {cat}
-          </button>
-        ))}
-      </div>
-      {/* menu grid */}
-      <div className="flex-1 overflow-y-auto bg-[#faf7f2] px-3 pb-2">
-        <p className="text-[10px] font-bold text-[#0f0e0b] py-2">Mains</p>
-        <div className="grid grid-cols-2 gap-2">
-          {FOOD_ITEMS.map((item) => {
-            const inCart = cart.find((c) => c.name === item.name);
-            return (
-              <div
-                key={item.name}
-                className="bg-white rounded-xl overflow-hidden shadow-[0_1px_6px_rgba(15,14,11,0.07)]"
-              >
-                <div
-                  className="relative overflow-hidden"
-                  style={{ height: 70 }}
-                >
-                  <img
-                    src={item.img}
-                    alt={item.name}
-                    className="w-full h-full object-cover"
-                  />
-                  <span
-                    className="absolute top-1.5 left-1.5 w-2.5 h-2.5 rounded-sm border-2"
-                    style={{
-                      borderColor: item.veg ? "#3a6348" : "#c0392b",
-                      backgroundColor: item.veg ? "#e8f2eb" : "#fde8e8",
-                    }}
-                  />
-                </div>
-                <div className="p-2">
-                  <p className="text-[9px] font-semibold text-[#0f0e0b] leading-tight">
-                    {item.name}
-                  </p>
-                  <p className="text-[7px] text-[#b0a898] mt-0.5">
-                    {item.desc}
-                  </p>
-                  <div className="flex items-center justify-end mt-2">
-                    <button
-                      onClick={() => toggleCart(item)}
-                      className="text-[7px] font-bold h-6 px-2 rounded-lg border transition-all"
-                      style={{
-                        borderColor: inCart ? "#e8720c" : "#e0d9ce",
-                        color: inCart ? "#e8720c" : "#0f0e0b",
-                        background: inCart ? "#fef0e4" : "white",
-                      }}
-                    >
-                      {inCart ? "✓" : "+ Add"}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-      {/* cart bar */}
-      {total > 0 ? (
-        <div className="bg-white border-t border-[#f0ebe0] px-3 py-2.5 flex items-center justify-between flex-shrink-0">
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-lg bg-[#e8720c] flex items-center justify-center">
-              <span className="text-white text-[8px] font-bold">
-                {cart.length}
-              </span>
-            </div>
-            <span className="text-[10px] font-semibold text-[#0f0e0b]">
-              Order details
-            </span>
-          </div>
-          <span className="text-[10px] font-bold text-[#e8720c]">₹{total}</span>
-        </div>
-      ) : (
-        <div className="h-2 flex-shrink-0" />
-      )}
-    </PhoneFrame>
-  );
-}
-
-function GuestJourneyAnimation() {
-  const [phase, setPhase] = useState("idle");
-
-  useEffect(() => {
-    let isMounted = true;
-    const run = async () => {
-      while (isMounted) {
-        setPhase("idle");
-        await new Promise((r) => setTimeout(r, 1000));
-        if (!isMounted) break;
-        setPhase("scan");
-        await new Promise((r) => setTimeout(r, 2200));
-        if (!isMounted) break;
-        setPhase("menu");
-        await new Promise((r) => setTimeout(r, 1500));
-        if (!isMounted) break;
-        setPhase("add");
-        await new Promise((r) => setTimeout(r, 1200));
-        if (!isMounted) break;
-        setPhase("pay");
-        await new Promise((r) => setTimeout(r, 800));
-        if (!isMounted) break;
-        setPhase("status");
-        await new Promise((r) => setTimeout(r, 4500));
-      }
-    };
-    run();
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  return (
-    <div className="relative w-full h-[580px] flex items-center justify-center overflow-visible">
-      {/* QR Stand */}
-      <div
-        className={`absolute top-1/2 -mt-24 left-1/2 -ml-20 w-40 bg-white border border-[#e0d9ce] rounded-xl shadow-xl flex flex-col items-center p-5 transition-all duration-1000 ${phase === "scan" ? "scale-105 shadow-2xl opacity-50 z-20" : "scale-100 opacity-100 z-0"}`}
-      >
-        <p className="text-[14px] font-bold text-[#0f0e0b] mb-4">Table 04</p>
-        <QrCode size={90} className="text-[#0f0e0b]" strokeWidth={1.5} />
-        <p className="text-[10px] text-[#857c6e] mt-4 font-semibold text-center leading-tight">
-          Scan for
-          <br />
-          Spice Garden
-        </p>
-      </div>
-
-      {/* The Phone */}
-      <AnimatePresence>
-        {phase !== "idle" && (
-          <Motion.div
-            key="phone"
-            initial={{ x: 250, opacity: 0, rotate: 6 }}
-            animate={{ x: 0, opacity: 1, rotate: 0 }}
-            exit={{ x: 250, opacity: 0, rotate: 6 }}
-            transition={{ duration: 0.65, type: "spring", bounce: 0.2 }}
-            className="absolute left-1/2 -ml-[150px] z-30 shadow-full origin-bottom"
-          >
-            <PhoneFrame>
-              <div className="w-full flex-1 bg-white relative overflow-hidden flex flex-col">
-                <AnimatePresence mode="wait">
-                  {phase === "scan" && (
-                    <Motion.div
-                      key="scan"
-                      className="absolute inset-0 flex items-center justify-center overflow-hidden"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                    >
-                      {/* camera feed — blurred restaurant photo */}
-                      <img
-                        src="https://images.unsplash.com/photo-1514190051997-0f6f39ca5cde?w=400&q=60"
-                        className="absolute inset-0 w-full h-full object-cover"
-                        style={{ filter: "brightness(0.28) blur(1.5px)" }}
-                      />
-                      {/* vignette */}
-                      <div
-                        className="absolute inset-0"
-                        style={{
-                          background:
-                            "radial-gradient(ellipse at center, transparent 25%, rgba(0,0,0,0.55) 100%)",
-                        }}
-                      />
-
-                      {/* scanner viewfinder */}
-                      <div className="relative z-10 flex flex-col items-center gap-3">
-                        {/* corner-bracket outer guides */}
-                        <div className="relative w-52 h-52 flex items-center justify-center">
-                          {/* top-left bracket */}
-                          <span className="absolute top-0 left-0 w-6 h-6 border-t-[3px] border-l-[3px] border-[#27c93f] rounded-tl-lg" />
-                          {/* top-right bracket */}
-                          <span className="absolute top-0 right-0 w-6 h-6 border-t-[3px] border-r-[3px] border-[#27c93f] rounded-tr-lg" />
-                          {/* bottom-left bracket */}
-                          <span className="absolute bottom-0 left-0 w-6 h-6 border-b-[3px] border-l-[3px] border-[#27c93f] rounded-bl-lg" />
-                          {/* bottom-right bracket */}
-                          <span className="absolute bottom-0 right-0 w-6 h-6 border-b-[3px] border-r-[3px] border-[#27c93f] rounded-br-lg" />
-
-                          {/* QR card visible through camera — bright, clean, real */}
-                          <div className="w-40 h-40 bg-white rounded-2xl flex flex-col items-center justify-center shadow-[0_0_32px_rgba(39,201,63,0.25)] relative overflow-hidden p-3">
-                            <p className="text-[8px] font-bold text-[#0f0e0b] mb-2 tracking-wide">
-                              TABLE 04
-                            </p>
-                            <QrCode
-                              size={88}
-                              className="text-[#0f0e0b]"
-                              strokeWidth={1.2}
-                            />
-                            {/* green scan line sweeping across the QR */}
-                            <Motion.div
-                              initial={{ y: -44 }}
-                              animate={{ y: 104 }}
-                              transition={{
-                                repeat: Infinity,
-                                duration: 1.3,
-                                ease: "linear",
-                              }}
-                              className="absolute left-0 right-0 h-[2px] bg-[#27c93f] shadow-[0_0_10px_3px_rgba(39,201,63,0.7)]"
-                            />
-                          </div>
-                        </div>
-
-                        <p className="text-white/75 text-[10px] tracking-[0.18em] font-semibold uppercase">
-                          Scanning QR...
-                        </p>
-                      </div>
-                    </Motion.div>
-                  )}
-
-                  {(phase === "menu" || phase === "add" || phase === "pay") && (
-                    <Motion.div
-                      key="menu"
-                      className="absolute inset-0 bg-[#faf7f2] flex flex-col"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.95 }}
-                    >
-                      <div className="px-4 py-1.5 flex items-center justify-center bg-white border-b border-[#f0ebe0]">
-                        <span className="text-[9px] font-bold tracking-widest text-[#0f0e0b]">
-                          restroMenu
-                        </span>
-                      </div>
-                      <div className="relative h-32 flex-shrink-0">
-                        <img
-                          src="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&q=70"
-                          className="w-full h-full object-cover"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
-                        <div className="absolute bottom-3 left-4">
-                          <p className="text-white text-[15px] font-bold">
-                            Spice Garden
-                          </p>
-                          <p className="text-white/80 text-[9px]">Table 04</p>
-                        </div>
-                      </div>
-                      <div className="flex-1 p-3 space-y-3 overflow-y-auto scroller">
-                        {[
-                          {
-                            name: "Paneer Butter Masala",
-                            price: "280",
-                            img: "https://images.unsplash.com/photo-1631452180519-c014fe946bc7?w=120&q=70",
-                          },
-                          {
-                            name: "Dal Makhani",
-                            price: "220",
-                            img: "https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=120&q=70",
-                          },
-                        ].map((item, i) => (
-                          <div
-                            key={item.name}
-                            className="bg-white p-2.5 border border-[#e0d9ce] rounded-2xl flex gap-3 shadow-sm relative"
-                          >
-                            <img
-                              src={item.img}
-                              className="w-14 h-14 rounded-xl object-cover"
-                            />
-                            <div className="flex-1 flex flex-col justify-center">
-                              <p className="text-[11px] font-bold text-[#0f0e0b] leading-tight mb-1">
-                                {item.name}
-                              </p>
-                              <p className="text-[10px] font-bold text-[#e8720c]">
-                                ₹{item.price}
-                              </p>
-                            </div>
-                            <div className="flex items-center justify-end">
-                              <div
-                                className={`border rounded-lg text-[9px] px-2.5 py-1.5 font-bold transition-colors ${phase !== "menu" && i === 0 ? "bg-[#fef0e4] text-[#e8720c] border-[#e8720c]" : "text-[#857c6e] border-[#e0d9ce]"}`}
-                              >
-                                {phase !== "menu" && i === 0 ? "1" : "+ Add"}
-                              </div>
-                            </div>
-                            {phase === "add" && i === 0 && (
-                              <Motion.div
-                                initial={{ scale: 2, opacity: 0 }}
-                                animate={{ scale: 1, opacity: 1 }}
-                                transition={{ duration: 0.3 }}
-                                className="absolute right-3 top-8 w-6 h-6 bg-[#e8720c]/30 rounded-full flex items-center justify-center pointer-events-none z-10"
-                              >
-                                <div className="w-2 h-2 bg-[#e8720c] rounded-full" />
-                              </Motion.div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-
-                      <AnimatePresence>
-                        {(phase === "add" || phase === "pay") && (
-                          <Motion.div
-                            initial={{ y: 60 }}
-                            animate={{ y: 0 }}
-                            exit={{ y: 60 }}
-                            className="bg-white p-3 border-t border-[#e0d9ce] shadow-[0_-4px_10px_rgba(0,0,0,0.03)] relative"
-                          >
-                            <div className="w-full py-3 bg-[#e8720c] text-white rounded-xl flex items-center justify-between px-4 shadow-md">
-                              <div className="flex flex-col">
-                                <span className="text-[8px] text-white/80 uppercase tracking-wide">
-                                  1 Item
-                                </span>
-                                <span className="text-[11px] font-bold">
-                                  ₹280
-                                </span>
-                              </div>
-                              <span className="text-[11px] font-bold flex items-center gap-1">
-                                Checkout <ArrowRight size={12} />
-                              </span>
-                            </div>
-                            {phase === "pay" && (
-                              <Motion.div
-                                initial={{
-                                  scale: 2,
-                                  opacity: 0,
-                                  y: 10,
-                                  x: -20,
-                                }}
-                                animate={{ scale: 1, opacity: 1, y: 0, x: 0 }}
-                                className="absolute right-10 top-7 w-6 h-6 bg-black/30 rounded-full flex items-center justify-center"
-                              >
-                                <div className="w-2 h-2 bg-black rounded-full" />
-                              </Motion.div>
-                            )}
-                          </Motion.div>
-                        )}
-                      </AnimatePresence>
-                    </Motion.div>
-                  )}
-
-                  {phase === "status" && (
-                    <Motion.div
-                      key="status"
-                      className="absolute inset-0 bg-[#e8f2eb]/60 flex flex-col items-center justify-center p-6 text-center"
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                    >
-                      <Motion.div
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        transition={{ type: "spring", bounce: 0.5 }}
-                        className="w-20 h-20 bg-[#27c93f] text-white rounded-full flex items-center justify-center mb-5 shadow-[0_4px_20px_rgba(39,201,63,0.3)]"
-                      >
-                        <CheckCircle2 size={40} />
-                      </Motion.div>
-                      <p className="text-[20px] font-bold text-[#3a6348]">
-                        Order Confirmed!
-                      </p>
-                      <p className="text-[12px] text-[#3a6348] mt-1 mb-8 opacity-80">
-                        Kitchen is preparing your food.
-                      </p>
-
-                      <div className="bg-white w-full rounded-2xl p-4 shadow-sm border border-[#27c93f]/20">
-                        <div className="flex justify-between items-center border-b border-[#f0ebe0] pb-3 mb-3">
-                          <span className="text-[11px] text-[#857c6e] font-medium">
-                            Table No.
-                          </span>
-                          <span className="text-[16px] font-black text-[#0f0e0b]">
-                            04
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center pb-1">
-                          <span className="text-[11px] text-[#857c6e] font-medium">
-                            Status
-                          </span>
-                          <span className="text-[10px] font-bold text-[#e8720c] bg-[#fef0e4] px-2.5 py-1 rounded-md tracking-wide">
-                            PREPARING
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="mt-8 flex flex-col items-center gap-2">
-                        <div className="w-3 h-3 bg-[#27c93f] rounded-full pulse-dot" />
-                        <p className="text-[9px] font-bold text-[#3a6348] uppercase tracking-widest opacity-80">
-                          Live Tracking
-                        </p>
-                      </div>
-                    </Motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            </PhoneFrame>
-          </Motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
-
-/* ── FAQ item ──────────────────────────────────────── */
-function FaqItem({ q, a, open, onToggle }) {
-  return (
-    <div className="border-b border-[#e0d9ce]">
-      <button
-        className="w-full flex items-center justify-between py-4 text-left gap-4"
-        onClick={onToggle}
-      >
-        <span className="text-sm font-semibold text-[#0f0e0b]">{q}</span>
-        <Motion.span
-          animate={{ rotate: open ? 180 : 0 }}
-          transition={{ duration: 0.25 }}
-          className="text-[#e8720c] flex-shrink-0"
-        >
-          <ChevronDown size={18} />
-        </Motion.span>
-      </button>
-      <AnimatePresence initial={false}>
-        {open && (
-          <Motion.div
-            key="answer"
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.28 }}
-            className="overflow-hidden"
-          >
-            <p className="pb-4 text-sm text-[#857c6e] leading-relaxed">{a}</p>
-          </Motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
-
-/* ── App ───────────────────────────────────────────── */
-import { useNavigate, Link } from "react-router-dom";
 
 export default function Landing() {
   const navigate = useNavigate();
@@ -1225,7 +211,7 @@ export default function Landing() {
             className="inline-flex items-center gap-2 bg-[#fef0e4] text-[#e8720c] text-xs font-semibold px-3 py-1.5 rounded-full mb-5"
           >
             <span className="w-1.5 h-1.5 rounded-full bg-[#e8720c] pulse-dot" />
-            Trusted by 12 000+ restaurants across India
+            Trusted by 12 000+ restaurants & hotels across India
           </Motion.span>
 
           <Motion.h1
@@ -1252,7 +238,8 @@ export default function Landing() {
             className="text-[#857c6e] text-lg leading-relaxed mb-8 max-w-md"
           >
             Give every table its own QR code. Guests scan, browse your live menu
-            and order — all from their phone. No app. No waiter wait.
+            and order — all from their phone. Plus, manage billing with built-in
+            POS for both restaurants and hotels.
           </Motion.p>
 
           <Motion.div
@@ -1330,24 +317,37 @@ export default function Landing() {
           <div className="flex-1 text-left relative z-10">
             <div className="flex items-center gap-2 mb-6">
               <span className="w-2.5 h-2.5 rounded-full bg-white shadow-[0_0_12px_rgba(255,255,255,0.8)] pulse-dot"></span>
-              <span className="text-[11px] font-bold text-white tracking-widest uppercase bg-white/20 px-2.5 py-1 rounded-md">Live Interactive Demo</span>
+              <span className="text-[11px] font-bold text-white tracking-widest uppercase bg-white/20 px-2.5 py-1 rounded-md">
+                Live Interactive Demo
+              </span>
             </div>
             <h3 className="font-display text-3xl sm:text-4xl lg:text-[42px] font-bold text-white mb-5 leading-[1.15] tracking-tight drop-shadow-sm">
               Experience the zero-friction guest menu.
             </h3>
             <p className="text-white/90 text-base sm:text-lg max-w-xl leading-relaxed mb-8 font-medium">
-              Don't just take our word for it. Point your smartphone camera at the QR code to instantly see exactly how your customers will browse, order, and interact with the digital menu.
+              Don't just take our word for it. Point your smartphone camera at
+              the QR code to instantly see exactly how your customers will
+              browse, order, and interact with the digital menu.
             </p>
 
             <div className="flex flex-wrap items-center gap-5 sm:gap-8">
               <div className="flex items-center gap-2 text-white text-sm font-bold">
-                <div className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center"><CheckCircle2 size={12} className="text-white" /></div> Instant Loading
+                <div className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center">
+                  <CheckCircle2 size={12} className="text-white" />
+                </div>{" "}
+                Instant Loading
               </div>
               <div className="flex items-center gap-2 text-white text-sm font-bold">
-                <div className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center"><CheckCircle2 size={12} className="text-white" /></div> Native App Feel
+                <div className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center">
+                  <CheckCircle2 size={12} className="text-white" />
+                </div>{" "}
+                Native App Feel
               </div>
               <div className="flex items-center gap-2 text-white text-sm font-bold">
-                <div className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center"><CheckCircle2 size={12} className="text-white" /></div> Table-Specific
+                <div className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center">
+                  <CheckCircle2 size={12} className="text-white" />
+                </div>{" "}
+                Table-Specific
               </div>
             </div>
           </div>
@@ -1369,7 +369,9 @@ export default function Landing() {
               <p className="font-bold text-[#0f0e0b] text-sm uppercase tracking-widest flex items-center justify-center gap-2">
                 <QrCode size={16} className="text-[#e8720c]" /> Scan or Click
               </p>
-              <p className="text-[10px] text-[#857c6e] mt-1 font-medium uppercase tracking-wider">Demo Link</p>
+              <p className="text-[10px] text-[#857c6e] mt-1 font-medium uppercase tracking-wider">
+                Demo Link
+              </p>
             </div>
           </div>
         </Motion.div>
@@ -1404,25 +406,48 @@ export default function Landing() {
                   Beyond Restaurants
                 </p>
                 <h2 className="font-display text-4xl sm:text-5xl font-bold text-[#0f0e0b] mb-6 leading-tight">
-                  Seamless Room Service for <span className="text-[#e8720c]">Modern Hotels</span>
+                  Seamless Room Service for{" "}
+                  <span className="text-[#e8720c]">Modern Hotels</span>
                 </h2>
-                <p className="text-[#857c6e] text-lg leading-relaxed mb-8">
-                  Elevate your guest experience with our QR-based room service solution. Guests scan the QR in their room to place orders directly. Orders are received instantly at the reception and transferred seamlessly to the kitchen for effortless room service operations.
-                </p>
+                {/* <p className="text-[#857c6e] text-lg leading-relaxed mb-8">
+                  Elevate your guest experience with our QR-based room service
+                  solution. Guests scan the QR in their room to place orders
+                  directly. 
+                </p> */}
 
                 <div className="space-y-4">
                   {[
-                    { title: "In-Room QR Scanning", desc: "Guests scan the code from their bedside or desk without picking up the phone." },
-                    { title: "Reception Dashboard", desc: "Front desk receives and verifies the orders, updating room billing automatically." },
-                    { title: "Instant Kitchen Transfer", desc: "Approved orders instantly flow to the kitchen to speed up preparation." }
+                    {
+                      title: "In-Room QR Scanning",
+                      desc: "Guests scan the code from their bedside or desk without picking up the phone.",
+                    },
+                    {
+                      title: "Reception Dashboard",
+                      desc: "Front desk receives and verifies the orders, updating room billing automatically.",
+                    },
+                    {
+                      title: "Instant Kitchen Transfer",
+                      desc: "Approved orders instantly flow to the kitchen to speed up preparation.",
+                    },
+                    {
+                      title: "Unified Hotel POS",
+                      desc: "All room service, dine-in, and outlet orders stay synced in one POS for clean billing and reports.",
+                    },
                   ].map((feature, idx) => (
-                    <div key={idx} className="flex items-start gap-4 p-4 rounded-xl border border-[#e0d9ce] bg-[#faf7f2] hover:border-[#e8720c]/50 transition-colors">
+                    <div
+                      key={idx}
+                      className="flex items-start gap-4 p-4 rounded-xl border border-[#e0d9ce] bg-[#faf7f2] hover:border-[#e8720c]/50 transition-colors"
+                    >
                       <div className="w-10 h-10 rounded-lg bg-white border border-[#e0d9ce] flex items-center justify-center flex-shrink-0 text-[#e8720c] font-bold text-lg">
                         0{idx + 1}
                       </div>
                       <div>
-                        <p className="font-bold text-[#0f0e0b]">{feature.title}</p>
-                        <p className="text-sm text-[#857c6e] mt-1">{feature.desc}</p>
+                        <p className="font-bold text-[#0f0e0b]">
+                          {feature.title}
+                        </p>
+                        <p className="text-sm text-[#857c6e] mt-1">
+                          {feature.desc}
+                        </p>
                       </div>
                     </div>
                   ))}
@@ -1437,15 +462,22 @@ export default function Landing() {
                 transition={{ duration: 0.6 }}
                 className="relative w-full max-w-md aspect-[4/5] rounded-3xl overflow-hidden shadow-2xl"
               >
-                <img src="https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=800&q=80" alt="Luxury Hotel Room" className="w-full h-full object-cover" />
+                <img
+                  src="https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=800&q=80"
+                  alt="Luxury Hotel Room"
+                  className="w-full h-full object-cover"
+                />
                 <div className="absolute inset-0 bg-gradient-to-t from-[#0f0e0b]/80 via-transparent to-transparent" />
                 <div className="absolute bottom-6 left-6 right-6 bg-white/10 backdrop-blur-md border border-white/20 p-5 rounded-2xl text-white shadow-lg">
                   <div className="flex items-center gap-3 mb-2">
                     <span className="w-2.5 h-2.5 rounded-full bg-[#27c93f] pulse-dot"></span>
-                    <span className="text-xs font-bold uppercase tracking-widest text-white/90">Live Integration</span>
+                    <span className="text-xs font-bold uppercase tracking-widest text-white/90">
+                      Live Integration
+                    </span>
                   </div>
                   <p className="text-sm font-medium text-white">
-                    Room 304 ordered 2x Club Sandwich. Forwarding to Kitchen queue...
+                    Room 304 ordered 2x Club Sandwich. Forwarding to Kitchen
+                    queue...
                   </p>
                 </div>
               </Motion.div>
@@ -1457,32 +489,22 @@ export default function Landing() {
       {/* ════════════════ 4. FEATURES ══════════════════════════════ */}
       <section id="features" className="bg-[#faf7f2] py-24">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
-          <div className="text-center mb-14 reveal">
+          <div className="text-center mb-12">
             <p className="text-xs font-semibold text-[#e8720c] tracking-widest uppercase mb-3">
-              Start Winning Free
+              POS Website Mock
             </p>
             <h2 className="font-display text-4xl sm:text-5xl font-bold text-[#0f0e0b]">
-              All Features, <span style={{ color: "#e8720c" }}>Zero</span>{" "}
-              <span style={{ color: "#0ea5e9" }}>Cost</span>
+              POS system for restaurants & hotels with analytics-style workflow
             </h2>
-            <p className="text-[#857c6e] mt-4 max-w-xl mx-auto">
-              Every feature below is completely free. No premium tiers, no
-              paywalls, no &ldquo;upgrade to unlock&rdquo; nonsense. Your
-              success is our success.
+            <p className="text-[#857c6e] mt-4 max-w-3xl mx-auto">
+              A polished website mock showing a live POS dashboard, menu
+              selection, checkout review, and invoice/payment flow.
             </p>
           </div>
 
-          <Motion.div
-            variants={stagger}
-            initial="hidden"
-            whileInView="show"
-            viewport={{ once: true, amount: 0.1 }}
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-          >
-            {FEATURES.map((f) => (
-              <FeatureCard key={f.title} feature={f} />
-            ))}
-          </Motion.div>
+          <div className="max-w-5xl mx-auto">
+            <PosWorkflowMock />
+          </div>
         </div>
       </section>
 
@@ -1500,7 +522,8 @@ export default function Landing() {
               Transforming Dining with Digital QR Code Menu Advantages
             </h2>
             <p className="text-[#fef0e4] text-lg max-w-2xl mx-auto leading-relaxed">
-              Provides a faster, smarter, and more interactive dining experience while simplifying restaurant operations.
+              Provides a faster, smarter, and more interactive dining experience
+              while simplifying restaurant operations.
             </p>
           </div>
 
@@ -1522,9 +545,13 @@ export default function Landing() {
                 <div className="absolute inset-0 bg-gradient-to-t from-white via-white/50 to-transparent" />
               </div>
               <div className="p-8 pt-4 flex-1 flex flex-col relative z-10">
-                <h3 className="text-[17px] font-bold text-[#0f0e0b] mb-3 tracking-tight">Enhancing Customer Experience</h3>
+                <h3 className="text-[17px] font-bold text-[#0f0e0b] mb-3 tracking-tight">
+                  Enhancing Customer Experience
+                </h3>
                 <p className="text-[#857c6e] text-sm leading-relaxed mb-6 flex-1">
-                  Digital menus load faster, are easier to use, and provide more useful information to customers, including dish ingredients and allergen warnings directly in their hands.
+                  Digital menus load faster, are easier to use, and provide more
+                  useful information to customers, including dish ingredients
+                  and allergen warnings directly in their hands.
                 </p>
                 <button className="text-[#e8720c] font-semibold text-[13px] flex items-center gap-1.5 hover:gap-2.5 transition-all self-start">
                   Read more <ArrowRight size={14} />
@@ -1550,9 +577,13 @@ export default function Landing() {
                 <div className="absolute inset-0 bg-gradient-to-t from-white via-white/50 to-transparent" />
               </div>
               <div className="p-8 pt-4 flex-1 flex flex-col relative z-10">
-                <h3 className="text-[17px] font-bold text-[#0f0e0b] mb-3 tracking-tight">Attracting New Customers</h3>
+                <h3 className="text-[17px] font-bold text-[#0f0e0b] mb-3 tracking-tight">
+                  Attracting New Customers
+                </h3>
                 <p className="text-[#857c6e] text-sm leading-relaxed mb-6 flex-1">
-                  Guests can leave reviews directly through the QR menu. Plus, built-in multilingual support helps attract foreign customers and turn foot traffic into loyal dining patrons.
+                  Guests can leave reviews directly through the QR menu. Plus,
+                  built-in multilingual support helps attract foreign customers
+                  and turn foot traffic into loyal dining patrons.
                 </p>
                 <button className="text-[#e8720c] font-semibold text-[13px] flex items-center gap-1.5 hover:gap-2.5 transition-all self-start">
                   Read more <ArrowRight size={14} />
@@ -1578,9 +609,13 @@ export default function Landing() {
                 <div className="absolute inset-0 bg-gradient-to-t from-white via-white/50 to-transparent" />
               </div>
               <div className="p-8 pt-4 flex-1 flex flex-col relative z-10">
-                <h3 className="text-[17px] font-bold text-[#0f0e0b] mb-3 tracking-tight">QR Code Menu Increases Sales</h3>
+                <h3 className="text-[17px] font-bold text-[#0f0e0b] mb-3 tracking-tight">
+                  QR Code Menu Increases Sales
+                </h3>
                 <p className="text-[#857c6e] text-sm leading-relaxed mb-6 flex-1">
-                  Food photos and an interactive menu presentation encourage customers to order more items and upsells, meaningfully increasing the average bill amount effortlessly.
+                  Food photos and an interactive menu presentation encourage
+                  customers to order more items and upsells, meaningfully
+                  increasing the average bill amount effortlessly.
                 </p>
                 <button className="text-[#e8720c] font-semibold text-[13px] flex items-center gap-1.5 hover:gap-2.5 transition-all self-start">
                   Read more <ArrowRight size={14} />
@@ -1590,7 +625,6 @@ export default function Landing() {
           </div>
         </div>
       </section>
-
 
       {/* ════════════════ 5. HOW IT WORKS ═════════════════════════ */}
       <section id="how-it-works" className="bg-[#f5f0e8] py-24">
@@ -1615,14 +649,16 @@ export default function Landing() {
                 <button
                   key={s.step}
                   onClick={() => setActiveStep(i)}
-                  className={`w-full flex items-start gap-4 p-4 rounded-xl border text-left transition-all ${activeStep === i
+                  className={`w-full flex items-start gap-4 p-4 rounded-xl border text-left transition-all ${
+                    activeStep === i
                       ? "border-[#e8720c] bg-white"
                       : "border-[#e0d9ce] bg-transparent hover:border-[#e8720c]/50"
-                    }`}
+                  }`}
                 >
                   <div
-                    className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors ${activeStep === i ? "bg-[#e8720c]" : "bg-[#e0d9ce]"
-                      }`}
+                    className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors ${
+                      activeStep === i ? "bg-[#e8720c]" : "bg-[#e0d9ce]"
+                    }`}
                   >
                     <s.icon
                       size={18}
@@ -1692,10 +728,15 @@ export default function Landing() {
               </div>
               <div className="relative z-10">
                 <p className="text-[10px] font-bold text-[#e8720c] uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#e8720c] pulse-dot" /> Interactive Demo
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#e8720c] pulse-dot" />{" "}
+                  Interactive Demo
                 </p>
-                <p className="font-bold text-[#0f0e0b] text-[15px] mb-1.5 leading-tight tracking-tight">Scan with your phone</p>
-                <p className="text-xs text-[#857c6e] leading-snug">Experience the fast, responsive guest menu exactly as they do.</p>
+                <p className="font-bold text-[#0f0e0b] text-[15px] mb-1.5 leading-tight tracking-tight">
+                  Scan with your phone
+                </p>
+                <p className="text-xs text-[#857c6e] leading-snug">
+                  Experience the fast, responsive guest menu exactly as they do.
+                </p>
               </div>
             </Motion.div>
 
@@ -1769,10 +810,11 @@ export default function Landing() {
               <Motion.div
                 key={plan.name}
                 variants={fadeUp}
-                className={`rounded-xl p-7 flex flex-col ${plan.highlight
+                className={`rounded-xl p-7 flex flex-col ${
+                  plan.highlight
                     ? "bg-[#3a6348] text-white shadow-xl"
                     : "bg-white border border-[#e0d9ce] text-[#0f0e0b]"
-                  }`}
+                }`}
               >
                 {plan.badge && (
                   <span className="self-start text-xs font-semibold bg-[#e8720c] text-white px-3 py-1 rounded-full mb-4">
@@ -1817,10 +859,11 @@ export default function Landing() {
                 </ul>
                 <button
                   onClick={() => navigate("/auth")}
-                  className={`w-full py-3 rounded-md font-semibold text-sm transition-colors ${plan.highlight
+                  className={`w-full py-3 rounded-md font-semibold text-sm transition-colors ${
+                    plan.highlight
                       ? "bg-[#e8720c] hover:bg-[#d4620a] text-white"
                       : "border border-[#e0d9ce] hover:border-[#e8720c] hover:text-[#e8720c] text-[#0f0e0b]"
-                    }`}
+                  }`}
                 >
                   {plan.cta}
                 </button>
@@ -2112,9 +1155,19 @@ export default function Landing() {
               ].map((l) => (
                 <li key={l.label}>
                   {l.to.startsWith("/") ? (
-                    <Link to={l.to} className="hover:text-[#e8720c] transition-colors">{l.label}</Link>
+                    <Link
+                      to={l.to}
+                      className="hover:text-[#e8720c] transition-colors"
+                    >
+                      {l.label}
+                    </Link>
                   ) : (
-                    <a href={l.to} className="hover:text-[#e8720c] transition-colors">{l.label}</a>
+                    <a
+                      href={l.to}
+                      className="hover:text-[#e8720c] transition-colors"
+                    >
+                      {l.label}
+                    </a>
                   )}
                 </li>
               ))}

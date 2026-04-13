@@ -1,5 +1,17 @@
 import {
-  QrCode, Smartphone, BarChart3, WandSparkles, Zap, ShieldCheck, Globe, CheckCircle2, Upload, Banknote, UtensilsCrossed, BedDouble
+  QrCode,
+  Smartphone,
+  BarChart3,
+  WandSparkles,
+  Zap,
+  ShieldCheck,
+  Globe,
+  CheckCircle2,
+  Upload,
+  Banknote,
+  UtensilsCrossed,
+  BedDouble,
+  Monitor,
 } from "lucide-react";
 
 export const NAV_ITEMS = [
@@ -20,6 +32,14 @@ export const STATS = [
 
 export const FEATURES = [
   {
+    icon: Monitor,
+    title: "Restaurant & Hotel POS",
+    body: "Run dine-in, takeaway, and room-service billing from one POS with live kitchen sync.",
+    accent: "#2563eb",
+    glow: "rgba(37,99,235,0.12)",
+    iconBg: "#eff6ff",
+  },
+  {
     icon: BedDouble,
     title: "Hotel Room Orders",
     body: "No phone calls or waiting. Guests order room service directly from their beds.",
@@ -34,14 +54,6 @@ export const FEATURES = [
     accent: "#e8720c",
     glow: "rgba(232,114,12,0.12)",
     iconBg: "#fef0e4",
-  },
-  {
-    icon: Smartphone,
-    title: "Works on All Phones",
-    body: "Beautiful menu experience on any smartphone browser.",
-    accent: "#3b82f6",
-    glow: "rgba(59,130,246,0.12)",
-    iconBg: "#eff6ff",
   },
   {
     icon: BarChart3,
@@ -247,10 +259,38 @@ export const FOOD_ITEMS = [
 ];
 
 export const RECENT_ORDERS = [
-  { id: "#2849", table: "04", items: "Paneer Masala, Garlic Naan", total: "₹420", status: "preparing", time: "2m" },
-  { id: "#2848", table: "12", items: "Veg Biryani, Raita", total: "₹280", status: "ready", time: "8m" },
-  { id: "#2847", table: "07", items: "Tandoori Chicken", total: "₹350", status: "served", time: "15m" },
-  { id: "#2846", table: "02", items: "Mango Lassi (2)", total: "₹180", status: "served", time: "22m" },
+  {
+    id: "#2849",
+    table: "04",
+    items: "Paneer Masala, Garlic Naan",
+    total: "₹420",
+    status: "preparing",
+    time: "2m",
+  },
+  {
+    id: "#2848",
+    table: "12",
+    items: "Veg Biryani, Raita",
+    total: "₹280",
+    status: "ready",
+    time: "8m",
+  },
+  {
+    id: "#2847",
+    table: "07",
+    items: "Tandoori Chicken",
+    total: "₹350",
+    status: "served",
+    time: "15m",
+  },
+  {
+    id: "#2846",
+    table: "02",
+    items: "Mango Lassi (2)",
+    total: "₹180",
+    status: "served",
+    time: "22m",
+  },
 ];
 
 export const DASHBOARD_TABS = [
