@@ -6,6 +6,8 @@ import {
   pageMetaConfig,
 } from "../utils/seo";
 
+const PRIMARY_DOMAIN = "https://restro.buzingbee.com";
+
 /**
  * Hook to update page SEO meta tags and structured data
  *
@@ -31,7 +33,7 @@ export const useSEO = (config) => {
           pageConfig.keywords,
         );
         updateCanonicalURL(
-          `https://restromenu.com/${config === "landing" ? "" : config}`,
+          `${PRIMARY_DOMAIN}/${config === "landing" ? "" : config}`,
         );
       }
     } else if (typeof config === "object") {
@@ -43,7 +45,7 @@ export const useSEO = (config) => {
       }
 
       if (url) {
-        updateCanonicalURL(`https://restromenu.com${url}`);
+        updateCanonicalURL(`${PRIMARY_DOMAIN}${url}`);
       }
 
       if (structuredData) {

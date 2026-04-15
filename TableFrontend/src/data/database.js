@@ -10,8 +10,6 @@ import {
   Upload,
   Banknote,
   UtensilsCrossed,
-  BedDouble,
-  Monitor,
 } from "lucide-react";
 
 export const NAV_ITEMS = [
@@ -32,28 +30,20 @@ export const STATS = [
 
 export const FEATURES = [
   {
-    icon: Monitor,
-    title: "Restaurant & Hotel POS",
-    body: "Run dine-in, takeaway, and room-service billing from one POS with live kitchen sync.",
-    accent: "#2563eb",
-    glow: "rgba(37,99,235,0.12)",
-    iconBg: "#eff6ff",
-  },
-  {
-    icon: BedDouble,
-    title: "Hotel Room Orders",
-    body: "No phone calls or waiting. Guests order room service directly from their beds.",
-    accent: "#ec4899",
-    glow: "rgba(236,72,153,0.12)",
-    iconBg: "#fdf2f8",
-  },
-  {
     icon: QrCode,
     title: "QR Code Menu",
     body: "Customers scan and instantly see your menu. No app download needed.",
     accent: "#e8720c",
     glow: "rgba(232,114,12,0.12)",
     iconBg: "#fef0e4",
+  },
+  {
+    icon: Smartphone,
+    title: "Works on All Phones",
+    body: "Beautiful menu experience on any smartphone browser.",
+    accent: "#2b8ad6",
+    glow: "rgba(43,138,214,0.12)",
+    iconBg: "#ecf6ff",
   },
   {
     icon: BarChart3,

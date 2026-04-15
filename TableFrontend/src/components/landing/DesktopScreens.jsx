@@ -12,7 +12,7 @@ export function DesktopFrame({ children, className = "" }) {
       className={`mockup-browser bg-base-300 border shrink-0 w-full max-w-[960px] shadow-[0_40px_90px_rgba(15,14,11,0.28)] ${className}`}
     >
       <div className="mockup-browser-toolbar">
-        <div className="input">https://admin.restromenu.com/analytics</div>
+        <div className="input">https://admin.restro.buzingbee.com/analytics</div>
       </div>
       <div
         className="bg-paper w-full flex flex-col text-left"

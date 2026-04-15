@@ -4,7 +4,7 @@
  */
 
 const SITE_NAME = "restroMenu";
-const SITE_URL = "https://restromenu.com";
+const SITE_URL = "https://restro.buzingbee.com";
 const SITE_LOGO = `${SITE_URL}/logo.png`;
 
 /**
@@ -217,7 +217,7 @@ export const getOrganizationStructuredData = () => ({
     "@type": "ContactPoint",
     contactType: "Customer Support",
     telephone: "+91-XXXXXXXXXX",
-    email: "support@restromenu.com",
+    email: "support@buzingbee.com",
   },
 });
 

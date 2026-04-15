@@ -62,7 +62,7 @@ export default function ContactUs() {
               <div>
                 <h3 className="font-bold text-[#0f0e0b] text-lg">Email Us</h3>
                 <p className="text-[#857c6e] mb-1">Our friendly team is here to help.</p>
-                <a href="mailto:hello@restromenu.com" className="font-semibold text-[#e8720c] hover:underline">hello@restromenu.com</a>
+                <a href="mailto:hello@buzingbee.com" className="font-semibold text-saffron hover:underline">hello@buzingbee.com</a>
               </div>
             </div>
             

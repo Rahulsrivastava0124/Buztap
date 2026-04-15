@@ -1,3 +1,5 @@
+import { Signal, Wifi } from "lucide-react";
+
 export function PhoneFrame({ children, className = "" }) {
   return (
     <div className={`relative w-[300px] shrink-0 ${className}`}>
@@ -12,6 +14,17 @@ export function PhoneFrame({ children, className = "" }) {
         <div className="absolute top-5 left-1/2 -translate-x-1/2 w-[90px] h-7 bg-[#141210] rounded-full z-10 flex items-center justify-center gap-2">
           <div className="w-2 h-2 rounded-full bg-[#2a2722]" />
           <div className="w-[5px] h-[5px] rounded-full bg-[#232120]" />
+        </div>
+        <div className="absolute top-6 left-7 right-7 mx-1 z-10 flex items-center justify-between pointer-events-none text-black">
+          <span className="text-[11px] font-semibold tracking-wide">9:41</span>
+          <div className="flex items-center gap-1.5">
+            <Signal size={12.5} strokeWidth={2.6} />
+            <Wifi size={12.5} strokeWidth={2.6} />
+            <div className="relative w-5.5 h-3.25 rounded-sm border-[1.8px] border-current">
+              <div className="absolute left-0.5 top-0.5 bottom-0.5 right-1 rounded-xs bg-current" />
+              <div className="absolute -right-1 top-1/2 -translate-y-1/2 w-0.75 h-1.5 rounded-r-sm bg-current" />
+            </div>
+          </div>
         </div>
         {/* screen */}
         <div

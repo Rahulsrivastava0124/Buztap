@@ -15,8 +15,8 @@
   RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
   
   # Redirect www to non-www
-  RewriteCond %{HTTP_HOST} ^www\.restromenu\.com [NC]
-  RewriteRule ^(.*)$ https://restromenu.com/$1 [L,R=301]
+  RewriteCond %{HTTP_HOST} ^www\.restro\.buzingbee\.com [NC]
+  RewriteRule ^(.*)$ https://restro.buzingbee.com/$1 [L,R=301]
   
   # Add trailing slash for directories
   RewriteCond %{REQUEST_FILENAME} -d

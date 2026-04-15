@@ -34,7 +34,6 @@ import {
   GuestPhone,
   GuestJourneyAnimation,
   FaqItem,
-  PosWorkflowMock,
   DesktopAdminScreen,
 } from "../components/landing";
 
@@ -487,23 +486,46 @@ export default function Landing() {
       </section>
 
       {/* ════════════════ 4. FEATURES ══════════════════════════════ */}
-      <section id="features" className="bg-[#faf7f2] py-24">
+      <section
+        id="features"
+        className="bg-[#faf7f2] py-24 relative overflow-hidden"
+      >
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(232,114,12,0.08),transparent_40%)] pointer-events-none" />
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
-          <div className="text-center mb-12">
-            <p className="text-xs font-semibold text-[#e8720c] tracking-widest uppercase mb-3">
-              POS Website Mock
+          <div className="text-center mb-14 relative z-10">
+            <p className="text-xs font-semibold text-[#e8720c] tracking-widest uppercase mb-4">
+              Everything Free
             </p>
-            <h2 className="font-display text-4xl sm:text-5xl font-bold text-[#0f0e0b]">
-              POS system for restaurants & hotels with analytics-style workflow
+            <h2 className="font-display text-xl sm:text-2xl lg:text-5xl font-bold text-[#0f0e0b] leading-tight">
+              All Features,{" "}
+              <span className="bg-linear-to-r text-[#e8720c] ">Zero Cost</span>
             </h2>
-            <p className="text-[#857c6e] mt-4 max-w-3xl mx-auto">
-              A polished website mock showing a live POS dashboard, menu
-              selection, checkout review, and invoice/payment flow.
+            <p className="text-[#857c6e] mt-5 max-w-3xl mx-auto text-lg leading-relaxed">
+              Every feature below is completely free. No premium tiers, no
+              paywalls, no upgrade-to-unlock nonsense. Your success is our
+              success.
             </p>
           </div>
 
-          <div className="max-w-5xl mx-auto">
-            <PosWorkflowMock />
+          <Motion.div
+            variants={stagger}
+            initial="hidden"
+            whileInView="show"
+            viewport={{ once: true, amount: 0.15 }}
+            className="grid md:grid-cols-2 xl:grid-cols-4 gap-6 relative z-10"
+          >
+            {FEATURES.map((feature) => (
+              <Motion.div key={feature.title} variants={fadeUp}>
+                <FeatureCard feature={feature} />
+              </Motion.div>
+            ))}
+          </Motion.div>
+
+          <div className="mt-10 flex justify-center relative z-10">
+            <div className="inline-flex items-center gap-2 rounded-full border border-[#eadfce] bg-white/90 px-4 py-2 text-sm font-medium text-[#857c6e] shadow-[0_8px_24px_rgba(15,14,11,0.05)]">
+              <span className="w-2 h-2 rounded-full bg-[#3a6348]" />
+              No setup fee • No monthly charge • No hidden cost
+            </div>
           </div>
         </div>
       </section>
@@ -1177,9 +1199,17 @@ export default function Landing() {
 
         <div className="border-t border-[#e0d9ce] max-w-6xl mx-auto px-4 sm:px-6 py-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
           <p>© {new Date().getFullYear()} restroMenu. All rights reserved.</p>
-          <p className="flex items-center gap-1">
+          <p className="flex items-center gap-1 flex-wrap justify-center">
             Made with <span className="text-[#e8720c]">♥</span> for India&apos;s
-            restaurants
+            restaurants ·
+            <a
+              href="https://buzingbee.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-saffron hover:underline"
+            >
+              buzingbee.com
+            </a>
           </p>
         </div>
       </footer>

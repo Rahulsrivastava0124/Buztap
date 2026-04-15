@@ -5,7 +5,7 @@
 
   <!-- Main Landing Page -->
   <url>
-    <loc>https://restromenu.com</loc>
+    <loc>https://restro.buzingbee.com</loc>
     <lastmod>2026-04-13</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
@@ -13,7 +13,7 @@
 
   <!-- Features Page -->
   <url>
-    <loc>https://restromenu.com/#features</loc>
+    <loc>https://restro.buzingbee.com/#features</loc>
     <lastmod>2026-04-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
@@ -21,7 +21,7 @@
 
   <!-- How It Works -->
   <url>
-    <loc>https://restromenu.com/#how-it-works</loc>
+    <loc>https://restro.buzingbee.com/#how-it-works</loc>
     <lastmod>2026-04-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
@@ -29,7 +29,7 @@
 
   <!-- Pricing Page -->
   <url>
-    <loc>https://restromenu.com/#pricing</loc>
+    <loc>https://restro.buzingbee.com/#pricing</loc>
     <lastmod>2026-04-13</lastmod>
     <changefreq>bi-weekly</changefreq>
     <priority>0.8</priority>
@@ -37,7 +37,7 @@
 
   <!-- FAQ Section -->
   <url>
-    <loc>https://restromenu.com/#faq</loc>
+    <loc>https://restro.buzingbee.com/#faq</loc>
     <lastmod>2026-04-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
@@ -45,7 +45,7 @@
 
   <!-- Live Demo -->
   <url>
-    <loc>https://restromenu.com/#live-demo</loc>
+    <loc>https://restro.buzingbee.com/#live-demo</loc>
     <lastmod>2026-04-13</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -53,7 +53,7 @@
 
   <!-- Authentication / Sign In -->
   <url>
-    <loc>https://restromenu.com/auth</loc>
+    <loc>https://restro.buzingbee.com/auth</loc>
     <lastmod>2026-04-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
@@ -62,7 +62,7 @@
 
   <!-- Dashboard -->
   <url>
-    <loc>https://restromenu.com/dashboard</loc>
+    <loc>https://restro.buzingbee.com/dashboard</loc>
     <lastmod>2026-04-13</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
@@ -71,7 +71,7 @@
 
   <!-- Demo Page -->
   <url>
-    <loc>https://restromenu.com/demo</loc>
+    <loc>https://restro.buzingbee.com/demo</loc>
     <lastmod>2026-04-13</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
@@ -79,7 +79,7 @@
 
   <!-- POS System Demo -->
   <url>
-    <loc>https://restromenu.com/pos-system</loc>
+    <loc>https://restro.buzingbee.com/pos-system</loc>
     <lastmod>2026-04-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
@@ -87,7 +87,7 @@
 
   <!-- Contact Us -->
   <url>
-    <loc>https://restromenu.com/contact</loc>
+    <loc>https://restro.buzingbee.com/contact</loc>
     <lastmod>2026-04-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
@@ -95,7 +95,7 @@
 
   <!-- Blog / Resources (if applicable) -->
   <url>
-    <loc>https://restromenu.com/blog</loc>
+    <loc>https://restro.buzingbee.com/blog</loc>
     <lastmod>2026-04-13</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
@@ -103,7 +103,7 @@
 
   <!-- QR Code Menu Features -->
   <url>
-    <loc>https://restromenu.com/features/qr-code-menus</loc>
+    <loc>https://restro.buzingbee.com/features/qr-code-menus</loc>
     <lastmod>2026-04-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
@@ -111,7 +111,7 @@
 
   <!-- Table Ordering System -->
   <url>
-    <loc>https://restromenu.com/features/table-ordering</loc>
+    <loc>https://restro.buzingbee.com/features/table-ordering</loc>
     <lastmod>2026-04-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
@@ -119,7 +119,7 @@
 
   <!-- POS Integration -->
   <url>
-    <loc>https://restromenu.com/features/pos-integration</loc>
+    <loc>https://restro.buzingbee.com/features/pos-integration</loc>
     <lastmod>2026-04-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
@@ -127,7 +127,7 @@
 
   <!-- Hotel Room Service -->
   <url>
-    <loc>https://restromenu.com/features/hotel-room-service</loc>
+    <loc>https://restro.buzingbee.com/features/hotel-room-service</loc>
     <lastmod>2026-04-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
@@ -135,7 +135,7 @@
 
   <!-- Restaurant Analytics -->
   <url>
-    <loc>https://restromenu.com/features/analytics</loc>
+    <loc>https://restro.buzingbee.com/features/analytics</loc>
     <lastmod>2026-04-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>

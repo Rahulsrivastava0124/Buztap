@@ -15,7 +15,7 @@ Disallow: /.git/
 Crawl-delay: 1
 
 # Sitemap location
-Sitemap: https://restromenu.com/sitemap.xml
+Sitemap: https://restro.buzingbee.com/sitemap.xml
 
 # Google specific rules
 User-agent: Googlebot

@@ -14,28 +14,29 @@ export function FeatureCard({ feature }) {
       }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      className="relative bg-white rounded-2xl p-6 overflow-hidden cursor-default shadow-[0_1px_4px_rgba(15,14,11,0.07)] hover:shadow-[0_8px_32px_rgba(15,14,11,0.12)] transition-shadow duration-300"
+      className="group relative bg-white rounded-[26px] p-5 overflow-hidden cursor-default border border-[#eee5d8] shadow-[0_10px_28px_rgba(15,14,11,0.05)] hover:shadow-[0_16px_38px_rgba(15,14,11,0.08)] hover:-translate-y-1 transition-all duration-300"
       style={{
         background: hovered
-          ? `radial-gradient(260px circle at ${pos.x}px ${pos.y}px, ${feature.glow}, #ffffff 65%)`
+          ? `radial-gradient(240px circle at ${pos.x}px ${pos.y}px, ${feature.glow}, #ffffff 60%)`
           : "#ffffff",
-        transition: "background 0.08s, box-shadow 0.3s",
+        transition: "background 0.08s, box-shadow 0.3s, transform 0.3s",
       }}
     >
+      <div className="absolute inset-x-5 bottom-0 h-px bg-linear-to-r from-transparent via-[#efe4d6] to-transparent" />
       <div
-        className="w-14 h-14 rounded-full flex items-center justify-center mb-5"
+        className="w-13 h-13 rounded-[18px] flex items-center justify-center mb-4 ring-1 ring-white/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)]"
         style={{ backgroundColor: feature.iconBg }}
       >
         <feature.icon
-          size={24}
-          strokeWidth={1.8}
+          size={20}
+          strokeWidth={2.1}
           style={{ color: feature.accent }}
         />
       </div>
-      <h3 className="font-bold text-[#0f0e0b] text-[15px] mb-2">
+      <h3 className="font-bold text-ink text-[15px] tracking-tight mb-2.5 group-hover:text-[#1e1c18]">
         {feature.title}
       </h3>
-      <p className="text-sm text-[#857c6e] leading-relaxed">{feature.body}</p>
+      <p className="text-[13px] text-muted leading-7">{feature.body}</p>
     </Motion.div>
   );
 }
