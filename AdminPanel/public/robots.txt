@@ -1,0 +1,58 @@
+# restroMenu robots.txt
+# This file instructs search engines on how to crawl and index the website
+
+# Allow all bots by default
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /private/
+Disallow: /.env
+Disallow: /node_modules/
+Disallow: /dist/
+Disallow: /.git/
+
+# Specific crawl delays
+Crawl-delay: 1
+
+# Sitemap location
+Sitemap: https://restro.buzingbee.com/sitemap.xml
+
+# Google specific rules
+User-agent: Googlebot
+Allow: /
+Crawl-delay: 0
+
+# Bing specific rules
+User-agent: Bingbot
+Allow: /
+Crawl-delay: 1
+
+# Facebook crawlers
+User-agent: facebookexternalhit
+Allow: /
+
+# Twitter Bot
+User-agent: Twitterbot
+Allow: /
+
+# LinkedIn Bot
+User-agent: LinkedInBot
+Allow: /
+
+# Pinterest Bot
+User-agent: Pinterestbot
+Allow: /
+
+# AdsBot
+User-agent: AdsBot-Google
+Allow: /
+
+# Block bad bots
+User-agent: AhrefsBot
+Disallow: /
+
+User-agent: SemrushBot
+Disallow: /
+
+User-agent: DotBot
+Disallow: /

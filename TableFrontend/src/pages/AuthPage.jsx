@@ -33,7 +33,12 @@ export default function AuthPage() {
     setError("");
     const success = login(email, password);
     if (success) {
-      navigate("/dashboard");
+      const adminPanelUrl = import.meta.env.VITE_ADMIN_PANEL_URL;
+      if (adminPanelUrl) {
+        window.location.href = adminPanelUrl;
+      } else {
+        navigate("/contact");
+      }
     } else {
       setError("Invalid username or password.");
     }
@@ -358,7 +363,14 @@ export default function AuthPage() {
       <RegistrationModal
         isOpen={registrationModalOpen}
         onClose={() => setRegistrationModalOpen(false)}
-        onComplete={() => navigate("/dashboard")}
+        onComplete={() => {
+          const adminPanelUrl = import.meta.env.VITE_ADMIN_PANEL_URL;
+          if (adminPanelUrl) {
+            window.location.href = adminPanelUrl;
+          } else {
+            navigate("/contact");
+          }
+        }}
       />
     </div>
   );

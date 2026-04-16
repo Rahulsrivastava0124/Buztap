@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft,
-  History,
   Search,
   Plus,
   Minus,
@@ -106,139 +105,6 @@ const FOOD_ITEMS = [
 
 const CATEGORIES = ["All", "Starters", "Mains", "Breads", "Drinks"];
 
-const ScratchCard = ({ width, height, children, finishPercent = 70, onComplete }) => {
-  const [isScratching, setIsScratching] = useState(false);
-  const [scratchedPercent, setScratchedPercent] = useState(0);
-  const [isComplete, setIsComplete] = useState(false);
-  const canvasRef = useRef(null);
-  const [ctx, setCtx] = useState(null);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (canvas) {
-      const context = canvas.getContext('2d');
-      context.fillStyle = '#ffffff';
-      context.fillRect(0, 0, width, height);
-      context.globalCompositeOperation = 'destination-out';
-      setCtx(context);
-    }
-  }, [width, height]);
-
-  const startScratch = (e) => {
-    setIsScratching(true);
-    scratch(e);
-  };
-
-  const scratch = (e) => {
-    if (!ctx || !isScratching) return;
-
-    const rect = canvasRef.current.getBoundingClientRect();
-    const x = (e.clientX || e.touches[0].clientX) - rect.left;
-    const y = (e.clientY || e.touches[0].clientY) - rect.top;
-
-    ctx.beginPath();
-    ctx.arc(x, y, 20, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Calculate scratched percentage
-    const imageData = ctx.getImageData(0, 0, width, height);
-    let scratchedPixels = 0;
-    for (let i = 0; i < imageData.data.length; i += 4) {
-      if (imageData.data[i + 3] === 0) scratchedPixels++;
-    }
-    const percent = (scratchedPixels / (width * height)) * 100;
-    setScratchedPercent(percent);
-
-    if (percent >= finishPercent && !isComplete) {
-      setIsComplete(true);
-      setTimeout(() => onComplete && onComplete(), 500);
-    }
-  };
-
-  const stopScratch = () => {
-    setIsScratching(false);
-  };
-
-  return (
-    <div className="relative mb-4">
-      <div className="relative rounded-xl overflow-hidden shadow-lg">
-        {/* Reward Layer (Background) */}
-        <div className="absolute inset-0 z-0">
-          {children[1]}
-        </div>
-
-        {/* Scratch Layer (Foreground) */}
-        <div className="relative z-10">
-          {children[0]}
-        </div>
-
-        {/* Canvas for scratching */}
-        <canvas
-          ref={canvasRef}
-          width={width}
-          height={height}
-          className="absolute inset-0 z-20 cursor-pointer"
-          onMouseDown={startScratch}
-          onMouseMove={scratch}
-          onMouseUp={stopScratch}
-          onMouseLeave={stopScratch}
-          onTouchStart={(e) => {
-            e.preventDefault();
-            startScratch(e.touches[0]);
-          }}
-          onTouchMove={(e) => {
-            e.preventDefault();
-            scratch(e.touches[0]);
-          }}
-          onTouchEnd={stopScratch}
-        />
-
-        {/* Scratch instruction overlay */}
-        {!isComplete && scratchedPercent < 10 && (
-          <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/20 rounded-xl">
-            <div className="text-white text-center">
-              <div className="text-2xl mb-2">👆</div>
-              <div className="text-sm font-bold">Touch & Drag to Scratch!</div>
-            </div>
-          </div>
-        )}
-
-        {/* Completion effect */}
-        {isComplete && (
-          <motion.div
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            className="absolute inset-0 z-40 flex items-center justify-center bg-yellow-400/20 rounded-xl"
-          >
-            <motion.div
-              animate={{ rotate: 360 }}
-              transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-              className="text-4xl"
-            >
-              ✨
-            </motion.div>
-          </motion.div>
-        )}
-      </div>
-
-      {/* Progress indicator */}
-      <div className="mt-2">
-        <div className="w-full bg-gray-200 rounded-full h-2">
-          <motion.div
-            className="bg-[#e8720c] h-2 rounded-full"
-            initial={{ width: 0 }}
-            animate={{ width: `${Math.min(scratchedPercent, 100)}%` }}
-            transition={{ duration: 0.3 }}
-          />
-        </div>
-        <div className="text-center text-xs text-[#857c6e] mt-1">
-          {isComplete ? '🎉 Reward Revealed!' : `Scratch Progress: ${Math.round(scratchedPercent)}%`}
-        </div>
-      </div>
-    </div>
-  );
-};
-
 export default function DemoMenu() {
   const [activeCategory, setActiveCategory] = useState("All");
   const [cart, setCart] = useState({});
@@ -254,39 +120,6 @@ export default function DemoMenu() {
   const [couponCode, setCouponCode] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState("");
   const [couponError, setCouponError] = useState("");
-  const [visitCount, setVisitCount] = useState(0);
-  const [showReward, setShowReward] = useState(false);
-  const [freeItemClaimed, setFreeItemClaimed] = useState(false);
-  const [orderHistory, setOrderHistory] = useState([]);
-
-  const loadOrderHistory = (phone) => {
-    const savedHistory = localStorage.getItem(`order_history_${phone}`);
-    return savedHistory ? JSON.parse(savedHistory) : [];
-  };
-
-  const saveOrderHistory = (phone, history) => {
-    localStorage.setItem(`order_history_${phone}`, JSON.stringify(history));
-  };
-
-  // Load visit count and order history from localStorage when the guest logs in
-  useEffect(() => {
-    if (isJoined && guestPhone) {
-      localStorage.setItem("current_guest_phone", guestPhone);
-      localStorage.setItem("current_guest_name", guestName || "Guest");
-
-      const storedVisits = localStorage.getItem(`visits_${guestPhone}`);
-      if (storedVisits) {
-        const visits = parseInt(storedVisits, 10);
-        setVisitCount(visits);
-        if (visits >= 5 && !localStorage.getItem(`reward_claimed_${guestPhone}`)) {
-          setShowReward(true);
-        }
-      }
-
-      const history = loadOrderHistory(guestPhone);
-      setOrderHistory(history);
-    }
-  }, [isJoined, guestName, guestPhone]);
 
   const offerOptions = [
     { pct: 5, title: "Saver 5%", subtitle: "5% off", minSubtotal: 500 },
@@ -322,29 +155,11 @@ export default function DemoMenu() {
   };
 
   const cartTotalPairs = Object.entries(cart);
-  const totalItems = cartTotalPairs.reduce((sum, [, qty]) => sum + qty, 0);
+  const totalItems = cartTotalPairs.reduce((sum, [_, qty]) => sum + qty, 0);
   const totalPrice = cartTotalPairs.reduce((sum, [id, qty]) => {
     const item = FOOD_ITEMS.find((i) => i.id === Number(id));
     return sum + (item ? item.price * qty : 0);
   }, 0);
-  const orderLineItems = cartTotalPairs
-    .map(([id, qty]) => {
-      const item = FOOD_ITEMS.find((entry) => entry.id === Number(id));
-
-      if (!item) {
-        return null;
-      }
-
-      return {
-        id: item.id,
-        name: item.name,
-        qty,
-        price: item.price,
-        total: item.price * qty,
-        veg: item.veg,
-      };
-    })
-    .filter(Boolean);
   const discountAmount = Math.round((totalPrice * selectedOffer) / 100);
   const taxableAmount = Math.max(totalPrice - discountAmount, 0);
   const taxAmount = Math.round(taxableAmount * 0.05);
@@ -358,15 +173,6 @@ export default function DemoMenu() {
     activeCategory === "All"
       ? FOOD_ITEMS
       : FOOD_ITEMS.filter((item) => item.category === activeCategory);
-
-  useEffect(() => {
-    if (selectedOffer) {
-      const selected = offerOptions.find((offer) => offer.pct === selectedOffer);
-      if (selected && totalPrice < selected.minSubtotal) {
-        setSelectedOffer(0);
-      }
-    }
-  }, [selectedOffer, totalPrice]);
 
   useEffect(() => {
     if (totalItems === 0 && showCart) {
@@ -525,25 +331,9 @@ export default function DemoMenu() {
             >
               <ArrowLeft size={20} />
             </Link>
-            <div className="flex items-center gap-2">
-              <Link
-                to="/history"
-                className="relative w-10 h-10 rounded-full bg-black/20 backdrop-blur-md flex items-center justify-center text-white hover:bg-black/40 transition-colors border border-white/10"
-              >
-                <History size={18} />
-                {orderHistory.length > 0 && (
-                  <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-[#e8720c] text-white text-[10px] font-bold flex items-center justify-center">
-                    {orderHistory.length}
-                  </span>
-                )}
-              </Link>
-              <Link
-                to="/search"
-                className="w-10 h-10 rounded-full bg-black/20 backdrop-blur-md flex items-center justify-center text-white hover:bg-black/40 transition-colors border border-white/10"
-              >
-                <Search size={20} />
-              </Link>
-            </div>
+            <button className="w-10 h-10 rounded-full bg-black/20 backdrop-blur-md flex items-center justify-center text-white hover:bg-black/40 transition-colors border border-white/10">
+              <Search size={20} />
+            </button>
           </div>
 
           {/* Restaurant Info */}
@@ -564,51 +354,7 @@ export default function DemoMenu() {
           </div>
         </div>
 
-        {/* Visit Counter & Loyalty Progress */}
-        <div className="bg-[#faf7f2] px-4 py-3 border-b border-[#e0d9ce]">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-[#e8720c] rounded-full flex items-center justify-center">
-                  <span className="text-white text-sm font-bold">{visitCount}</span>
-                </div>
-                <span className="text-[#0f0e0b] font-medium text-sm">
-                  Visit{visitCount !== 1 ? 's' : ''}
-                </span>
-              </div>
-              {visitCount < 5 && (
-                <div className="flex items-center gap-1">
-                  <span className="text-[#857c6e] text-xs">
-                    {5 - visitCount} more to FREE food!
-                  </span>
-                  <div className="w-16 h-1.5 bg-[#e0d9ce] rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-[#e8720c] transition-all duration-500"
-                      style={{ width: `${(visitCount / 5) * 100}%` }}
-                    ></div>
-                  </div>
-                </div>
-              )}
-              {visitCount >= 5 && !localStorage.getItem(`reward_claimed_${guestPhone}`) && (
-                <div className="flex items-center gap-2">
-                  <Star className="w-4 h-4 text-[#e8720c] fill-[#e8720c]" />
-                  <span className="text-[#e8720c] font-semibold text-sm">
-                    Reward Available!
-                  </span>
-                </div>
-              )}
-              {freeItemClaimed && (
-                <div className="flex items-center gap-2">
-                  <Star className="w-4 h-4 text-green-600 fill-green-600" />
-                  <span className="text-green-600 font-semibold text-sm">
-                    Free Item Claimed! 🎉
-                  </span>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
+        {/* Categories Sticky Navbar */}
         <div className="sticky top-0 bg-[#faf7f2] z-40 border-b border-[#e0d9ce] px-2 py-3 overflow-x-auto no-scrollbar shadow-sm">
           <div className="flex gap-2">
             {CATEGORIES.map((cat) => (
@@ -970,18 +716,14 @@ export default function DemoMenu() {
                                   </div>
                                   <button
                                     onClick={() => {
-                                      if (isSelected) {
-                                        setSelectedOffer(0);
-                                      } else {
-                                        setSelectedOffer(offer.pct);
-                                        setAppliedCoupon("");
-                                        setCouponError("");
-                                      }
+                                      setSelectedOffer(offer.pct);
+                                      setAppliedCoupon("");
+                                      setCouponError("");
                                     }}
-                                    disabled={!eligible && !isSelected}
+                                    disabled={!eligible}
                                     className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap ${isSelected ? "bg-[#e8720c] text-white" : "bg-[#0f0e0b] text-white"} disabled:bg-[#e0d9ce] disabled:text-[#857c6e]`}
                                   >
-                                    {isSelected ? "Remove" : "Apply"}
+                                    {isSelected ? "Applied" : "Apply"}
                                   </button>
                                 </div>
                               );
@@ -1055,7 +797,7 @@ export default function DemoMenu() {
                     <motion.div
                       initial={{ scale: 0.9, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
-                      className="min-h-full flex flex-col items-center justify-start text-center p-6 pb-24 pt-10 space-y-4"
+                      className="h-full flex flex-col items-center justify-center text-center p-6 pb-20 space-y-4"
                     >
                       <motion.div
                         initial={{ scale: 0 }}
@@ -1096,10 +838,10 @@ export default function DemoMenu() {
                       <p className="font-bold text-[#e8720c] bg-[#fef0e4] px-4 py-1.5 rounded-md text-sm inline-block tracking-wider">
                         ORDER #{orderNo}
                       </p>
-                      <div className="w-full bg-white rounded-3xl p-6 shadow-sm border border-[#e0d9ce] mt-2 text-left relative overflow-visible">
-                        <div className="absolute top-0 left-0 w-full h-1 rounded-full bg-[#f5f0e8]">
+                      <div className="w-full bg-white rounded-2xl p-5 shadow-sm border border-[#e0d9ce] mt-2 text-left relative overflow-hidden">
+                        <div className="absolute top-0 left-0 w-full h-1 bg-[#f5f0e8]">
                           <motion.div
-                            className="h-full rounded-full bg-[#e8720c]"
+                            className="h-full bg-[#e8720c]"
                             initial={{ width: "0%" }}
                             animate={{
                               width:
@@ -1116,43 +858,43 @@ export default function DemoMenu() {
                           Live Status
                         </p>
 
-                        <div className="relative border-l-2 border-[#f5f0e8] ml-3 space-y-6 pb-5">
-                          <div className="relative pl-9">
+                        <div className="relative border-l-2 border-[#f5f0e8] ml-2 space-y-6 pb-2">
+                          <div className="relative pl-6">
                             <div
-                              className={`absolute left-0 top-1.5 w-3.5 h-3.5 rounded-full transition-all duration-500 ${orderStatus >= 0 ? "bg-[#e8720c] shadow-[0_0_0_8px_rgba(232,114,12,0.15)]" : "bg-[#e0d9ce]"}`}
+                              className={`absolute -left-[5px] top-1.5 w-2.5 h-2.5 rounded-full transition-colors duration-500 ${orderStatus >= 0 ? "bg-[#e8720c] shadow-[0_0_0_4px_rgba(232,114,12,0.2)]" : "bg-[#e0d9ce]"}`}
                             />
                             <h4
-                              className={`font-semibold text-base ${orderStatus >= 0 ? "text-[#0f0e0b]" : "text-[#857c6e]"}`}
+                              className={`font-bold text-sm ${orderStatus >= 0 ? "text-[#0f0e0b]" : "text-[#857c6e]"}`}
                             >
                               Sent to Kitchen
                             </h4>
-                            <p className="text-[11px] font-medium text-[#857c6e] mt-1 leading-5">
-                              Order received by the chef.
+                            <p className="text-[11px] font-medium text-[#857c6e] mt-0.5">
+                              Order received by Chef.
                             </p>
                           </div>
-                          <div className="relative pl-9">
+                          <div className="relative pl-6">
                             <div
-                              className={`absolute left-0 top-1.5 w-3.5 h-3.5 rounded-full transition-all duration-500 ${orderStatus >= 1 ? "bg-[#e8720c] shadow-[0_0_0_8px_rgba(232,114,12,0.15)]" : "bg-[#e0d9ce]"}`}
+                              className={`absolute -left-[5px] top-1.5 w-2.5 h-2.5 rounded-full transition-colors duration-500 ${orderStatus >= 1 ? "bg-[#e8720c] shadow-[0_0_0_4px_rgba(232,114,12,0.2)]" : "bg-[#e0d9ce]"}`}
                             />
                             <h4
-                              className={`font-semibold text-base transition-colors duration-500 ${orderStatus >= 1 ? "text-[#0f0e0b]" : "text-[#857c6e]"}`}
+                              className={`font-bold text-sm transition-colors duration-500 ${orderStatus >= 1 ? "text-[#0f0e0b]" : "text-[#857c6e]"}`}
                             >
                               Preparing
                             </h4>
-                            <p className="text-[11px] font-medium text-[#857c6e] mt-1 leading-5">
+                            <p className="text-[11px] font-medium text-[#857c6e] mt-0.5">
                               Your food is being cooked.
                             </p>
                           </div>
-                          <div className="relative pl-9">
+                          <div className="relative pl-6">
                             <div
-                              className={`absolute left-0 top-1.5 w-3.5 h-3.5 rounded-full transition-all duration-500 ${orderStatus >= 2 ? "bg-[#3a6348] shadow-[0_0_0_8px_rgba(58,99,72,0.15)]" : "bg-[#e0d9ce]"}`}
+                              className={`absolute -left-[5px] top-1.5 w-2.5 h-2.5 rounded-full transition-colors duration-500 ${orderStatus >= 2 ? "bg-[#3a6348] shadow-[0_0_0_4px_rgba(58,99,72,0.2)]" : "bg-[#e0d9ce]"}`}
                             />
                             <h4
-                              className={`font-semibold text-base transition-colors duration-500 ${orderStatus >= 2 ? "text-[#0f0e0b]" : "text-[#857c6e]"}`}
+                              className={`font-bold text-sm transition-colors duration-500 ${orderStatus >= 2 ? "text-[#0f0e0b]" : "text-[#857c6e]"}`}
                             >
                               Ready to Serve
                             </h4>
-                            <p className="text-[11px] font-medium text-[#857c6e] mt-1 leading-5">
+                            <p className="text-[11px] font-medium text-[#857c6e] mt-0.5">
                               Chef has completed your order.
                             </p>
                           </div>
@@ -1220,43 +962,8 @@ export default function DemoMenu() {
                   <div className="absolute bottom-0 left-0 w-full p-4 bg-white border-t border-[#e0d9ce] shrink-0 text-center">
                     <button
                       onClick={() => {
-                        const nextOrderNo = Math.floor(1000 + Math.random() * 9000);
-                        setOrderNo(nextOrderNo);
+                        setOrderNo(Math.floor(1000 + Math.random() * 9000));
                         setOrderPlaced(true);
-
-                        const orderRecord = {
-                          id: nextOrderNo,
-                          date: new Date().toLocaleString(),
-                          total: grandTotal,
-                          subtotal: totalPrice,
-                          discount: discountAmount,
-                          tax: taxAmount,
-                          taxableAmount,
-                          items: totalItems,
-                          itemList: orderLineItems,
-                          status: "Placed",
-                          couponCode: appliedCoupon,
-                          offerPercent: selectedOffer,
-                          restaurantName: "Spice Garden",
-                          tableName: "Table 04",
-                          guestName: guestName || "Guest",
-                          guestPhone,
-                        };
-
-                        if (guestPhone) {
-                          const history = loadOrderHistory(guestPhone);
-                          const updatedHistory = [orderRecord, ...history].slice(0, 10);
-                          setOrderHistory(updatedHistory);
-                          saveOrderHistory(guestPhone, updatedHistory);
-
-                          const newVisitCount = visitCount + 1;
-                          setVisitCount(newVisitCount);
-                          localStorage.setItem(`visits_${guestPhone}`, newVisitCount.toString());
-
-                          if (newVisitCount >= 5 && !localStorage.getItem(`reward_claimed_${guestPhone}`)) {
-                            setTimeout(() => setShowReward(true), 3000);
-                          }
-                        }
                       }}
                       className="w-full bg-[#e8720c] text-white py-3.5 rounded-xl font-bold text-lg shadow-[0_4px_20px_rgba(232,114,12,0.3)] hover:bg-[#d4620a] transition-colors flex items-center justify-center gap-2"
                     >
@@ -1281,96 +988,6 @@ export default function DemoMenu() {
           }
         `}</style>
       </div>
-
-      {/* Loyalty Reward Modal */}
-      <AnimatePresence>
-        {showReward && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-            onClick={() => setShowReward(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.8, opacity: 0 }}
-              className="bg-white rounded-3xl max-w-sm w-full p-6 text-center relative"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="w-20 h-20 bg-gradient-to-br from-[#e8720c] to-[#d4620a] rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
-                <Star className="w-10 h-10 text-white fill-white" />
-              </div>
-
-              <h3 className="text-2xl font-bold text-[#0f0e0b] mb-2 font-display">
-                🎉 Congratulations!
-              </h3>
-
-              <p className="text-[#857c6e] text-sm mb-6 leading-relaxed">
-                You've visited us {visitCount} times! Scratch to reveal your FREE reward!
-              </p>
-
-              {/* Scratch Card Component */}
-              <ScratchCard
-                width={280}
-                height={120}
-                image="/api/placeholder/280/120"
-                finishPercent={50}
-                onComplete={() => {
-                  // Add a free item to cart (let's give them the most expensive item as reward)
-                  const freeItem = FOOD_ITEMS.reduce((prev, current) =>
-                    prev.price > current.price ? prev : current
-                  );
-                  addToCart(freeItem.id);
-                  setFreeItemClaimed(true);
-                  localStorage.setItem(`reward_claimed_${guestPhone}`, 'true');
-                  setTimeout(() => setShowReward(false), 2000); // Close after showing reward
-                }}
-              >
-                {/* Scratch Layer */}
-                <div className="w-full h-full bg-gradient-to-br from-[#e8720c] via-[#f97316] to-[#d4620a] rounded-xl flex items-center justify-center relative overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse"></div>
-                  <div className="text-white text-center z-10">
-                    <div className="text-2xl mb-1">🎁</div>
-                    <div className="text-sm font-bold">Scratch Here!</div>
-                  </div>
-                </div>
-
-                {/* Reward Layer */}
-                <div className="w-full h-full bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex flex-col items-center justify-center text-white relative overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
-                  <div className="text-center z-10">
-                    <div className="text-3xl mb-2">🎉</div>
-                    <div className="text-lg font-bold mb-1">FREE ITEM!</div>
-                    <div className="text-sm opacity-90">
-                      {FOOD_ITEMS.reduce((prev, current) =>
-                        prev.price > current.price ? prev : current
-                      ).name}
-                    </div>
-                  </div>
-                  <div className="absolute bottom-2 left-2 right-2 text-xs opacity-75 text-center">
-                    Added to your cart!
-                  </div>
-                </div>
-              </ScratchCard>
-
-              <p className="text-[#857c6e] text-xs mt-4 leading-relaxed">
-                Scratch the card above to claim your free {FOOD_ITEMS.reduce((prev, current) =>
-                  prev.price > current.price ? prev : current
-                ).name}!
-              </p>
-
-              <button
-                onClick={() => setShowReward(false)}
-                className="absolute top-4 right-4 w-8 h-8 rounded-full bg-[#faf7f2] flex items-center justify-center text-[#857c6e] hover:bg-[#f0ebe0] transition-colors"
-              >
-                ✕
-              </button>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }

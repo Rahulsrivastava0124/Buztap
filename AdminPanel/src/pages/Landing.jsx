@@ -48,16 +48,6 @@ const stagger = { show: { transition: { staggerChildren: 0.1 } } };
 
 export default function Landing() {
   const navigate = useNavigate();
-  const adminPanelUrl = import.meta.env.VITE_ADMIN_PANEL_URL;
-
-  const openAdminPanel = () => {
-    if (adminPanelUrl) {
-      window.location.href = adminPanelUrl;
-      return;
-    }
-    navigate("/auth");
-  };
-
   /* scroll-reveal */
   useEffect(() => {
     const els = document.querySelectorAll(".reveal");
@@ -141,14 +131,14 @@ export default function Landing() {
           {/* ── Desktop Right Actions ── */}
           <div className="hidden lg:flex items-center gap-1 flex-shrink-0">
             <button
-              onClick={openAdminPanel}
+              onClick={() => navigate("/auth")}
               className="px-4 py-2 text-sm font-medium text-[#2a2720] hover:text-[#e8720c] hover:bg-[#fef0e4] rounded-md transition-colors"
             >
               Sign In
             </button>
             <div className="w-px h-5 bg-[#e0d9ce] mx-1" />
             <button
-              onClick={openAdminPanel}
+              onClick={() => navigate("/auth")}
               className="flex items-center gap-1.5 px-5 py-2.5 bg-[#e8720c] hover:bg-[#d4620a] text-white text-sm font-semibold rounded-lg transition-colors shadow-[0_2px_10px_rgba(232,114,12,0.28)]"
             >
               Get Started Free <ArrowRight size={14} />
@@ -190,13 +180,13 @@ export default function Landing() {
                 ))}
                 <div className="border-t border-[#e0d9ce] mt-3 pt-3 flex flex-col gap-2">
                   <button
-                    onClick={openAdminPanel}
+                    onClick={() => navigate("/auth")}
                     className="w-full py-2.5 text-sm font-semibold text-[#0f0e0b] border border-[#e0d9ce] rounded-lg hover:border-[#e8720c] hover:text-[#e8720c] transition-colors"
                   >
                     Sign In
                   </button>
                   <button
-                    onClick={openAdminPanel}
+                    onClick={() => navigate("/auth")}
                     className="w-full py-3 text-sm font-bold text-white bg-[#e8720c] hover:bg-[#d4620a] rounded-lg transition-colors flex items-center justify-center gap-2"
                   >
                     Get Started Free <ArrowRight size={15} />
@@ -260,7 +250,7 @@ export default function Landing() {
             className="flex flex-wrap gap-3"
           >
             <button
-              onClick={openAdminPanel}
+              onClick={() => navigate("/auth")}
               className="bg-[#e8720c] hover:bg-[#d4620a] text-white font-semibold px-7 py-3 rounded-md flex items-center gap-2 transition-colors"
             >
               Start Free <ArrowRight size={16} />
@@ -890,7 +880,7 @@ export default function Landing() {
                   ))}
                 </ul>
                 <button
-                  onClick={openAdminPanel}
+                  onClick={() => navigate("/auth")}
                   className={`w-full py-3 rounded-md font-semibold text-sm transition-colors ${
                     plan.highlight
                       ? "bg-[#e8720c] hover:bg-[#d4620a] text-white"
