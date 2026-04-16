@@ -202,7 +202,9 @@ export default function OrderHistory() {
                       <p className="font-bold text-lg text-[#0f0e0b]">
                         Order #{order.id}
                       </p>
-                      <p className="text-sm text-[#857c6e] mt-1">{order.date}</p>
+                      <p className="text-sm text-[#857c6e] mt-1">
+                        {order.date}
+                      </p>
                     </div>
                     <span className="text-2xl font-bold text-[#3a6348]">
                       ₹{order.total}
@@ -346,7 +348,6 @@ export default function OrderHistory() {
             </div>
           </div>
         ) : null}
-
       </div>
     </div>
   );

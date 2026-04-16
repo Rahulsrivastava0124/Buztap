@@ -482,7 +482,9 @@ export default function DemoMenu() {
                     type="tel"
                     value={guestPhone}
                     onChange={(e) =>
-                      setGuestPhone(e.target.value.replace(/\D/g, "").slice(0, 10))
+                      setGuestPhone(
+                        e.target.value.replace(/\D/g, "").slice(0, 10),
+                      )
                     }
                     placeholder="9999999999"
                     inputMode="numeric"
