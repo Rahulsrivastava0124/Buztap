@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, Download, FileText, History, Search } from "lucide-react";
+import { ArrowLeft, Download, History, Search } from "lucide-react";
 
 const formatCurrency = (value = 0) => `₹${Number(value || 0)}`;
 
@@ -115,7 +115,9 @@ export default function OrderHistory() {
     }
 
     if (currentPhone) {
-      const savedHistory = localStorage.getItem(`order_history_${currentPhone}`);
+      const savedHistory = localStorage.getItem(
+        `order_history_${currentPhone}`,
+      );
       const parsedOrders = savedHistory ? JSON.parse(savedHistory) : [];
       setOrders(parsedOrders);
     }
@@ -190,63 +192,34 @@ export default function OrderHistory() {
                 key={order.id}
                 className="bg-white rounded-3xl shadow-sm border border-[#e0d9ce] p-4"
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="font-bold text-lg text-[#0f0e0b]">Order #{order.id}</p>
-                    <p className="text-sm text-[#857c6e] mt-1">{order.date}</p>
-                  </div>
-                  <span className="text-2xl font-bold text-[#3a6348]">₹{order.total}</span>
-                </div>
-                <div className="mt-4 flex items-center justify-between text-sm text-[#857c6e]">
-                  <span>{order.items} item{order.items === 1 ? "" : "s"}</span>
-                  <span className="px-3 py-1.5 rounded-full bg-[#eaf4ea] text-[#3a6348] font-semibold">
-                    {order.status}
-                  </span>
-                </div>
-                <div className="mt-4 pt-4 border-t border-[#f0ece7] space-y-3">
-                  {order.itemList.length > 0 ? (
-                    <div className="space-y-2">
-                      <p className="text-[11px] uppercase tracking-[0.18em] text-[#857c6e] font-bold">
-                        Items List
+                <button
+                  type="button"
+                  onClick={() => setSelectedOrderId(order.id)}
+                  className="w-full text-left"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-bold text-lg text-[#0f0e0b]">
+                        Order #{order.id}
                       </p>
-                      {order.itemList.map((item) => (
-                        <div
-                          key={`${order.id}-${item.id}`}
-                          className="flex items-center justify-between gap-3 text-sm"
-                        >
-                          <div className="min-w-0">
-                            <p className="font-semibold text-[#0f0e0b] truncate">{item.name}</p>
-                            <p className="text-xs text-[#857c6e]">{item.qty} × ₹{item.price}</p>
-                          </div>
-                          <span className="font-bold text-[#0f0e0b]">₹{item.total}</span>
-                        </div>
-                      ))}
+                      <p className="text-sm text-[#857c6e] mt-1">{order.date}</p>
                     </div>
-                  ) : (
-                    <p className="text-sm text-[#857c6e]">
-                      Itemized details are unavailable for this older order.
-                    </p>
-                  )}
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setSelectedOrderId(order.id)}
-                      className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-[#f5f0e8] text-[#0f0e0b] font-semibold"
-                    >
-                      <FileText size={16} />
-                      Invoice View
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => downloadInvoice(order)}
-                      className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-[#e8720c] text-white font-semibold"
-                    >
-                      <Download size={16} />
-                      Download
-                    </button>
+                    <span className="text-2xl font-bold text-[#3a6348]">
+                      ₹{order.total}
+                    </span>
                   </div>
-                </div>
+                  <div className="mt-4 flex items-center justify-between text-sm text-[#857c6e]">
+                    <span>
+                      {order.items} item{order.items === 1 ? "" : "s"}
+                    </span>
+                    <span className="px-3 py-1.5 rounded-full bg-[#eaf4ea] text-[#3a6348] font-semibold">
+                      {order.status}
+                    </span>
+                  </div>
+                  <p className="mt-3 text-xs font-bold text-[#857c6e] uppercase tracking-wider">
+                    Tap to open order details & invoice
+                  </p>
+                </button>
               </div>
             ))}
           </div>
@@ -255,7 +228,9 @@ export default function OrderHistory() {
             <div className="w-16 h-16 rounded-full bg-[#f5f0e8] text-[#857c6e] flex items-center justify-center mx-auto mb-4">
               <History size={28} />
             </div>
-            <h2 className="text-xl font-bold text-[#0f0e0b] mb-2">No order history yet</h2>
+            <h2 className="text-xl font-bold text-[#0f0e0b] mb-2">
+              No order history yet
+            </h2>
             <p className="text-sm text-[#857c6e] mb-5">
               Place your first order from the menu and it will appear here.
             </p>
@@ -274,10 +249,14 @@ export default function OrderHistory() {
               <div className="flex items-start justify-between gap-3 mb-5">
                 <div>
                   <p className="text-[11px] uppercase tracking-[0.18em] text-[#857c6e] font-bold mb-1">
-                    Invoice View
+                    Order Details
                   </p>
-                  <h2 className="text-2xl font-bold text-[#0f0e0b]">Order #{selectedOrder.id}</h2>
-                  <p className="text-sm text-[#857c6e] mt-1">{selectedOrder.date}</p>
+                  <h2 className="text-2xl font-bold text-[#0f0e0b]">
+                    Order #{selectedOrder.id}
+                  </h2>
+                  <p className="text-sm text-[#857c6e] mt-1">
+                    {selectedOrder.date}
+                  </p>
                 </div>
                 <button
                   type="button"
@@ -289,54 +268,50 @@ export default function OrderHistory() {
               </div>
 
               <div className="bg-[#faf7f2] rounded-3xl p-4 border border-[#eee7db] space-y-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-lg font-bold text-[#0f0e0b]">{selectedOrder.restaurantName}</p>
-                    <p className="text-sm text-[#857c6e] mt-1">{selectedOrder.tableName}</p>
-                    <p className="text-sm text-[#857c6e]">Guest: {selectedOrder.guestName}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm text-[#857c6e]">Status</p>
-                    <span className="inline-flex mt-1 px-3 py-1.5 rounded-full bg-[#eaf4ea] text-[#3a6348] font-semibold text-sm">
-                      {selectedOrder.status}
-                    </span>
-                  </div>
-                </div>
-
-                <div>
-                  <p className="text-[11px] uppercase tracking-[0.18em] text-[#857c6e] font-bold mb-3">
-                    Order Details
-                  </p>
-                  <div className="space-y-3">
-                    {selectedOrder.itemList.length > 0 ? (
-                      selectedOrder.itemList.map((item) => (
-                        <div
-                          key={`invoice-${selectedOrder.id}-${item.id}`}
-                          className="flex items-center justify-between gap-3 bg-white rounded-2xl px-4 py-3"
-                        >
-                          <div>
-                            <p className="font-semibold text-[#0f0e0b]">{item.name}</p>
-                            <p className="text-xs text-[#857c6e]">{item.qty} × {formatCurrency(item.price)}</p>
-                          </div>
-                          <span className="font-bold text-[#0f0e0b]">{formatCurrency(item.total)}</span>
+                {selectedOrder.itemList.length > 0 ? (
+                  <div className="space-y-2">
+                    <p className="text-[11px] uppercase tracking-[0.18em] text-[#857c6e] font-bold">
+                      Items You Ordered
+                    </p>
+                    {selectedOrder.itemList.map((item) => (
+                      <div
+                        key={`invoice-${selectedOrder.id}-${item.id}`}
+                        className="flex items-center justify-between gap-3 bg-white rounded-2xl px-4 py-3"
+                      >
+                        <div>
+                          <p className="font-semibold text-[#0f0e0b]">
+                            {item.name}
+                          </p>
+                          <p className="text-xs text-[#857c6e]">
+                            {item.qty} × {formatCurrency(item.price)}
+                          </p>
                         </div>
-                      ))
-                    ) : (
-                      <div className="bg-white rounded-2xl px-4 py-3 text-sm text-[#857c6e]">
-                        Itemized details are unavailable for this older order.
+                        <span className="font-bold text-[#0f0e0b]">
+                          {formatCurrency(item.total)}
+                        </span>
                       </div>
-                    )}
+                    ))}
                   </div>
-                </div>
+                ) : (
+                  <div className="bg-white rounded-2xl px-4 py-3 text-sm text-[#857c6e]">
+                    Itemized details are unavailable for this older order.
+                  </div>
+                )}
 
                 <div className="bg-white rounded-2xl px-4 py-4 space-y-2">
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-[#857c6e] font-bold">
+                    Bill Details
+                  </p>
                   <div className="flex items-center justify-between text-sm text-[#857c6e]">
                     <span>Subtotal</span>
                     <span>{formatCurrency(selectedOrder.subtotal)}</span>
                   </div>
                   <div className="flex items-center justify-between text-sm text-[#857c6e]">
                     <span>
-                      Discount {selectedOrder.offerPercent ? `(${selectedOrder.offerPercent}%)` : ""}
+                      Discount{" "}
+                      {selectedOrder.offerPercent
+                        ? `(${selectedOrder.offerPercent}%)`
+                        : ""}
                     </span>
                     <span>-{formatCurrency(selectedOrder.discount)}</span>
                   </div>
@@ -371,6 +346,7 @@ export default function OrderHistory() {
             </div>
           </div>
         ) : null}
+
       </div>
     </div>
   );

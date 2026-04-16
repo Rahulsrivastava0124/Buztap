@@ -12,7 +12,9 @@ export default function RestaurantSearch() {
           >
             <ArrowLeft size={20} />
           </Link>
-          <h1 className="text-lg font-bold text-[#0f0e0b]">Restaurant Search</h1>
+          <h1 className="text-lg font-bold text-[#0f0e0b]">
+            Restaurant Search
+          </h1>
           <div className="w-11 h-11 rounded-full bg-white shadow-md border border-[#e0d9ce] flex items-center justify-center text-[#0f0e0b]">
             <Search size={20} />
           </div>
@@ -24,8 +26,12 @@ export default function RestaurantSearch() {
               <Search size={20} />
             </div>
             <div className="flex-1">
-              <p className="text-sm text-[#0f0e0b] font-semibold">Find your next meal</p>
-              <p className="text-xs text-[#857c6e]">Search nearby restaurants, cuisines, and menu items.</p>
+              <p className="text-sm text-[#0f0e0b] font-semibold">
+                Find your next meal
+              </p>
+              <p className="text-xs text-[#857c6e]">
+                Search nearby restaurants, cuisines, and menu items.
+              </p>
             </div>
           </div>
           <input

@@ -106,7 +106,13 @@ const FOOD_ITEMS = [
 
 const CATEGORIES = ["All", "Starters", "Mains", "Breads", "Drinks"];
 
-const ScratchCard = ({ width, height, children, finishPercent = 70, onComplete }) => {
+const ScratchCard = ({
+  width,
+  height,
+  children,
+  finishPercent = 70,
+  onComplete,
+}) => {
   const [isScratching, setIsScratching] = useState(false);
   const [scratchedPercent, setScratchedPercent] = useState(0);
   const [isComplete, setIsComplete] = useState(false);
@@ -116,10 +122,10 @@ const ScratchCard = ({ width, height, children, finishPercent = 70, onComplete }
   useEffect(() => {
     const canvas = canvasRef.current;
     if (canvas) {
-      const context = canvas.getContext('2d');
-      context.fillStyle = '#ffffff';
+      const context = canvas.getContext("2d");
+      context.fillStyle = "#ffffff";
       context.fillRect(0, 0, width, height);
-      context.globalCompositeOperation = 'destination-out';
+      context.globalCompositeOperation = "destination-out";
       setCtx(context);
     }
   }, [width, height]);
@@ -163,14 +169,10 @@ const ScratchCard = ({ width, height, children, finishPercent = 70, onComplete }
     <div className="relative mb-4">
       <div className="relative rounded-xl overflow-hidden shadow-lg">
         {/* Reward Layer (Background) */}
-        <div className="absolute inset-0 z-0">
-          {children[1]}
-        </div>
+        <div className="absolute inset-0 z-0">{children[1]}</div>
 
         {/* Scratch Layer (Foreground) */}
-        <div className="relative z-10">
-          {children[0]}
-        </div>
+        <div className="relative z-10">{children[0]}</div>
 
         {/* Canvas for scratching */}
         <canvas
@@ -232,7 +234,9 @@ const ScratchCard = ({ width, height, children, finishPercent = 70, onComplete }
           />
         </div>
         <div className="text-center text-xs text-[#857c6e] mt-1">
-          {isComplete ? '🎉 Reward Revealed!' : `Scratch Progress: ${Math.round(scratchedPercent)}%`}
+          {isComplete
+            ? "🎉 Reward Revealed!"
+            : `Scratch Progress: ${Math.round(scratchedPercent)}%`}
         </div>
       </div>
     </div>
@@ -278,7 +282,10 @@ export default function DemoMenu() {
       if (storedVisits) {
         const visits = parseInt(storedVisits, 10);
         setVisitCount(visits);
-        if (visits >= 5 && !localStorage.getItem(`reward_claimed_${guestPhone}`)) {
+        if (
+          visits >= 5 &&
+          !localStorage.getItem(`reward_claimed_${guestPhone}`)
+        ) {
           setShowReward(true);
         }
       }
@@ -361,7 +368,9 @@ export default function DemoMenu() {
 
   useEffect(() => {
     if (selectedOffer) {
-      const selected = offerOptions.find((offer) => offer.pct === selectedOffer);
+      const selected = offerOptions.find(
+        (offer) => offer.pct === selectedOffer,
+      );
       if (selected && totalPrice < selected.minSubtotal) {
         setSelectedOffer(0);
       }
@@ -450,30 +459,17 @@ export default function DemoMenu() {
               Welcome!
             </h2>
             <p className="text-[#857c6e] text-sm mb-8 leading-relaxed">
-              Please enter your details to view our digital menu and place your
-              interactive order.
+              Please enter your phone number to view our digital menu and place
+              your interactive order.
             </p>
 
             <form
               onSubmit={(e) => {
                 e.preventDefault();
-                if (guestName && guestPhone) setIsJoined(true);
+                if (guestPhone) setIsJoined(true);
               }}
               className="space-y-5"
             >
-              <div>
-                <label className="block text-[11px] font-bold text-[#857c6e] uppercase tracking-wider mb-2">
-                  Your Name
-                </label>
-                <input
-                  type="text"
-                  value={guestName}
-                  onChange={(e) => setGuestName(e.target.value)}
-                  placeholder="E.g. Jane Doe"
-                  className="w-full px-4 py-3.5 bg-[#faf7f2] border border-[#e0d9ce] rounded-xl focus:outline-none focus:border-[#e8720c] focus:ring-1 focus:ring-[#e8720c] transition-all text-[#0f0e0b] font-medium"
-                  required
-                />
-              </div>
               <div>
                 <label className="block text-[11px] font-bold text-[#857c6e] uppercase tracking-wider mb-2">
                   Phone Number
@@ -485,8 +481,12 @@ export default function DemoMenu() {
                   <input
                     type="tel"
                     value={guestPhone}
-                    onChange={(e) => setGuestPhone(e.target.value)}
-                    placeholder="99999 99999"
+                    onChange={(e) =>
+                      setGuestPhone(e.target.value.replace(/\D/g, "").slice(0, 10))
+                    }
+                    placeholder="9999999999"
+                    inputMode="numeric"
+                    maxLength={10}
                     className="w-full px-4 py-3.5 bg-transparent focus:outline-none text-[#0f0e0b] font-medium"
                     required
                   />
@@ -570,10 +570,12 @@ export default function DemoMenu() {
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 bg-[#e8720c] rounded-full flex items-center justify-center">
-                  <span className="text-white text-sm font-bold">{visitCount}</span>
+                  <span className="text-white text-sm font-bold">
+                    {visitCount}
+                  </span>
                 </div>
                 <span className="text-[#0f0e0b] font-medium text-sm">
-                  Visit{visitCount !== 1 ? 's' : ''}
+                  Visit{visitCount !== 1 ? "s" : ""}
                 </span>
               </div>
               {visitCount < 5 && (
@@ -589,14 +591,15 @@ export default function DemoMenu() {
                   </div>
                 </div>
               )}
-              {visitCount >= 5 && !localStorage.getItem(`reward_claimed_${guestPhone}`) && (
-                <div className="flex items-center gap-2">
-                  <Star className="w-4 h-4 text-[#e8720c] fill-[#e8720c]" />
-                  <span className="text-[#e8720c] font-semibold text-sm">
-                    Reward Available!
-                  </span>
-                </div>
-              )}
+              {visitCount >= 5 &&
+                !localStorage.getItem(`reward_claimed_${guestPhone}`) && (
+                  <div className="flex items-center gap-2">
+                    <Star className="w-4 h-4 text-[#e8720c] fill-[#e8720c]" />
+                    <span className="text-[#e8720c] font-semibold text-sm">
+                      Reward Available!
+                    </span>
+                  </div>
+                )}
               {freeItemClaimed && (
                 <div className="flex items-center gap-2">
                   <Star className="w-4 h-4 text-green-600 fill-green-600" />
@@ -801,7 +804,7 @@ export default function DemoMenu() {
                     <ArrowLeft size={20} />
                   </button>
                   <h2 className="font-bold text-xl text-[#0f0e0b]">
-                    Your Order
+                    Your Order {guestName ? `• ${guestName.split(" ")[0]}` : ""}
                   </h2>
                 </div>
 
@@ -813,6 +816,24 @@ export default function DemoMenu() {
                       animate={{ opacity: 1 }}
                       className="space-y-4"
                     >
+                      <div className="bg-white rounded-2xl p-4 shadow-sm border border-[#e0d9ce] space-y-3">
+                        <div>
+                          <label className="block text-[11px] font-bold text-[#857c6e] uppercase tracking-wider mb-2">
+                            Your Name
+                          </label>
+                          <input
+                            type="text"
+                            value={guestName}
+                            onChange={(e) => setGuestName(e.target.value)}
+                            placeholder="E.g. Rahul"
+                            className="w-full px-4 py-3 bg-[#faf7f2] border border-[#e0d9ce] rounded-xl focus:outline-none focus:border-[#e8720c]"
+                          />
+                        </div>
+                        <p className="text-xs text-[#857c6e]">
+                          Name will be used in order and invoice details.
+                        </p>
+                      </div>
+
                       {/* Cart Items List */}
                       <div className="bg-white rounded-2xl p-4 shadow-sm space-y-4">
                         {cartTotalPairs.map(([id, qty]) => {
@@ -893,11 +914,11 @@ export default function DemoMenu() {
                               Add more
                             </span>
                           </div>
-                          <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                          <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 pr-1 snap-x snap-mandatory touch-pan-x">
                             {recommendedItems.map((item) => (
                               <div
                                 key={item.id}
-                                className="min-w-34 max-w-34 rounded-xl border border-[#e0d9ce] bg-[#faf7f2] p-2.5 shrink-0"
+                                className="w-[148px] min-w-[148px] rounded-xl border border-[#e0d9ce] bg-[#faf7f2] p-2.5 shrink-0 snap-start"
                               >
                                 <div className="w-full h-20 rounded-lg overflow-hidden mb-2">
                                   <img
@@ -1116,7 +1137,8 @@ export default function DemoMenu() {
                           Live Status
                         </p>
 
-                        <div className="relative border-l-2 border-[#f5f0e8] ml-3 space-y-6 pb-5">
+                        <div className="relative space-y-6 pb-5">
+                          <div className="absolute left-[7px] top-2 bottom-2 w-[2px] bg-[#f5f0e8]" />
                           <div className="relative pl-9">
                             <div
                               className={`absolute left-0 top-1.5 w-3.5 h-3.5 rounded-full transition-all duration-500 ${orderStatus >= 0 ? "bg-[#e8720c] shadow-[0_0_0_8px_rgba(232,114,12,0.15)]" : "bg-[#e0d9ce]"}`}
@@ -1220,7 +1242,14 @@ export default function DemoMenu() {
                   <div className="absolute bottom-0 left-0 w-full p-4 bg-white border-t border-[#e0d9ce] shrink-0 text-center">
                     <button
                       onClick={() => {
-                        const nextOrderNo = Math.floor(1000 + Math.random() * 9000);
+                        if (!guestName.trim()) {
+                          setShowCart(true);
+                          return;
+                        }
+
+                        const nextOrderNo = Math.floor(
+                          1000 + Math.random() * 9000,
+                        );
                         setOrderNo(nextOrderNo);
                         setOrderPlaced(true);
 
@@ -1245,20 +1274,32 @@ export default function DemoMenu() {
 
                         if (guestPhone) {
                           const history = loadOrderHistory(guestPhone);
-                          const updatedHistory = [orderRecord, ...history].slice(0, 10);
+                          const updatedHistory = [
+                            orderRecord,
+                            ...history,
+                          ].slice(0, 10);
                           setOrderHistory(updatedHistory);
                           saveOrderHistory(guestPhone, updatedHistory);
 
                           const newVisitCount = visitCount + 1;
                           setVisitCount(newVisitCount);
-                          localStorage.setItem(`visits_${guestPhone}`, newVisitCount.toString());
+                          localStorage.setItem(
+                            `visits_${guestPhone}`,
+                            newVisitCount.toString(),
+                          );
 
-                          if (newVisitCount >= 5 && !localStorage.getItem(`reward_claimed_${guestPhone}`)) {
+                          if (
+                            newVisitCount >= 5 &&
+                            !localStorage.getItem(
+                              `reward_claimed_${guestPhone}`,
+                            )
+                          ) {
                             setTimeout(() => setShowReward(true), 3000);
                           }
                         }
                       }}
-                      className="w-full bg-[#e8720c] text-white py-3.5 rounded-xl font-bold text-lg shadow-[0_4px_20px_rgba(232,114,12,0.3)] hover:bg-[#d4620a] transition-colors flex items-center justify-center gap-2"
+                      disabled={!guestName.trim()}
+                      className="w-full bg-[#e8720c] disabled:bg-[#e0d9ce] disabled:text-[#857c6e] text-white py-3.5 rounded-xl font-bold text-lg shadow-[0_4px_20px_rgba(232,114,12,0.3)] hover:bg-[#d4620a] transition-colors flex items-center justify-center gap-2"
                     >
                       Place Order • ₹{grandTotal}{" "}
                       <ArrowLeft size={18} className="rotate-180" />
@@ -1308,7 +1349,8 @@ export default function DemoMenu() {
               </h3>
 
               <p className="text-[#857c6e] text-sm mb-6 leading-relaxed">
-                You've visited us {visitCount} times! Scratch to reveal your FREE reward!
+                You've visited us {visitCount} times! Scratch to reveal your
+                FREE reward!
               </p>
 
               {/* Scratch Card Component */}
@@ -1320,11 +1362,11 @@ export default function DemoMenu() {
                 onComplete={() => {
                   // Add a free item to cart (let's give them the most expensive item as reward)
                   const freeItem = FOOD_ITEMS.reduce((prev, current) =>
-                    prev.price > current.price ? prev : current
+                    prev.price > current.price ? prev : current,
                   );
                   addToCart(freeItem.id);
                   setFreeItemClaimed(true);
-                  localStorage.setItem(`reward_claimed_${guestPhone}`, 'true');
+                  localStorage.setItem(`reward_claimed_${guestPhone}`, "true");
                   setTimeout(() => setShowReward(false), 2000); // Close after showing reward
                 }}
               >
@@ -1344,9 +1386,11 @@ export default function DemoMenu() {
                     <div className="text-3xl mb-2">🎉</div>
                     <div className="text-lg font-bold mb-1">FREE ITEM!</div>
                     <div className="text-sm opacity-90">
-                      {FOOD_ITEMS.reduce((prev, current) =>
-                        prev.price > current.price ? prev : current
-                      ).name}
+                      {
+                        FOOD_ITEMS.reduce((prev, current) =>
+                          prev.price > current.price ? prev : current,
+                        ).name
+                      }
                     </div>
                   </div>
                   <div className="absolute bottom-2 left-2 right-2 text-xs opacity-75 text-center">
@@ -1356,9 +1400,13 @@ export default function DemoMenu() {
               </ScratchCard>
 
               <p className="text-[#857c6e] text-xs mt-4 leading-relaxed">
-                Scratch the card above to claim your free {FOOD_ITEMS.reduce((prev, current) =>
-                  prev.price > current.price ? prev : current
-                ).name}!
+                Scratch the card above to claim your free{" "}
+                {
+                  FOOD_ITEMS.reduce((prev, current) =>
+                    prev.price > current.price ? prev : current,
+                  ).name
+                }
+                !
               </p>
 
               <button
