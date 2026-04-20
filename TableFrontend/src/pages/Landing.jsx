@@ -714,8 +714,8 @@ export default function Landing() {
               From menu to payment in seconds
             </h2>
             <p className="text-[#857c6e] mt-3 max-w-2xl mx-auto">
-              Track each POS stage live — build the order, confirm checkout,
-              and close payment with invoice sharing.
+              Track each POS stage live — build the order, confirm checkout, and
+              close payment with invoice sharing.
             </p>
           </div>
 

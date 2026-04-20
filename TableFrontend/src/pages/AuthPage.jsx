@@ -105,112 +105,112 @@ export default function AuthPage() {
             </div>
 
             <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-[#0f0e0b]">
-                      Restaurant Name
-                    </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <Building className="h-4 w-4 text-[#b0a898]" />
-                      </div>
-                      <input
-                        type="text"
-                        className="w-full pl-10 pr-4 py-2.5 bg-[#faf7f2] border border-[#e0d9ce] rounded-lg text-sm text-[#0f0e0b] placeholder-[#b0a898] focus:outline-none focus:border-[#e8720c] focus:ring-1 focus:ring-[#e8720c] transition-shadow"
-                        placeholder="Spice Garden"
-                      />
-                    </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-[#0f0e0b]">
+                  Restaurant Name
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Building className="h-4 w-4 text-[#b0a898]" />
                   </div>
+                  <input
+                    type="text"
+                    className="w-full pl-10 pr-4 py-2.5 bg-[#faf7f2] border border-[#e0d9ce] rounded-lg text-sm text-[#0f0e0b] placeholder-[#b0a898] focus:outline-none focus:border-[#e8720c] focus:ring-1 focus:ring-[#e8720c] transition-shadow"
+                    placeholder="Spice Garden"
+                  />
+                </div>
+              </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-[#0f0e0b]">
-                      Owner Name
-                    </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <User className="h-4 w-4 text-[#b0a898]" />
-                      </div>
-                      <input
-                        type="text"
-                        className="w-full pl-10 pr-4 py-2.5 bg-[#faf7f2] border border-[#e0d9ce] rounded-lg text-sm text-[#0f0e0b] placeholder-[#b0a898] focus:outline-none focus:border-[#e8720c] focus:ring-1 focus:ring-[#e8720c] transition-shadow"
-                        placeholder="Jane Doe"
-                      />
-                    </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-[#0f0e0b]">
+                  Owner Name
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <User className="h-4 w-4 text-[#b0a898]" />
                   </div>
+                  <input
+                    type="text"
+                    className="w-full pl-10 pr-4 py-2.5 bg-[#faf7f2] border border-[#e0d9ce] rounded-lg text-sm text-[#0f0e0b] placeholder-[#b0a898] focus:outline-none focus:border-[#e8720c] focus:ring-1 focus:ring-[#e8720c] transition-shadow"
+                    placeholder="Jane Doe"
+                  />
+                </div>
+              </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-[#0f0e0b]">
-                      Email Address
-                    </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <Mail className="h-4 w-4 text-[#b0a898]" />
-                      </div>
-                      <input
-                        type="email"
-                        className="w-full pl-10 pr-4 py-2.5 bg-[#faf7f2] border border-[#e0d9ce] rounded-lg text-sm text-[#0f0e0b] placeholder-[#b0a898] focus:outline-none focus:border-[#e8720c] focus:ring-1 focus:ring-[#e8720c] transition-shadow"
-                        placeholder="owner@restaurant.com"
-                      />
-                    </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-[#0f0e0b]">
+                  Email Address
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Mail className="h-4 w-4 text-[#b0a898]" />
                   </div>
+                  <input
+                    type="email"
+                    className="w-full pl-10 pr-4 py-2.5 bg-[#faf7f2] border border-[#e0d9ce] rounded-lg text-sm text-[#0f0e0b] placeholder-[#b0a898] focus:outline-none focus:border-[#e8720c] focus:ring-1 focus:ring-[#e8720c] transition-shadow"
+                    placeholder="owner@restaurant.com"
+                  />
+                </div>
+              </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-[#0f0e0b]">
-                      Password
-                    </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <Lock className="h-4 w-4 text-[#b0a898]" />
-                      </div>
-                      <input
-                        type={showRegisterPassword ? "text" : "password"}
-                        className="w-full pl-10 pr-10 py-2.5 bg-[#faf7f2] border border-[#e0d9ce] rounded-lg text-sm text-[#0f0e0b] placeholder-[#b0a898] focus:outline-none focus:border-[#e8720c] focus:ring-1 focus:ring-[#e8720c] transition-shadow"
-                        placeholder="••••••••"
-                      />
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setShowRegisterPassword(!showRegisterPassword)
-                        }
-                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-[#b0a898] hover:text-[#0f0e0b] transition-colors"
-                      >
-                        {showRegisterPassword ? (
-                          <EyeOff className="h-4 w-4" />
-                        ) : (
-                          <Eye className="h-4 w-4" />
-                        )}
-                      </button>
-                    </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-[#0f0e0b]">
+                  Password
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Lock className="h-4 w-4 text-[#b0a898]" />
                   </div>
-
+                  <input
+                    type={showRegisterPassword ? "text" : "password"}
+                    className="w-full pl-10 pr-10 py-2.5 bg-[#faf7f2] border border-[#e0d9ce] rounded-lg text-sm text-[#0f0e0b] placeholder-[#b0a898] focus:outline-none focus:border-[#e8720c] focus:ring-1 focus:ring-[#e8720c] transition-shadow"
+                    placeholder="••••••••"
+                  />
                   <button
                     type="button"
-                    onClick={() => setRegistrationModalOpen(true)}
-                    className="w-full py-3 mt-6 bg-[#e8720c] hover:bg-[#d4620a] text-white text-sm font-semibold rounded-lg transition-colors shadow-[0_4px_14px_rgba(232,114,12,0.25)] flex items-center justify-center gap-2"
+                    onClick={() =>
+                      setShowRegisterPassword(!showRegisterPassword)
+                    }
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-[#b0a898] hover:text-[#0f0e0b] transition-colors"
                   >
-                    Create Account <ArrowRight size={16} />
+                    {showRegisterPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
                   </button>
+                </div>
+              </div>
 
-                  <p className="text-center text-sm text-[#857c6e] mt-3">
-                    Already have an account?{" "}
-                    <a
-                      href={loginUrl}
-                      className="font-semibold text-[#e8720c] hover:underline"
-                    >
-                      Sign In
-                    </a>
-                  </p>
+              <button
+                type="button"
+                onClick={() => setRegistrationModalOpen(true)}
+                className="w-full py-3 mt-6 bg-[#e8720c] hover:bg-[#d4620a] text-white text-sm font-semibold rounded-lg transition-colors shadow-[0_4px_14px_rgba(232,114,12,0.25)] flex items-center justify-center gap-2"
+              >
+                Create Account <ArrowRight size={16} />
+              </button>
 
-                  <p className="text-center text-xs text-[#857c6e] mt-4">
-                    By registering, you agree to our{" "}
-                    <a href="#" className="underline hover:text-[#0f0e0b]">
-                      Terms of Service
-                    </a>{" "}
-                    and{" "}
-                    <a href="#" className="underline hover:text-[#0f0e0b]">
-                      Privacy Policy
-                    </a>
-                    .
-                  </p>
+              <p className="text-center text-sm text-[#857c6e] mt-3">
+                Already have an account?{" "}
+                <a
+                  href={loginUrl}
+                  className="font-semibold text-[#e8720c] hover:underline"
+                >
+                  Sign In
+                </a>
+              </p>
+
+              <p className="text-center text-xs text-[#857c6e] mt-4">
+                By registering, you agree to our{" "}
+                <a href="#" className="underline hover:text-[#0f0e0b]">
+                  Terms of Service
+                </a>{" "}
+                and{" "}
+                <a href="#" className="underline hover:text-[#0f0e0b]">
+                  Privacy Policy
+                </a>
+                .
+              </p>
             </form>
           </Motion.div>
         </div>
