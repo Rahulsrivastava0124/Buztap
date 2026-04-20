@@ -35,6 +35,7 @@ import {
   GuestJourneyAnimation,
   FaqItem,
   DesktopAdminScreen,
+  PosWorkflowMock,
 } from "../components/landing";
 
 const Motion = motion;
@@ -48,13 +49,7 @@ const stagger = { show: { transition: { staggerChildren: 0.1 } } };
 
 export default function Landing() {
   const navigate = useNavigate();
-  const adminPanelUrl = import.meta.env.VITE_ADMIN_PANEL_URL;
-
-  const openAdminPanel = () => {
-    if (adminPanelUrl) {
-      window.location.href = adminPanelUrl;
-      return;
-    }
+  const openRegister = () => {
     navigate("/auth");
   };
 
@@ -141,17 +136,10 @@ export default function Landing() {
           {/* ── Desktop Right Actions ── */}
           <div className="hidden lg:flex items-center gap-1 flex-shrink-0">
             <button
-              onClick={openAdminPanel}
-              className="px-4 py-2 text-sm font-medium text-[#2a2720] hover:text-[#e8720c] hover:bg-[#fef0e4] rounded-md transition-colors"
-            >
-              Sign In
-            </button>
-            <div className="w-px h-5 bg-[#e0d9ce] mx-1" />
-            <button
-              onClick={openAdminPanel}
+              onClick={openRegister}
               className="flex items-center gap-1.5 px-5 py-2.5 bg-[#e8720c] hover:bg-[#d4620a] text-white text-sm font-semibold rounded-lg transition-colors shadow-[0_2px_10px_rgba(232,114,12,0.28)]"
             >
-              Get Started Free <ArrowRight size={14} />
+              Register <ArrowRight size={14} />
             </button>
           </div>
 
@@ -190,16 +178,10 @@ export default function Landing() {
                 ))}
                 <div className="border-t border-[#e0d9ce] mt-3 pt-3 flex flex-col gap-2">
                   <button
-                    onClick={openAdminPanel}
-                    className="w-full py-2.5 text-sm font-semibold text-[#0f0e0b] border border-[#e0d9ce] rounded-lg hover:border-[#e8720c] hover:text-[#e8720c] transition-colors"
-                  >
-                    Sign In
-                  </button>
-                  <button
-                    onClick={openAdminPanel}
+                    onClick={openRegister}
                     className="w-full py-3 text-sm font-bold text-white bg-[#e8720c] hover:bg-[#d4620a] rounded-lg transition-colors flex items-center justify-center gap-2"
                   >
-                    Get Started Free <ArrowRight size={15} />
+                    Register <ArrowRight size={15} />
                   </button>
                 </div>
               </div>
@@ -260,7 +242,7 @@ export default function Landing() {
             className="flex flex-wrap gap-3"
           >
             <button
-              onClick={openAdminPanel}
+              onClick={openRegister}
               className="bg-[#e8720c] hover:bg-[#d4620a] text-white font-semibold px-7 py-3 rounded-md flex items-center gap-2 transition-colors"
             >
               Start Free <ArrowRight size={16} />
@@ -661,7 +643,7 @@ export default function Landing() {
       {/* ════════════════ 5. HOW IT WORKS ═════════════════════════ */}
       <section id="how-it-works" className="bg-[#f5f0e8] py-24">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
-          <div className="text-center mb-14 reveal">
+          <div className="text-center mb-14">
             <p className="text-xs font-semibold text-[#e8720c] tracking-widest uppercase mb-3">
               How It Works
             </p>
@@ -718,6 +700,26 @@ export default function Landing() {
               <AnimatedPhone activeStep={activeStep} />
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* ════════════════ 5.5. POS WORKFLOW ══════════════════════ */}
+      <section className="bg-white py-24 border-y border-[#e0d9ce]">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+          <div className="text-center mb-14 reveal">
+            <p className="text-xs font-semibold text-[#e8720c] tracking-widest uppercase mb-3">
+              POS Steps
+            </p>
+            <h2 className="font-display text-4xl font-bold text-[#0f0e0b]">
+              From menu to payment in seconds
+            </h2>
+            <p className="text-[#857c6e] mt-3 max-w-2xl mx-auto">
+              Track each POS stage live — build the order, confirm checkout,
+              and close payment with invoice sharing.
+            </p>
+          </div>
+
+          <PosWorkflowMock />
         </div>
       </section>
 
@@ -890,7 +892,7 @@ export default function Landing() {
                   ))}
                 </ul>
                 <button
-                  onClick={openAdminPanel}
+                  onClick={openRegister}
                   className={`w-full py-3 rounded-md font-semibold text-sm transition-colors ${
                     plan.highlight
                       ? "bg-[#e8720c] hover:bg-[#d4620a] text-white"

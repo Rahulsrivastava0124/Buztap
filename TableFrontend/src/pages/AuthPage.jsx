@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { motion as Motion, AnimatePresence } from "framer-motion";
+import { motion as Motion } from "framer-motion";
 import {
   Utensils,
   Mail,
@@ -9,40 +9,17 @@ import {
   User,
   ArrowRight,
   ArrowLeft,
-  AlertCircle,
   Eye,
   EyeOff,
 } from "lucide-react";
-import { useAuth } from "../context/AuthContext";
 import RegistrationModal from "../components/registration/RegistrationModal";
 
 export default function AuthPage() {
-  const [isLogin, setIsLogin] = useState(true);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
   const [showRegisterPassword, setShowRegisterPassword] = useState(false);
-  const [error, setError] = useState("");
   const [registrationModalOpen, setRegistrationModalOpen] = useState(false);
+  const loginUrl = "https://restroadmin.buzingbee.com";
 
-  const { login } = useAuth();
   const navigate = useNavigate();
-
-  const handleLogin = (e) => {
-    e.preventDefault();
-    setError("");
-    const success = login(email, password);
-    if (success) {
-      const adminPanelUrl = import.meta.env.VITE_ADMIN_PANEL_URL;
-      if (adminPanelUrl) {
-        window.location.href = adminPanelUrl;
-      } else {
-        navigate("/contact");
-      }
-    } else {
-      setError("Invalid username or password.");
-    }
-  };
 
   return (
     <div className="min-h-screen bg-[#faf7f2] flex flex-col md:grid md:grid-cols-2 font-[Inter,sans-serif]">
@@ -112,151 +89,22 @@ export default function AuthPage() {
         </div>
 
         <div className="w-full max-w-md mx-auto">
-          {/* Toggle Tab */}
-          <div className="flex p-1 bg-[#f5f0e8] rounded-lg mb-8 relative">
-            <button
-              onClick={() => setIsLogin(true)}
-              className={`flex-1 py-2 text-sm font-semibold rounded-md z-10 transition-colors ${
-                isLogin
-                  ? "text-[#0f0e0b]"
-                  : "text-[#857c6e] hover:text-[#0f0e0b]"
-              }`}
-            >
-              Sign In
-            </button>
-            <button
-              onClick={() => setIsLogin(false)}
-              className={`flex-1 py-2 text-sm font-semibold rounded-md z-10 transition-colors ${
-                !isLogin
-                  ? "text-[#0f0e0b]"
-                  : "text-[#857c6e] hover:text-[#0f0e0b]"
-              }`}
-            >
-              Register
-            </button>
-            {/* Sliding background */}
-            <Motion.div
-              layoutId="tabBackground"
-              className="absolute top-1 bottom-1 w-[calc(50%-4px)] bg-white rounded-md shadow-sm"
-              initial={false}
-              animate={{
-                left: isLogin ? "4px" : "calc(50%)",
-              }}
-              transition={{ type: "spring", stiffness: 400, damping: 30 }}
-            />
-          </div>
+          <Motion.div
+            key="register"
+            initial={{ opacity: 0, x: 10 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.2 }}
+          >
+            <div className="mb-8">
+              <h1 className="font-display text-3xl font-bold text-[#0f0e0b] mb-2">
+                Create your account
+              </h1>
+              <p className="text-[#857c6e] text-sm">
+                Start your 1 branch free plan. No credit card required.
+              </p>
+            </div>
 
-          <AnimatePresence mode="wait">
-            {isLogin ? (
-              <Motion.div
-                key="login"
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 10 }}
-                transition={{ duration: 0.2 }}
-              >
-                <div className="mb-8">
-                  <h1 className="font-display text-3xl font-bold text-[#0f0e0b] mb-2">
-                    Welcome back
-                  </h1>
-                  <p className="text-[#857c6e] text-sm">
-                    Enter your details to access your dashboard.
-                  </p>
-                </div>
-
-                <form className="space-y-4" onSubmit={handleLogin}>
-                  {error && (
-                    <div className="flex items-center gap-2 p-3 text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg">
-                      <AlertCircle size={16} />
-                      {error}
-                    </div>
-                  )}
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-[#0f0e0b]">
-                      Email Address (Username)
-                    </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <Mail className="h-4 w-4 text-[#b0a898]" />
-                      </div>
-                      <input
-                        type="text"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2.5 bg-[#faf7f2] border border-[#e0d9ce] rounded-lg text-sm text-[#0f0e0b] placeholder-[#b0a898] focus:outline-none focus:border-[#e8720c] focus:ring-1 focus:ring-[#e8720c] transition-shadow"
-                        placeholder="admin"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <label className="text-xs font-semibold text-[#0f0e0b]">
-                        Password
-                      </label>
-                      <a
-                        href="#"
-                        className="text-xs font-medium text-[#e8720c] hover:underline"
-                      >
-                        Forgot password?
-                      </a>
-                    </div>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <Lock className="h-4 w-4 text-[#b0a898]" />
-                      </div>
-                      <input
-                        type={showPassword ? "text" : "password"}
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        className="w-full pl-10 pr-10 py-2.5 bg-[#faf7f2] border border-[#e0d9ce] rounded-lg text-sm text-[#0f0e0b] placeholder-[#b0a898] focus:outline-none focus:border-[#e8720c] focus:ring-1 focus:ring-[#e8720c] transition-shadow"
-                        placeholder="••••••••"
-                        required
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-[#b0a898] hover:text-[#0f0e0b] transition-colors"
-                      >
-                        {showPassword ? (
-                          <EyeOff className="h-4 w-4" />
-                        ) : (
-                          <Eye className="h-4 w-4" />
-                        )}
-                      </button>
-                    </div>
-                  </div>
-
-                  <button
-                    type="submit"
-                    className="w-full py-3 mt-6 bg-[#e8720c] hover:bg-[#d4620a] text-white text-sm font-semibold rounded-lg transition-colors shadow-[0_4px_14px_rgba(232,114,12,0.25)] flex items-center justify-center gap-2"
-                  >
-                    Sign In <ArrowRight size={16} />
-                  </button>
-                </form>
-              </Motion.div>
-            ) : (
-              <Motion.div
-                key="register"
-                initial={{ opacity: 0, x: 10 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -10 }}
-                transition={{ duration: 0.2 }}
-              >
-                <div className="mb-8">
-                  <h1 className="font-display text-3xl font-bold text-[#0f0e0b] mb-2">
-                    Create your account
-                  </h1>
-                  <p className="text-[#857c6e] text-sm">
-                    Start your 1 branch free plan. No credit card required.
-                  </p>
-                </div>
-
-                <form
-                  className="space-y-4"
-                  onSubmit={(e) => e.preventDefault()}
-                >
+            <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-[#0f0e0b]">
                       Restaurant Name
@@ -342,6 +190,16 @@ export default function AuthPage() {
                     Create Account <ArrowRight size={16} />
                   </button>
 
+                  <p className="text-center text-sm text-[#857c6e] mt-3">
+                    Already have an account?{" "}
+                    <a
+                      href={loginUrl}
+                      className="font-semibold text-[#e8720c] hover:underline"
+                    >
+                      Sign In
+                    </a>
+                  </p>
+
                   <p className="text-center text-xs text-[#857c6e] mt-4">
                     By registering, you agree to our{" "}
                     <a href="#" className="underline hover:text-[#0f0e0b]">
@@ -353,10 +211,8 @@ export default function AuthPage() {
                     </a>
                     .
                   </p>
-                </form>
-              </Motion.div>
-            )}
-          </AnimatePresence>
+            </form>
+          </Motion.div>
         </div>
       </div>
 
