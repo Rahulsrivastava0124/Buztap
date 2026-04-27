@@ -2,7 +2,12 @@ const { Schema, model } = require("mongoose");
 
 const analyticsSchema = new Schema(
   {
-    businessId: { type: Schema.Types.ObjectId, ref: "Business", required: true, index: true },
+    businessId: {
+      type: Schema.Types.ObjectId,
+      ref: "Business",
+      required: true,
+      index: true,
+    },
     date: { type: Date, required: true },
     dailyRevenue: { type: Number, default: 0 },
     totalOrders: { type: Number, default: 0 },
@@ -37,7 +42,7 @@ const analyticsSchema = new Schema(
       },
     ],
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 analyticsSchema.index({ businessId: 1, date: 1 }, { unique: true });

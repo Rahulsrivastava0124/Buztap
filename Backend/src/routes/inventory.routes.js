@@ -1,7 +1,13 @@
 const { Router } = require("express");
 const authenticate = require("../middleware/auth");
 const requireRole = require("../middleware/requireRole");
-const { getAll, getLowStock, getOne, create, updateStock } = require("../controllers/inventory.controller");
+const {
+  getAll,
+  getLowStock,
+  getOne,
+  create,
+  updateStock,
+} = require("../controllers/inventory.controller");
 
 const router = Router();
 

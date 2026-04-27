@@ -14,7 +14,7 @@ const guestSchema = new Schema(
       dietaryRestrictions: [{ type: String }],
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 module.exports = model("Guest", guestSchema);

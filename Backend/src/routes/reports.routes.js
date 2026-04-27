@@ -1,7 +1,12 @@
 const { Router } = require("express");
 const authenticate = require("../middleware/auth");
 const requireRole = require("../middleware/requireRole");
-const { getAvailableReports, getSalesSummary, getCategoryMix, getTaxLedger } = require("../controllers/reports.controller");
+const {
+  getAvailableReports,
+  getSalesSummary,
+  getCategoryMix,
+  getTaxLedger,
+} = require("../controllers/reports.controller");
 
 const router = Router();
 

@@ -6,7 +6,11 @@ async function getAvailableReports(_req, res) {
     { id: "sales-summary", name: "Daily Sales Summary", period: "Today" },
     { id: "category-mix", name: "Category Mix Report", period: "Last 7 days" },
     { id: "tax-ledger", name: "Tax & GST Ledger", period: "This month" },
-    { id: "cancellations", name: "Cancellation Analysis", period: "Last 30 days" },
+    {
+      id: "cancellations",
+      name: "Cancellation Analysis",
+      period: "Last 30 days",
+    },
   ];
   res.json(reports);
 }
@@ -43,7 +47,10 @@ async function getCategoryMix(req, res, next) {
   try {
     const { businessId } = req.user;
     const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-    const orders = await Order.find({ businessId, createdAt: { $gte: since } }).lean();
+    const orders = await Order.find({
+      businessId,
+      createdAt: { $gte: since },
+    }).lean();
 
     const catMap = {};
     for (const order of orders) {
@@ -83,7 +90,7 @@ async function getTaxLedger(req, res, next) {
 
     const totals = rows.reduce(
       (acc, r) => ({ taxable: acc.taxable + r.taxable, gst: acc.gst + r.gst }),
-      { taxable: 0, gst: 0 }
+      { taxable: 0, gst: 0 },
     );
 
     res.json({ rows, totals });
@@ -92,4 +99,9 @@ async function getTaxLedger(req, res, next) {
   }
 }
 
-module.exports = { getAvailableReports, getSalesSummary, getCategoryMix, getTaxLedger };
+module.exports = {
+  getAvailableReports,
+  getSalesSummary,
+  getCategoryMix,
+  getTaxLedger,
+};

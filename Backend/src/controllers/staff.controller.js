@@ -34,10 +34,14 @@ async function getAll(req, res, next) {
 
 async function getOne(req, res, next) {
   try {
-    const member = await User.findOne({ _id: req.params.id, businessId: req.user.businessId })
+    const member = await User.findOne({
+      _id: req.params.id,
+      businessId: req.user.businessId,
+    })
       .select("-passwordHash")
       .lean();
-    if (!member) return res.status(404).json({ error: "Staff member not found" });
+    if (!member)
+      return res.status(404).json({ error: "Staff member not found" });
     res.json(member);
   } catch (err) {
     next(err);
@@ -66,9 +70,10 @@ async function update(req, res, next) {
     const member = await User.findOneAndUpdate(
       { _id: req.params.id, businessId: req.user.businessId },
       { $set: data },
-      { new: true }
+      { new: true },
     ).select("-passwordHash");
-    if (!member) return res.status(404).json({ error: "Staff member not found" });
+    if (!member)
+      return res.status(404).json({ error: "Staff member not found" });
     res.json(member);
   } catch (err) {
     next(err);

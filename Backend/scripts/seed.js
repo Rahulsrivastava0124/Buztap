@@ -19,7 +19,9 @@ const Order = require("../src/models/Order");
 const PaymentChannel = require("../src/models/PaymentChannel");
 
 async function seed() {
-  await mongoose.connect(process.env.MONGO_URI || "mongodb://localhost:27017/tableqr");
+  await mongoose.connect(
+    process.env.MONGO_URI || "mongodb://localhost:27017/tableqr",
+  );
   console.log("Connected to MongoDB");
 
   // ── Business ──────────────────────────────────────────────────────────────
@@ -87,44 +89,308 @@ async function seed() {
   // ── Menu Items ─────────────────────────────────────────────────────────────
   const menuItems = [
     // Starters
-    { name: "Paneer Tikka", category: "Starters", price: 220, cost: 70, isVeg: true, spiceLevel: 3, preparationTime: 15, image: "https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?w=400" },
-    { name: "Veg Spring Rolls", category: "Starters", price: 160, cost: 45, isVeg: true, spiceLevel: 1, preparationTime: 10, image: "https://images.unsplash.com/photo-1585032226651-759b368d7246?w=400" },
-    { name: "Chicken 65", category: "Starters", price: 280, cost: 90, isVeg: false, spiceLevel: 4, preparationTime: 18, image: "https://images.unsplash.com/photo-1610057099431-d73a1c9d2f2f?w=400" },
-    { name: "Samosa (2 pcs)", category: "Starters", price: 80, cost: 20, isVeg: true, spiceLevel: 2, preparationTime: 8, image: "https://images.unsplash.com/photo-1601050690597-df0568f70950?w=400" },
+    {
+      name: "Paneer Tikka",
+      category: "Starters",
+      price: 220,
+      cost: 70,
+      isVeg: true,
+      spiceLevel: 3,
+      preparationTime: 15,
+      image:
+        "https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?w=400",
+    },
+    {
+      name: "Veg Spring Rolls",
+      category: "Starters",
+      price: 160,
+      cost: 45,
+      isVeg: true,
+      spiceLevel: 1,
+      preparationTime: 10,
+      image:
+        "https://images.unsplash.com/photo-1585032226651-759b368d7246?w=400",
+    },
+    {
+      name: "Chicken 65",
+      category: "Starters",
+      price: 280,
+      cost: 90,
+      isVeg: false,
+      spiceLevel: 4,
+      preparationTime: 18,
+      image:
+        "https://images.unsplash.com/photo-1610057099431-d73a1c9d2f2f?w=400",
+    },
+    {
+      name: "Samosa (2 pcs)",
+      category: "Starters",
+      price: 80,
+      cost: 20,
+      isVeg: true,
+      spiceLevel: 2,
+      preparationTime: 8,
+      image:
+        "https://images.unsplash.com/photo-1601050690597-df0568f70950?w=400",
+    },
     // Mains
-    { name: "Paneer Butter Masala", category: "Mains", price: 280, cost: 95, isVeg: true, spiceLevel: 2, preparationTime: 20, image: "https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=400" },
-    { name: "Dal Makhani", category: "Mains", price: 220, cost: 60, isVeg: true, spiceLevel: 2, preparationTime: 25, image: "https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=400" },
-    { name: "Butter Chicken", category: "Mains", price: 320, cost: 110, isVeg: false, spiceLevel: 2, preparationTime: 22, image: "https://images.unsplash.com/photo-1603894584373-5ac82b2ae398?w=400" },
-    { name: "Chicken Biryani", category: "Mains", price: 340, cost: 120, isVeg: false, spiceLevel: 3, preparationTime: 30, image: "https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=400" },
-    { name: "Veg Biryani", category: "Mains", price: 260, cost: 80, isVeg: true, spiceLevel: 2, preparationTime: 28, image: "https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=400" },
-    { name: "Shahi Paneer", category: "Mains", price: 300, cost: 100, isVeg: true, spiceLevel: 1, preparationTime: 20, image: "https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=400" },
-    { name: "Mutton Rogan Josh", category: "Mains", price: 420, cost: 180, isVeg: false, spiceLevel: 4, preparationTime: 35, image: "https://images.unsplash.com/photo-1603894584373-5ac82b2ae398?w=400" },
-    { name: "Kadai Chicken", category: "Mains", price: 360, cost: 130, isVeg: false, spiceLevel: 3, preparationTime: 25, image: "https://images.unsplash.com/photo-1603894584373-5ac82b2ae398?w=400" },
+    {
+      name: "Paneer Butter Masala",
+      category: "Mains",
+      price: 280,
+      cost: 95,
+      isVeg: true,
+      spiceLevel: 2,
+      preparationTime: 20,
+      image:
+        "https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=400",
+    },
+    {
+      name: "Dal Makhani",
+      category: "Mains",
+      price: 220,
+      cost: 60,
+      isVeg: true,
+      spiceLevel: 2,
+      preparationTime: 25,
+      image: "https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=400",
+    },
+    {
+      name: "Butter Chicken",
+      category: "Mains",
+      price: 320,
+      cost: 110,
+      isVeg: false,
+      spiceLevel: 2,
+      preparationTime: 22,
+      image:
+        "https://images.unsplash.com/photo-1603894584373-5ac82b2ae398?w=400",
+    },
+    {
+      name: "Chicken Biryani",
+      category: "Mains",
+      price: 340,
+      cost: 120,
+      isVeg: false,
+      spiceLevel: 3,
+      preparationTime: 30,
+      image:
+        "https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=400",
+    },
+    {
+      name: "Veg Biryani",
+      category: "Mains",
+      price: 260,
+      cost: 80,
+      isVeg: true,
+      spiceLevel: 2,
+      preparationTime: 28,
+      image:
+        "https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=400",
+    },
+    {
+      name: "Shahi Paneer",
+      category: "Mains",
+      price: 300,
+      cost: 100,
+      isVeg: true,
+      spiceLevel: 1,
+      preparationTime: 20,
+      image:
+        "https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=400",
+    },
+    {
+      name: "Mutton Rogan Josh",
+      category: "Mains",
+      price: 420,
+      cost: 180,
+      isVeg: false,
+      spiceLevel: 4,
+      preparationTime: 35,
+      image:
+        "https://images.unsplash.com/photo-1603894584373-5ac82b2ae398?w=400",
+    },
+    {
+      name: "Kadai Chicken",
+      category: "Mains",
+      price: 360,
+      cost: 130,
+      isVeg: false,
+      spiceLevel: 3,
+      preparationTime: 25,
+      image:
+        "https://images.unsplash.com/photo-1603894584373-5ac82b2ae398?w=400",
+    },
     // Breads
-    { name: "Butter Naan", category: "Breads", price: 50, cost: 12, isVeg: true, spiceLevel: 1, preparationTime: 8, image: "https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=400" },
-    { name: "Garlic Naan", category: "Breads", price: 70, cost: 18, isVeg: true, spiceLevel: 1, preparationTime: 8, image: "https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=400" },
-    { name: "Paratha", category: "Breads", price: 60, cost: 15, isVeg: true, spiceLevel: 1, preparationTime: 10, image: "https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=400" },
-    { name: "Tandoori Roti", category: "Breads", price: 40, cost: 8, isVeg: true, spiceLevel: 1, preparationTime: 6, image: "https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=400" },
+    {
+      name: "Butter Naan",
+      category: "Breads",
+      price: 50,
+      cost: 12,
+      isVeg: true,
+      spiceLevel: 1,
+      preparationTime: 8,
+      image:
+        "https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=400",
+    },
+    {
+      name: "Garlic Naan",
+      category: "Breads",
+      price: 70,
+      cost: 18,
+      isVeg: true,
+      spiceLevel: 1,
+      preparationTime: 8,
+      image:
+        "https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=400",
+    },
+    {
+      name: "Paratha",
+      category: "Breads",
+      price: 60,
+      cost: 15,
+      isVeg: true,
+      spiceLevel: 1,
+      preparationTime: 10,
+      image:
+        "https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=400",
+    },
+    {
+      name: "Tandoori Roti",
+      category: "Breads",
+      price: 40,
+      cost: 8,
+      isVeg: true,
+      spiceLevel: 1,
+      preparationTime: 6,
+      image:
+        "https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=400",
+    },
     // Rice
-    { name: "Steamed Rice", category: "Rice", price: 100, cost: 20, isVeg: true, spiceLevel: 1, preparationTime: 15, image: "https://images.unsplash.com/photo-1503764654157-72d979d9af2f?w=400" },
-    { name: "Jeera Rice", category: "Rice", price: 140, cost: 30, isVeg: true, spiceLevel: 1, preparationTime: 18, image: "https://images.unsplash.com/photo-1503764654157-72d979d9af2f?w=400" },
+    {
+      name: "Steamed Rice",
+      category: "Rice",
+      price: 100,
+      cost: 20,
+      isVeg: true,
+      spiceLevel: 1,
+      preparationTime: 15,
+      image:
+        "https://images.unsplash.com/photo-1503764654157-72d979d9af2f?w=400",
+    },
+    {
+      name: "Jeera Rice",
+      category: "Rice",
+      price: 140,
+      cost: 30,
+      isVeg: true,
+      spiceLevel: 1,
+      preparationTime: 18,
+      image:
+        "https://images.unsplash.com/photo-1503764654157-72d979d9af2f?w=400",
+    },
     // Beverages
-    { name: "Masala Chai", category: "Beverages", price: 60, cost: 15, isVeg: true, spiceLevel: 1, preparationTime: 5, image: "https://images.unsplash.com/photo-1571934811356-5cc061b6821f?w=400" },
-    { name: "Mango Lassi", category: "Beverages", price: 120, cost: 30, isVeg: true, spiceLevel: 1, preparationTime: 5, image: "https://images.unsplash.com/photo-1571934811356-5cc061b6821f?w=400" },
-    { name: "Fresh Lime Soda", category: "Beverages", price: 80, cost: 20, isVeg: true, spiceLevel: 1, preparationTime: 3, image: "https://images.unsplash.com/photo-1571934811356-5cc061b6821f?w=400" },
-    { name: "Cold Coffee", category: "Beverages", price: 140, cost: 35, isVeg: true, spiceLevel: 1, preparationTime: 5, image: "https://images.unsplash.com/photo-1571934811356-5cc061b6821f?w=400" },
+    {
+      name: "Masala Chai",
+      category: "Beverages",
+      price: 60,
+      cost: 15,
+      isVeg: true,
+      spiceLevel: 1,
+      preparationTime: 5,
+      image:
+        "https://images.unsplash.com/photo-1571934811356-5cc061b6821f?w=400",
+    },
+    {
+      name: "Mango Lassi",
+      category: "Beverages",
+      price: 120,
+      cost: 30,
+      isVeg: true,
+      spiceLevel: 1,
+      preparationTime: 5,
+      image:
+        "https://images.unsplash.com/photo-1571934811356-5cc061b6821f?w=400",
+    },
+    {
+      name: "Fresh Lime Soda",
+      category: "Beverages",
+      price: 80,
+      cost: 20,
+      isVeg: true,
+      spiceLevel: 1,
+      preparationTime: 3,
+      image:
+        "https://images.unsplash.com/photo-1571934811356-5cc061b6821f?w=400",
+    },
+    {
+      name: "Cold Coffee",
+      category: "Beverages",
+      price: 140,
+      cost: 35,
+      isVeg: true,
+      spiceLevel: 1,
+      preparationTime: 5,
+      image:
+        "https://images.unsplash.com/photo-1571934811356-5cc061b6821f?w=400",
+    },
     // Desserts
-    { name: "Gulab Jamun (2 pcs)", category: "Desserts", price: 100, cost: 25, isVeg: true, spiceLevel: 1, preparationTime: 5, image: "https://images.unsplash.com/photo-1571934811356-5cc061b6821f?w=400" },
-    { name: "Kulfi", category: "Desserts", price: 120, cost: 30, isVeg: true, spiceLevel: 1, preparationTime: 3, image: "https://images.unsplash.com/photo-1571934811356-5cc061b6821f?w=400" },
+    {
+      name: "Gulab Jamun (2 pcs)",
+      category: "Desserts",
+      price: 100,
+      cost: 25,
+      isVeg: true,
+      spiceLevel: 1,
+      preparationTime: 5,
+      image:
+        "https://images.unsplash.com/photo-1571934811356-5cc061b6821f?w=400",
+    },
+    {
+      name: "Kulfi",
+      category: "Desserts",
+      price: 120,
+      cost: 30,
+      isVeg: true,
+      spiceLevel: 1,
+      preparationTime: 3,
+      image:
+        "https://images.unsplash.com/photo-1571934811356-5cc061b6821f?w=400",
+    },
   ];
 
-  const insertedItems = await MenuItem.insertMany(menuItems.map((m) => ({ ...m, businessId: bizId })));
+  const insertedItems = await MenuItem.insertMany(
+    menuItems.map((m) => ({ ...m, businessId: bizId })),
+  );
   console.log(`Menu: ${insertedItems.length} items created`);
 
   // ── Tables ────────────────────────────────────────────────────────────────
   const areas = ["Ground Floor", "First Floor", "Patio"];
-  const seatsConfig = [2, 2, 4, 4, 4, 6, 2, 4, 4, 6, 2, 4, 4, 6, 2, 4, 4, 2, 6, 4];
-  const tableStatuses = ["Free", "Occupied", "Reserved", "Free", "Occupied", "Free", "Cleaning", "Occupied", "Free", "Free", "Occupied", "Free", "Reserved", "Free", "Occupied", "Free", "Free", "Occupied", "Free", "Free"];
+  const seatsConfig = [
+    2, 2, 4, 4, 4, 6, 2, 4, 4, 6, 2, 4, 4, 6, 2, 4, 4, 2, 6, 4,
+  ];
+  const tableStatuses = [
+    "Free",
+    "Occupied",
+    "Reserved",
+    "Free",
+    "Occupied",
+    "Free",
+    "Cleaning",
+    "Occupied",
+    "Free",
+    "Free",
+    "Occupied",
+    "Free",
+    "Reserved",
+    "Free",
+    "Occupied",
+    "Free",
+    "Free",
+    "Occupied",
+    "Free",
+    "Free",
+  ];
 
   const tables = Array.from({ length: 20 }, (_, i) => ({
     businessId: bizId,
@@ -141,18 +407,74 @@ async function seed() {
 
   // ── Inventory ─────────────────────────────────────────────────────────────
   await Inventory.insertMany([
-    { businessId: bizId, itemName: "Paneer", unit: "kg", inStock: 18, reorderAt: 8, supplier: "Rajesh Dairy", costPerUnit: 250 },
-    { businessId: bizId, itemName: "Chicken", unit: "kg", inStock: 12, reorderAt: 10, supplier: "Fresh Farms", costPerUnit: 200 },
-    { businessId: bizId, itemName: "Basmati Rice", unit: "kg", inStock: 45, reorderAt: 15, supplier: "Grain Store", costPerUnit: 80 },
-    { businessId: bizId, itemName: "Cooking Oil", unit: "liters", inStock: 6, reorderAt: 5, supplier: "Oil Depot", costPerUnit: 130 },
+    {
+      businessId: bizId,
+      itemName: "Paneer",
+      unit: "kg",
+      inStock: 18,
+      reorderAt: 8,
+      supplier: "Rajesh Dairy",
+      costPerUnit: 250,
+    },
+    {
+      businessId: bizId,
+      itemName: "Chicken",
+      unit: "kg",
+      inStock: 12,
+      reorderAt: 10,
+      supplier: "Fresh Farms",
+      costPerUnit: 200,
+    },
+    {
+      businessId: bizId,
+      itemName: "Basmati Rice",
+      unit: "kg",
+      inStock: 45,
+      reorderAt: 15,
+      supplier: "Grain Store",
+      costPerUnit: 80,
+    },
+    {
+      businessId: bizId,
+      itemName: "Cooking Oil",
+      unit: "liters",
+      inStock: 6,
+      reorderAt: 5,
+      supplier: "Oil Depot",
+      costPerUnit: 130,
+    },
   ]);
   console.log("Inventory: 4 items created");
 
   // ── Payment Channels ──────────────────────────────────────────────────────
   await PaymentChannel.insertMany([
-    { businessId: bizId, channel: "Razorpay UPI", gross: 14850, fee: 223, net: 14627, settleStatus: "Settled", isEnabled: true },
-    { businessId: bizId, channel: "Card Terminal", gross: 17600, fee: 352, net: 17248, settleStatus: "Pending", isEnabled: true },
-    { businessId: bizId, channel: "Cash", gross: 11750, fee: 0, net: 11750, settleStatus: "Settled", isEnabled: true },
+    {
+      businessId: bizId,
+      channel: "Razorpay UPI",
+      gross: 14850,
+      fee: 223,
+      net: 14627,
+      settleStatus: "Settled",
+      isEnabled: true,
+    },
+    {
+      businessId: bizId,
+      channel: "Card Terminal",
+      gross: 17600,
+      fee: 352,
+      net: 17248,
+      settleStatus: "Pending",
+      isEnabled: true,
+    },
+    {
+      businessId: bizId,
+      channel: "Cash",
+      gross: 11750,
+      fee: 0,
+      net: 11750,
+      settleStatus: "Settled",
+      isEnabled: true,
+    },
   ]);
   console.log("Payment channels: 3 created");
 
@@ -173,8 +495,22 @@ async function seed() {
       orderType: "Dine-in",
       source: "POS",
       items: [
-        { menuItemId: pb._id, name: pb.name, quantity: 1, price: pb.price, total: pb.price, preparationStatus: "Served" },
-        { menuItemId: gn._id, name: gn.name, quantity: 2, price: gn.price, total: gn.price * 2, preparationStatus: "Served" },
+        {
+          menuItemId: pb._id,
+          name: pb.name,
+          quantity: 1,
+          price: pb.price,
+          total: pb.price,
+          preparationStatus: "Served",
+        },
+        {
+          menuItemId: gn._id,
+          name: gn.name,
+          quantity: 2,
+          price: gn.price,
+          total: gn.price * 2,
+          preparationStatus: "Served",
+        },
       ],
       subtotal: 420,
       discount: 0,
@@ -195,8 +531,22 @@ async function seed() {
       orderType: "Dine-in",
       source: "QR",
       items: [
-        { menuItemId: bc._id, name: bc.name, quantity: 1, price: bc.price, total: bc.price, preparationStatus: "Preparing" },
-        { menuItemId: sr._id, name: sr.name, quantity: 1, price: sr.price, total: sr.price, preparationStatus: "Preparing" },
+        {
+          menuItemId: bc._id,
+          name: bc.name,
+          quantity: 1,
+          price: bc.price,
+          total: bc.price,
+          preparationStatus: "Preparing",
+        },
+        {
+          menuItemId: sr._id,
+          name: sr.name,
+          quantity: 1,
+          price: sr.price,
+          total: sr.price,
+          preparationStatus: "Preparing",
+        },
       ],
       subtotal: 480,
       discount: 0,
@@ -217,8 +567,22 @@ async function seed() {
       orderType: "Dine-in",
       source: "POS",
       items: [
-        { menuItemId: dm._id, name: dm.name, quantity: 1, price: dm.price, total: dm.price, preparationStatus: "Ready" },
-        { menuItemId: gn._id, name: gn.name, quantity: 1, price: gn.price, total: gn.price, preparationStatus: "Ready" },
+        {
+          menuItemId: dm._id,
+          name: dm.name,
+          quantity: 1,
+          price: dm.price,
+          total: dm.price,
+          preparationStatus: "Ready",
+        },
+        {
+          menuItemId: gn._id,
+          name: gn.name,
+          quantity: 1,
+          price: gn.price,
+          total: gn.price,
+          preparationStatus: "Ready",
+        },
       ],
       subtotal: 290,
       discount: 0,
@@ -239,8 +603,22 @@ async function seed() {
       orderType: "Dine-in",
       source: "QR",
       items: [
-        { menuItemId: pb._id, name: pb.name, quantity: 2, price: pb.price, total: pb.price * 2, preparationStatus: "Preparing" },
-        { menuItemId: cl._id, name: cl.name, quantity: 2, price: cl.price, total: cl.price * 2, preparationStatus: "Preparing" },
+        {
+          menuItemId: pb._id,
+          name: pb.name,
+          quantity: 2,
+          price: pb.price,
+          total: pb.price * 2,
+          preparationStatus: "Preparing",
+        },
+        {
+          menuItemId: cl._id,
+          name: cl.name,
+          quantity: 2,
+          price: cl.price,
+          total: cl.price * 2,
+          preparationStatus: "Preparing",
+        },
       ],
       subtotal: 720,
       discount: 36,
@@ -261,7 +639,14 @@ async function seed() {
       orderType: "Room Service",
       source: "QR",
       items: [
-        { menuItemId: bc._id, name: bc.name, quantity: 1, price: bc.price, total: bc.price, preparationStatus: "Served" },
+        {
+          menuItemId: bc._id,
+          name: bc.name,
+          quantity: 1,
+          price: bc.price,
+          total: bc.price,
+          preparationStatus: "Served",
+        },
       ],
       subtotal: 320,
       discount: 0,

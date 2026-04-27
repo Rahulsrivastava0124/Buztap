@@ -18,7 +18,9 @@ const stockUpdateSchema = z.object({
 
 async function getAll(req, res, next) {
   try {
-    const items = await Inventory.find({ businessId: req.user.businessId }).sort({ itemName: 1 }).lean();
+    const items = await Inventory.find({ businessId: req.user.businessId })
+      .sort({ itemName: 1 })
+      .lean();
     res.json(items);
   } catch (err) {
     next(err);
@@ -39,7 +41,10 @@ async function getLowStock(req, res, next) {
 
 async function getOne(req, res, next) {
   try {
-    const item = await Inventory.findOne({ _id: req.params.id, businessId: req.user.businessId }).lean();
+    const item = await Inventory.findOne({
+      _id: req.params.id,
+      businessId: req.user.businessId,
+    }).lean();
     if (!item) return res.status(404).json({ error: "Item not found" });
     res.json(item);
   } catch (err) {
@@ -50,7 +55,10 @@ async function getOne(req, res, next) {
 async function create(req, res, next) {
   try {
     const data = createSchema.parse(req.body);
-    const item = await Inventory.create({ ...data, businessId: req.user.businessId });
+    const item = await Inventory.create({
+      ...data,
+      businessId: req.user.businessId,
+    });
     res.status(201).json(item);
   } catch (err) {
     next(err);
@@ -60,7 +68,10 @@ async function create(req, res, next) {
 async function updateStock(req, res, next) {
   try {
     const { quantity } = stockUpdateSchema.parse(req.body);
-    const item = await Inventory.findOne({ _id: req.params.id, businessId: req.user.businessId });
+    const item = await Inventory.findOne({
+      _id: req.params.id,
+      businessId: req.user.businessId,
+    });
     if (!item) return res.status(404).json({ error: "Item not found" });
 
     item.inStock = Math.max(0, item.inStock + quantity);

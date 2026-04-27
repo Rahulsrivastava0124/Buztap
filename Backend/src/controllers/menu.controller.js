@@ -17,7 +17,9 @@ const itemSchema = z.object({
 
 async function getAll(req, res, next) {
   try {
-    const items = await MenuItem.find({ businessId: req.user.businessId }).sort({ category: 1, name: 1 }).lean();
+    const items = await MenuItem.find({ businessId: req.user.businessId })
+      .sort({ category: 1, name: 1 })
+      .lean();
     res.json(items);
   } catch (err) {
     next(err);
@@ -26,7 +28,10 @@ async function getAll(req, res, next) {
 
 async function getOne(req, res, next) {
   try {
-    const item = await MenuItem.findOne({ _id: req.params.id, businessId: req.user.businessId }).lean();
+    const item = await MenuItem.findOne({
+      _id: req.params.id,
+      businessId: req.user.businessId,
+    }).lean();
     if (!item) return res.status(404).json({ error: "Menu item not found" });
     res.json(item);
   } catch (err) {
@@ -36,7 +41,9 @@ async function getOne(req, res, next) {
 
 async function getCategories(req, res, next) {
   try {
-    const cats = await MenuItem.distinct("category", { businessId: req.user.businessId });
+    const cats = await MenuItem.distinct("category", {
+      businessId: req.user.businessId,
+    });
     res.json({ categories: cats.sort() });
   } catch (err) {
     next(err);
@@ -46,7 +53,10 @@ async function getCategories(req, res, next) {
 async function create(req, res, next) {
   try {
     const data = itemSchema.parse(req.body);
-    const item = await MenuItem.create({ ...data, businessId: req.user.businessId });
+    const item = await MenuItem.create({
+      ...data,
+      businessId: req.user.businessId,
+    });
     res.status(201).json(item);
   } catch (err) {
     next(err);
@@ -59,7 +69,7 @@ async function update(req, res, next) {
     const item = await MenuItem.findOneAndUpdate(
       { _id: req.params.id, businessId: req.user.businessId },
       { $set: data },
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
     );
     if (!item) return res.status(404).json({ error: "Menu item not found" });
     res.json(item);
@@ -70,7 +80,10 @@ async function update(req, res, next) {
 
 async function remove(req, res, next) {
   try {
-    const item = await MenuItem.findOneAndDelete({ _id: req.params.id, businessId: req.user.businessId });
+    const item = await MenuItem.findOneAndDelete({
+      _id: req.params.id,
+      businessId: req.user.businessId,
+    });
     if (!item) return res.status(404).json({ error: "Menu item not found" });
     res.json({ success: true });
   } catch (err) {

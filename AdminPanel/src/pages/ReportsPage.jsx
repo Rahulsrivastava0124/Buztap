@@ -35,10 +35,26 @@ export default function ReportsPage() {
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <Card title="Generated Today" value={String(reports.length)} icon={FileText} />
-        <Card title="Scheduled" value={String(Math.max(1, Math.floor(reports.length / 2)))} icon={CalendarRange} />
-        <Card title="Exports" value={String(reports.length * 2)} icon={Download} />
-        <Card title="Insights" value={String(reports.length)} icon={BarChart3} />
+        <Card
+          title="Generated Today"
+          value={String(reports.length)}
+          icon={FileText}
+        />
+        <Card
+          title="Scheduled"
+          value={String(Math.max(1, Math.floor(reports.length / 2)))}
+          icon={CalendarRange}
+        />
+        <Card
+          title="Exports"
+          value={String(reports.length * 2)}
+          icon={Download}
+        />
+        <Card
+          title="Insights"
+          value={String(reports.length)}
+          icon={BarChart3}
+        />
       </div>
 
       <div className="bg-white border border-border rounded-xl p-5">
@@ -48,7 +64,9 @@ export default function ReportsPage() {
         ) : null}
         {isError ? (
           <div className="flex items-center justify-between gap-4 mb-3">
-            <p className="text-sm text-error">{error?.message || "Failed to load reports."}</p>
+            <p className="text-sm text-error">
+              {error?.message || "Failed to load reports."}
+            </p>
             <button
               onClick={() => refetch()}
               className="text-xs px-3 py-1.5 rounded-md border border-border hover:bg-paper"

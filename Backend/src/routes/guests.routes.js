@@ -1,5 +1,9 @@
 const { Router } = require("express");
-const { register, getOrders, placeOrder } = require("../controllers/guests.controller");
+const {
+  register,
+  getOrders,
+  placeOrder,
+} = require("../controllers/guests.controller");
 
 const router = Router();
 

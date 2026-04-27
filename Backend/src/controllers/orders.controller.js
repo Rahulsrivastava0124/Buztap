@@ -17,12 +17,16 @@ const createOrderSchema = z.object({
   roomId: z.string().optional(),
   guestName: z.string().optional(),
   guestPhone: z.string().optional(),
-  orderType: z.enum(["Dine-in", "Takeaway", "Delivery", "Room Service"]).optional(),
+  orderType: z
+    .enum(["Dine-in", "Takeaway", "Delivery", "Room Service"])
+    .optional(),
   source: z.enum(["POS", "QR"]).optional(),
   items: z.array(orderItemSchema).min(1),
   discountPct: z.number().min(0).max(100).optional(),
   discountReason: z.string().optional(),
-  paymentMethod: z.enum(["Cash", "Card/UPI", "Room Charge", "Pending"]).optional(),
+  paymentMethod: z
+    .enum(["Cash", "Card/UPI", "Room Charge", "Pending"])
+    .optional(),
 });
 
 function computeTotals(items, discountPct = 0) {
@@ -55,7 +59,10 @@ async function getAll(req, res, next) {
 
 async function getOne(req, res, next) {
   try {
-    const order = await Order.findOne({ _id: req.params.id, businessId: req.user.businessId }).lean();
+    const order = await Order.findOne({
+      _id: req.params.id,
+      businessId: req.user.businessId,
+    }).lean();
     if (!order) return res.status(404).json({ error: "Order not found" });
     res.json(order);
   } catch (err) {
@@ -74,7 +81,10 @@ async function create(req, res, next) {
       preparationStatus: "Pending",
     }));
 
-    const { subtotal, discount, taxableAmount, tax, total } = computeTotals(items, discountPct);
+    const { subtotal, discount, taxableAmount, tax, total } = computeTotals(
+      items,
+      discountPct,
+    );
 
     const order = await Order.create({
       businessId: req.user.businessId,
@@ -119,7 +129,7 @@ async function updateStatus(req, res, next) {
     const order = await Order.findOneAndUpdate(
       { _id: req.params.id, businessId: req.user.businessId },
       { $set: update },
-      { new: true }
+      { new: true },
     );
     if (!order) return res.status(404).json({ error: "Order not found" });
     res.json(order);
@@ -140,7 +150,7 @@ async function updatePayment(req, res, next) {
     const order = await Order.findOneAndUpdate(
       { _id: req.params.id, businessId: req.user.businessId },
       { $set: data },
-      { new: true }
+      { new: true },
     );
     if (!order) return res.status(404).json({ error: "Order not found" });
     res.json(order);
@@ -173,4 +183,11 @@ async function getIncomingQr(req, res, next) {
   }
 }
 
-module.exports = { getAll, getOne, create, updateStatus, updatePayment, getIncomingQr };
+module.exports = {
+  getAll,
+  getOne,
+  create,
+  updateStatus,
+  updatePayment,
+  getIncomingQr,
+};

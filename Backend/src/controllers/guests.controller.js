@@ -21,7 +21,7 @@ const guestOrderSchema = z.object({
         quantity: z.number().int().positive(),
         price: z.number().positive(),
         notes: z.string().optional(),
-      })
+      }),
     )
     .min(1),
   orderType: z.enum(["Dine-in", "Takeaway", "Delivery"]).optional(),
@@ -34,7 +34,7 @@ async function register(req, res, next) {
     const guest = await Guest.findOneAndUpdate(
       { phone: data.phone },
       { $setOnInsert: { ...data } },
-      { upsert: true, new: true }
+      { upsert: true, new: true },
     );
     res.json({ guestId: guest._id, phone: guest.phone, name: guest.name });
   } catch (err) {
@@ -61,7 +61,11 @@ async function getOrders(req, res, next) {
 async function placeOrder(req, res, next) {
   try {
     const data = guestOrderSchema.parse(req.body);
-    const items = data.items.map((i) => ({ ...i, total: i.price * i.quantity, preparationStatus: "Pending" }));
+    const items = data.items.map((i) => ({
+      ...i,
+      total: i.price * i.quantity,
+      preparationStatus: "Pending",
+    }));
     const subtotal = items.reduce((s, i) => s + i.total, 0);
     const tax = Math.round(subtotal * GST_RATE);
     const total = subtotal + tax;
@@ -89,7 +93,7 @@ async function placeOrder(req, res, next) {
         $push: { orderHistory: order._id },
         $inc: { visitCount: 1, totalSpent: total },
         $set: { lastOrderDate: new Date() },
-      }
+      },
     );
 
     res.status(201).json(order);

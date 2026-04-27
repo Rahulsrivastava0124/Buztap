@@ -15,12 +15,17 @@ const orderItemSchema = new Schema(
       default: "Pending",
     },
   },
-  { _id: false }
+  { _id: false },
 );
 
 const orderSchema = new Schema(
   {
-    businessId: { type: Schema.Types.ObjectId, ref: "Business", required: true, index: true },
+    businessId: {
+      type: Schema.Types.ObjectId,
+      ref: "Business",
+      required: true,
+      index: true,
+    },
     orderId: { type: String, required: true }, // e.g. "#2849"
     tableId: { type: String, default: null },
     roomId: { type: String, default: null },
@@ -62,7 +67,7 @@ const orderSchema = new Schema(
     completedAt: { type: Date, default: null },
     cancelledAt: { type: Date, default: null },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 // Auto-generate orderId before save if not provided

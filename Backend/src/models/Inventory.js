@@ -2,9 +2,18 @@ const { Schema, model } = require("mongoose");
 
 const inventorySchema = new Schema(
   {
-    businessId: { type: Schema.Types.ObjectId, ref: "Business", required: true, index: true },
+    businessId: {
+      type: Schema.Types.ObjectId,
+      ref: "Business",
+      required: true,
+      index: true,
+    },
     itemName: { type: String, required: true, trim: true },
-    unit: { type: String, enum: ["kg", "liters", "pieces", "grams", "ml"], default: "kg" },
+    unit: {
+      type: String,
+      enum: ["kg", "liters", "pieces", "grams", "ml"],
+      default: "kg",
+    },
     inStock: { type: Number, required: true, min: 0 },
     reorderAt: { type: Number, required: true, min: 0 },
     supplier: { type: String, default: "" },
@@ -17,7 +26,7 @@ const inventorySchema = new Schema(
     },
     lastRestocked: { type: Date, default: null },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 // Auto-compute status before save
