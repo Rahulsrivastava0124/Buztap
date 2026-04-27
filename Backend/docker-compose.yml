@@ -11,7 +11,7 @@ services:
     volumes:
       - mongo_data:/data/db
     ports:
-      - "27017:27017"       # expose only for local dev tools (Compass, etc.)
+      - "27017:27017" # expose only for local dev tools (Compass, etc.)
     healthcheck:
       test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
       interval: 15s
