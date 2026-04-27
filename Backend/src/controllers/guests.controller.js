@@ -8,6 +8,9 @@ const registerSchema = z.object({
   phone: z.string().min(10),
   name: z.string().min(1),
   email: z.string().email().optional(),
+  businessId: z.string().min(1).optional(),
+  tableId: z.string().min(1).optional(),
+  source: z.enum(["QR", "POS"]).optional(),
 });
 
 const guestOrderSchema = z.object({
@@ -31,9 +34,29 @@ const guestOrderSchema = z.object({
 async function register(req, res, next) {
   try {
     const data = registerSchema.parse(req.body);
+    const now = new Date();
     const guest = await Guest.findOneAndUpdate(
       { phone: data.phone },
-      { $setOnInsert: { ...data } },
+      {
+        $setOnInsert: {
+          phone: data.phone,
+          name: data.name,
+          email: data.email || "",
+          firstSeenAt: now,
+          visitCount: 1,
+        },
+        $set: {
+          name: data.name,
+          ...(data.email ? { email: data.email } : {}),
+          ...(data.businessId ? { businessId: data.businessId } : {}),
+          ...(data.tableId ? { lastTableId: data.tableId } : {}),
+          lastSource: data.source || "QR",
+          lastSeenAt: now,
+        },
+        $inc: {
+          qrLoginCount: data.source === "POS" ? 0 : 1,
+        },
+      },
       { upsert: true, new: true },
     );
     res.json({ guestId: guest._id, phone: guest.phone, name: guest.name });

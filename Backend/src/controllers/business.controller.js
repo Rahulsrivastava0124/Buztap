@@ -58,20 +58,76 @@ function mapBusinessProfile(business) {
 }
 
 async function ensureTableRecords(businessId, targetCount) {
-  if (targetCount <= 0) return;
+  if (targetCount < 0) return;
 
   const allTables = await Table.find({ businessId })
-    .select("tableId isActive")
+    .select("_id tableId isActive")
     .lean();
 
-  const activeCount = allTables.filter((row) => row.isActive !== false).length;
-  const missing = targetCount - activeCount;
+  const tableNo = (tableId) => {
+    const n = Number(String(tableId || "").replace(/\D/g, ""));
+    return Number.isFinite(n) && n > 0 ? n : Number.MAX_SAFE_INTEGER;
+  };
+
+  const activeTables = allTables
+    .filter((row) => row.isActive !== false)
+    .sort((a, b) => tableNo(a.tableId) - tableNo(b.tableId));
+  const inactiveTables = allTables
+    .filter((row) => row.isActive === false)
+    .sort((a, b) => tableNo(a.tableId) - tableNo(b.tableId));
+
+  const activeCount = activeTables.length;
+
+  if (activeCount > targetCount) {
+    const toDeactivate = activeTables
+      .slice(targetCount)
+      .map((row) => row._id)
+      .filter(Boolean);
+    if (toDeactivate.length > 0) {
+      await Table.updateMany(
+        { _id: { $in: toDeactivate } },
+        {
+          $set: {
+            isActive: false,
+            status: "Free",
+            guestName: null,
+            guestPhone: null,
+          },
+        },
+      );
+    }
+    return;
+  }
+
+  let missing = targetCount - activeCount;
+  if (missing <= 0) return;
+
+  const toReactivate = inactiveTables
+    .slice(0, missing)
+    .map((row) => row._id)
+    .filter(Boolean);
+
+  if (toReactivate.length > 0) {
+    await Table.updateMany(
+      { _id: { $in: toReactivate } },
+      {
+        $set: {
+          isActive: true,
+          status: "Free",
+          guestName: null,
+          guestPhone: null,
+        },
+      },
+    );
+    missing -= toReactivate.length;
+  }
+
   if (missing <= 0) return;
 
   const usedIds = new Set(
     allTables
-      .map((row) => Number(String(row.tableId || "").replace(/\D/g, "")))
-      .filter((n) => Number.isFinite(n) && n > 0),
+      .map((row) => tableNo(row.tableId))
+      .filter((n) => n < Number.MAX_SAFE_INTEGER),
   );
 
   const newRows = [];

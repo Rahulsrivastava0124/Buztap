@@ -131,7 +131,7 @@ export default function TablesPage() {
             h1 { margin: 0 0 6px; font-size: 24px; }
             p { margin: 4px 0; color: #555; }
             img { width: 320px; height: 320px; margin: 16px auto; display: block; }
-            .url { word-break: break-all; font-size: 12px; color: #666; margin-top: 8px; }
+            .url { margin-top: 10px; font-size: 12px; color: #666; word-break: break-all; }
           </style>
         </head>
         <body>
@@ -141,7 +141,7 @@ export default function TablesPage() {
             <p>Seats: ${qrData.table?.seats ?? "-"}</p>
             <img src="${qrImageUrl}" alt="Table QR" />
             <p>Scan to view menu and place order</p>
-            <p class="url">${qrData.menuUrl}</p>
+            ${qrData.menuUrl ? `<p class="url">${qrData.menuUrl}</p>` : ""}
           </div>
           <script>
             window.onload = function() { window.print(); };
@@ -291,10 +291,6 @@ export default function TablesPage() {
                   className="w-56 h-56 object-contain"
                 />
               </div>
-
-              <p className="mt-3 text-[11px] text-muted break-all">
-                {qrData.menuUrl}
-              </p>
 
               <div className="mt-4 flex items-center gap-2">
                 <button

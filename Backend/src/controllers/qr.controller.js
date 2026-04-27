@@ -102,13 +102,18 @@ function buildMenuUrl({ req, tableId, businessId, subdomain, slug }) {
 
 async function getQr(req, res, next) {
   try {
-    const table = await Table.findOne({ tableId: req.params.tableId }).lean();
+    const table = await Table.findOne({ tableId: req.params.tableId })
+      .select("tableId seats area businessId")
+      .lean();
     if (!table) return res.status(404).json({ error: "Table not found" });
 
     const [business, totalTables, menuItems] = await Promise.all([
-      Business.findById(table.businessId).lean(),
+      Business.findById(table.businessId)
+        .select("name phone address socialLinks subdomain")
+        .lean(),
       Table.countDocuments({ businessId: table.businessId, isActive: true }),
       MenuItem.find({ businessId: table.businessId, isAvailable: true })
+        .select("name price isVeg description image category")
         .sort({ category: 1, name: 1 })
         .lean(),
     ]);
@@ -119,6 +124,8 @@ async function getQr(req, res, next) {
       subdomain: business?.subdomain || "",
       slug: business?.subdomain || "",
     });
+
+    res.set("Cache-Control", "public, max-age=30");
 
     res.json({
       tableId: table.tableId,

@@ -3,6 +3,8 @@ export type UserRole = "admin" | "manager" | "cashier";
 export type PaymentMethod = "Cash" | "Card/UPI" | "Room Charge";
 
 export interface TodayStats {
+  restaurantName?: string;
+  restaurantSlug?: string;
   totalVisitors: number;
   activeOrders: number;
   servedToday: number;

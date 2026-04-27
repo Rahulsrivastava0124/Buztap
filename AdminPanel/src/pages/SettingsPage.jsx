@@ -138,9 +138,14 @@ export default function SettingsPage() {
     }
 
     setEdited((prev) => {
+      const isNumericField = name === "branches" || name === "tableCount";
+      const normalizedValue = isNumericField
+        ? Number(value || (name === "branches" ? 1 : 0))
+        : value;
+
       const next = {
         ...prev,
-        [name]: name === "branches" ? Number(value || 1) : value,
+        [name]: normalizedValue,
       };
       // Auto-fill subdomain from restaurant name (only when subdomain hasn't been manually overridden)
       if (name === "name") {
@@ -172,6 +177,7 @@ export default function SettingsPage() {
       },
       subdomain: form.subdomain.trim().toLowerCase(),
       branches: Math.max(1, Number(form.branches || 1)),
+      tableCount: Math.max(0, Number(form.tableCount || 0)),
     });
   }
 

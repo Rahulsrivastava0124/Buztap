@@ -301,6 +301,9 @@ export function OverviewTab() {
               {stats?.totalVisitors ?? "—"}
             </p>
             <p className="text-[11px] mt-1 opacity-80">Visitors today</p>
+            <p className="text-[10px] mt-0.5 opacity-75 truncate">
+              {stats?.restaurantName || "Restaurant"}
+            </p>
           </div>
 
           {/* New Guests */}
@@ -352,6 +355,9 @@ export function OverviewTab() {
               {stats?.qrOrders ?? "—"}
             </p>
             <p className="text-[11px] text-muted mt-1">QR scan orders</p>
+            <p className="text-[10px] text-muted/80 mt-0.5 truncate">
+              {stats?.restaurantName || "Restaurant"}
+            </p>
           </div>
 
           {/* Active right now */}

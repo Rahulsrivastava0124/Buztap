@@ -338,6 +338,7 @@ export default function DemoMenu() {
   const navigate = useNavigate();
   const queryParams = new URLSearchParams(window.location.search);
   const currentTableId = queryParams.get("table") || "04";
+  const currentBusinessId = queryParams.get("biz") || "";
   const guestSessionKey = getGuestSessionKey(currentTableId);
   const [cart, setCart] = useState({});
   const [showCart, setShowCart] = useState(false);
@@ -377,10 +378,12 @@ export default function DemoMenu() {
     totalTables: null,
     socialLinks: DEFAULT_SOCIAL_LINKS,
   });
-  const [liveMenuItems, setLiveMenuItems] = useState(FOOD_ITEMS);
+  const [liveMenuItems, setLiveMenuItems] = useState([]);
   const scrollRef = useRef(null);
 
-  const menuItems = liveMenuItems.length > 0 ? liveMenuItems : FOOD_ITEMS;
+  const menuItems = liveMenuItems;
+  const restaurantDisplayName =
+    String(restaurantProfile.name || "").trim() || "Menu Open";
 
   const findMenuItemById = (id) =>
     menuItems.find((item) => String(item.id) === String(id));
@@ -465,11 +468,11 @@ export default function DemoMenu() {
           },
         }));
 
-        if (Array.isArray(payload.menuItems) && payload.menuItems.length > 0) {
-          setLiveMenuItems(payload.menuItems);
-        }
+        setLiveMenuItems(
+          Array.isArray(payload.menuItems) ? payload.menuItems : [],
+        );
       } catch {
-        // Keep graceful fallbacks for the demo route when backend data is unavailable.
+        setLiveMenuItems([]);
       }
     }
 
@@ -674,7 +677,7 @@ export default function DemoMenu() {
                 Scan And Order
               </p>
               <h1 className="mt-3 max-w-lg text-3xl font-bold leading-tight sm:text-5xl">
-                {restaurantProfile.name}
+                {restaurantDisplayName}
               </h1>
               <p className="mt-2 text-sm text-white/80 sm:text-base">
                 {restaurantProfile.tableLabel}
@@ -711,6 +714,11 @@ export default function DemoMenu() {
                     body: JSON.stringify({
                       phone: `+91${normalizeGuestPhone(guestPhone)}`,
                       name: guestName || "Guest",
+                      ...(currentBusinessId
+                        ? { businessId: currentBusinessId }
+                        : {}),
+                      tableId: currentTableId,
+                      source: "QR",
                     }),
                   });
                 } catch {
@@ -802,7 +810,7 @@ export default function DemoMenu() {
                 </button>
                 <div className="flex-1 text-center">
                   <p className="font-bold text-sm text-gray-900">
-                    {restaurantProfile.name} • {restaurantProfile.eta}
+                    {restaurantDisplayName} • {restaurantProfile.eta}
                   </p>
                 </div>
                 <button
@@ -825,7 +833,7 @@ export default function DemoMenu() {
         <div className="relative h-40 w-full bg-gray-900 flex-shrink-0">
           <img
             src={restaurantProfile.heroImage}
-            alt={restaurantProfile.name}
+            alt={restaurantDisplayName}
             className="w-full h-full object-cover"
           />
           {/* gradient: dark at top for buttons, dark at bottom for social row */}
@@ -841,7 +849,7 @@ export default function DemoMenu() {
           <button
             onClick={() =>
               navigator.share?.({
-                title: restaurantProfile.name,
+                title: restaurantDisplayName,
                 url: window.location.href,
               })
             }
@@ -944,7 +952,7 @@ export default function DemoMenu() {
           <div className="flex items-start justify-between gap-3">
             <div>
               <h1 className="text-2xl font-bold text-gray-900 leading-tight">
-                {restaurantProfile.name}
+                {restaurantDisplayName}
               </h1>
               <p className="text-gray-500 text-sm mt-0.5">
                 {restaurantProfile.eta} &nbsp;|&nbsp;{" "}
@@ -1096,6 +1104,8 @@ export default function DemoMenu() {
                           <img
                             src={item.img}
                             alt={item.name}
+                            loading="lazy"
+                            decoding="async"
                             className="w-full aspect-[4/3] object-cover cursor-pointer"
                             onClick={() => setSelectedItem(item)}
                           />
@@ -1532,9 +1542,9 @@ export default function DemoMenu() {
                         </div>
                       ) : null}
 
-                      <div className="bg-white rounded-2xl p-4 shadow-sm border border-[#e0d9ce] space-y-4">
+                      <div className="bg-white rounded-2xl p-3 shadow-sm border border-[#e0d9ce] space-y-3">
                         <div>
-                          <h3 className="font-bold text-[#0f0e0b] mb-2">
+                          <h3 className="font-bold text-[15px] text-[#0f0e0b] mb-1.5">
                             Offers
                           </h3>
                           <div className="space-y-2">
@@ -1544,13 +1554,13 @@ export default function DemoMenu() {
                               return (
                                 <div
                                   key={offer.title}
-                                  className={`rounded-xl border px-3 py-2.5 flex items-center justify-between gap-3 ${isSelected ? "bg-[#fef0e4] border-[#e8720c]/40" : "bg-[#faf7f2] border-[#e0d9ce]"}`}
+                                  className={`rounded-xl border px-2.5 py-2 flex items-center justify-between gap-2.5 ${isSelected ? "bg-[#fef0e4] border-[#e8720c]/40" : "bg-[#faf7f2] border-[#e0d9ce]"}`}
                                 >
                                   <div className="min-w-0">
-                                    <p className="font-bold text-sm text-[#0f0e0b] leading-tight">
+                                    <p className="font-bold text-[13px] text-[#0f0e0b] leading-tight">
                                       {offer.title}
                                     </p>
-                                    <p className="text-[11px] text-[#857c6e] leading-tight mt-0.5">
+                                    <p className="text-[10px] text-[#857c6e] leading-tight mt-0.5">
                                       {offer.subtitle} • Min ₹
                                       {offer.minSubtotal}
                                     </p>
@@ -1566,7 +1576,7 @@ export default function DemoMenu() {
                                       }
                                     }}
                                     disabled={!eligible && !isSelected}
-                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap ${isSelected ? "bg-[#e8720c] text-white" : "bg-[#0f0e0b] text-white"} disabled:bg-[#e0d9ce] disabled:text-[#857c6e]`}
+                                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold whitespace-nowrap ${isSelected ? "bg-[#e8720c] text-white" : "bg-[#0f0e0b] text-white"} disabled:bg-[#e0d9ce] disabled:text-[#857c6e]`}
                                   >
                                     {isSelected ? "Remove" : "Apply"}
                                   </button>
@@ -1577,10 +1587,10 @@ export default function DemoMenu() {
                         </div>
 
                         <div>
-                          <h3 className="font-bold text-[#0f0e0b] mb-3">
+                          <h3 className="font-bold text-[15px] text-[#0f0e0b] mb-2">
                             Coupon Code
                           </h3>
-                          <div className="flex gap-2">
+                          <div className="flex gap-1.5">
                             <input
                               value={couponCode}
                               onChange={(e) => {
@@ -1588,11 +1598,11 @@ export default function DemoMenu() {
                                 if (couponError) setCouponError("");
                               }}
                               placeholder="Enter code"
-                              className="flex-1 px-3 py-2.5 bg-[#faf7f2] border border-[#e0d9ce] rounded-xl focus:outline-none focus:border-[#e8720c]"
+                              className="flex-1 px-2.5 py-2 text-sm bg-[#faf7f2] border border-[#e0d9ce] rounded-lg focus:outline-none focus:border-[#e8720c]"
                             />
                             <button
                               onClick={applyCouponCode}
-                              className="px-4 py-2.5 rounded-xl bg-[#0f0e0b] text-white font-bold text-sm"
+                              className="px-3 py-2 rounded-lg bg-[#0f0e0b] text-white font-bold text-xs"
                             >
                               Apply
                             </button>
@@ -1832,7 +1842,7 @@ export default function DemoMenu() {
                           status: "Placed",
                           couponCode: appliedCoupon,
                           offerPercent: selectedOffer,
-                          restaurantName: restaurantProfile.name,
+                          restaurantName: restaurantDisplayName,
                           tableName: restaurantProfile.tableLabel,
                           guestName: guestName || "Guest",
                           guestPhone,

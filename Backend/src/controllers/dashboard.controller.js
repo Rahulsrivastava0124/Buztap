@@ -4,6 +4,8 @@ const MenuItem = require("../models/MenuItem");
 const Inventory = require("../models/Inventory");
 const Analytics = require("../models/Analytics");
 const PaymentChannel = require("../models/PaymentChannel");
+const Guest = require("../models/Guest");
+const Business = require("../models/Business");
 
 async function getSnapshot(req, res, next) {
   try {
@@ -374,18 +376,30 @@ async function getTodayStats(req, res, next) {
     const servedOrders = todayOrders.filter((o) => o.status === "Served");
     const cancelledOrders = todayOrders.filter((o) => o.status === "Cancelled");
 
-    // Unique guests (by guestPhone or guestName)
+    // Unique guests from orders (by guestPhone or guestName)
     const uniqueGuestPhones = new Set(
       todayOrders.map((o) => o.guestPhone).filter(Boolean),
     );
     const uniqueGuestNames = new Set(
       todayOrders.map((o) => o.guestName).filter(Boolean),
     );
-    const totalVisitors = Math.max(
+    const orderVisitorEstimate = Math.max(
       uniqueGuestPhones.size,
       uniqueGuestNames.size,
       todayOrders.length,
     );
+
+    // Guest logins via QR join flow (register API)
+    const qrLoginGuests = await Guest.find({
+      businessId,
+      lastSeenAt: { $gte: today },
+      lastSource: "QR",
+    })
+      .select("firstSeenAt qrLoginCount")
+      .lean();
+
+    const qrLoginVisitors = qrLoginGuests.length;
+    const totalVisitors = Math.max(orderVisitorEstimate, qrLoginVisitors);
 
     // Channel split
     const posOrders = todayOrders.filter((o) => o.source === "POS");
@@ -419,21 +433,25 @@ async function getTodayStats(req, res, next) {
     const avgSpendPerVisitor =
       totalVisitors > 0 ? Math.round(totalRevenue / totalVisitors) : 0;
 
-    // New vs returning guests (rough: unique phones in Guest model with visitCount > 1)
-    const Guest = require("../models/Guest");
-    const returningGuests = await Guest.countDocuments({
-      businessId,
-      visitCount: { $gt: 1 },
-      lastOrderDate: { $gte: today },
-    });
-    const newGuests = Math.max(0, totalVisitors - returningGuests);
+    // New vs returning guests from QR login records
+    const returningGuests = qrLoginGuests.filter(
+      (g) =>
+        (g.qrLoginCount || 0) > 1 || (g.firstSeenAt && g.firstSeenAt < today),
+    ).length;
+    const newGuests = Math.max(0, qrLoginVisitors - returningGuests);
 
     // Current occupancy
     const tables = await Table.find({ businessId, isActive: true }).lean();
     const occupiedTables = tables.filter((t) => t.status === "Occupied").length;
     const totalTables = tables.length;
 
+    const business = await Business.findById(businessId)
+      .select("name subdomain")
+      .lean();
+
     res.json({
+      restaurantName: business?.name || "",
+      restaurantSlug: business?.subdomain || "",
       totalVisitors,
       activeOrders: activeOrders.length,
       servedToday: servedOrders.length,
