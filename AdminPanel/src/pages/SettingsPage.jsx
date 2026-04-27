@@ -7,8 +7,31 @@ import PageShell from "../components/layout/PageShell";
 
 const MENU_BASE = import.meta.env.VITE_MENU_BASE_URL || "http://localhost:5173";
 
+function normalizeMenuBase(baseUrl) {
+  const raw = String(baseUrl || "").trim();
+  if (!raw) return "";
+
+  // Ensure absolute URL; prevents browser from treating domain-like text as relative path.
+  const withProtocol = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+
+  let url;
+  try {
+    url = new URL(withProtocol);
+  } catch {
+    return "";
+  }
+
+  // Admin host should never be used for guest menu links.
+  if (url.hostname === "restroadmin.buzingbee.com") {
+    url.hostname = "restro.buzingbee.com";
+  }
+
+  return url.toString().replace(/\/$/, "");
+}
+
 function buildGuestMenuUrl(baseUrl, businessId, tableId = "04", slug = "") {
-  const base = String(baseUrl || "").replace(/\/$/, "");
+  const base = normalizeMenuBase(baseUrl);
+  if (!base) return "";
   const params = new URLSearchParams();
   if (slug) params.set("restro", slug);
   params.set("table", tableId);

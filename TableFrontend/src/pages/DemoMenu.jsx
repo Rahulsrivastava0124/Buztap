@@ -343,6 +343,8 @@ export default function DemoMenu() {
   const queryParams = new URLSearchParams(window.location.search);
   const currentTableId = queryParams.get("table") || "04";
   const currentBusinessId = queryParams.get("biz") || "";
+  const [resolvedBusinessId, setResolvedBusinessId] =
+    useState(currentBusinessId);
   const guestSessionKey = getGuestSessionKey(currentTableId);
   const [cart, setCart] = useState({});
   const [showCart, setShowCart] = useState(false);
@@ -416,6 +418,27 @@ export default function DemoMenu() {
     localStorage.setItem(`order_history_${phone}`, JSON.stringify(history));
   };
 
+  const registerGuestVisit = async (phoneValue, nameValue) => {
+    const normalizedPhone = normalizeGuestPhone(phoneValue);
+    if (normalizedPhone.length !== 10) return;
+
+    try {
+      await fetch(`${API_BASE_URL}/guests/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phone: `+91${normalizedPhone}`,
+          name: String(nameValue || "Guest").trim() || "Guest",
+          ...(resolvedBusinessId ? { businessId: resolvedBusinessId } : {}),
+          tableId: currentTableId,
+          source: "QR",
+        }),
+      });
+    } catch {
+      // Keep menu access non-blocking even if analytics tracking fails.
+    }
+  };
+
   useEffect(() => {
     const savedSession = localStorage.getItem(guestSessionKey);
     if (!savedSession) return;
@@ -429,6 +452,7 @@ export default function DemoMenu() {
       setGuestPhone(restoredPhone);
       setGuestName(String(parsed.name || ""));
       setIsJoined(true);
+      registerGuestVisit(restoredPhone, String(parsed.name || "Guest"));
     } catch {
       localStorage.removeItem(guestSessionKey);
     }
@@ -490,6 +514,13 @@ export default function DemoMenu() {
         setLiveMenuItems(
           Array.isArray(payload.menuItems) ? payload.menuItems : [],
         );
+
+        if (payload.business?.id) {
+          setResolvedBusinessId(String(payload.business.id));
+          if (!currentBusinessId && isJoined && guestPhone) {
+            registerGuestVisit(guestPhone, guestName || "Guest");
+          }
+        }
       } catch {
         setLiveMenuItems([]);
       }
@@ -500,7 +531,7 @@ export default function DemoMenu() {
     return () => {
       cancelled = true;
     };
-  }, [currentTableId]);
+  }, [currentBusinessId, currentTableId, guestName, guestPhone, isJoined]);
 
   // Load visit count and order history from localStorage when the guest logs in
   useEffect(() => {
@@ -726,25 +757,8 @@ export default function DemoMenu() {
                 if (!guestPhone) return;
                 setJoinLoading(true);
                 setJoinError("");
-                try {
-                  await fetch(`${API_BASE_URL}/guests/register`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                      phone: `+91${normalizeGuestPhone(guestPhone)}`,
-                      name: guestName || "Guest",
-                      ...(currentBusinessId
-                        ? { businessId: currentBusinessId }
-                        : {}),
-                      tableId: currentTableId,
-                      source: "QR",
-                    }),
-                  });
-                } catch {
-                  // Backend unavailable — allow entry anyway so the demo still works
-                } finally {
-                  setJoinLoading(false);
-                }
+                await registerGuestVisit(guestPhone, guestName || "Guest");
+                setJoinLoading(false);
                 setIsJoined(true);
               }}
               className="mt-6 space-y-4"
