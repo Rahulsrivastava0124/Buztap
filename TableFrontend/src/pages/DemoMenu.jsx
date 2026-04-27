@@ -11,6 +11,10 @@ import {
   ChevronDown,
   Share2,
   UtensilsCrossed,
+  User,
+  Settings,
+  History,
+  LogOut,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 
@@ -360,6 +364,7 @@ export default function DemoMenu() {
   const [freeItemClaimed, setFreeItemClaimed] = useState(false);
   const [orderHistory, setOrderHistory] = useState([]);
   const [selectedItem, setSelectedItem] = useState(null);
+  const [showProfile, setShowProfile] = useState(false);
 
   // Menu UI state
   const [searchQuery, setSearchQuery] = useState("");
@@ -384,9 +389,23 @@ export default function DemoMenu() {
   const menuItems = liveMenuItems;
   const restaurantDisplayName =
     String(restaurantProfile.name || "").trim() || "Menu Open";
+  const guestDisplayName = String(guestName || "Guest").trim() || "Guest";
+  const guestInitial = guestDisplayName.slice(0, 1).toUpperCase();
 
   const findMenuItemById = (id) =>
     menuItems.find((item) => String(item.id) === String(id));
+
+  const handleGuestLogout = () => {
+    setShowProfile(false);
+    setIsJoined(false);
+    setGuestPhone("");
+    setGuestName("");
+    setCart({});
+    setOrderHistory([]);
+    localStorage.removeItem(guestSessionKey);
+    localStorage.removeItem("current_guest_phone");
+    localStorage.removeItem("current_guest_name");
+  };
 
   const loadOrderHistory = (phone) => {
     const savedHistory = localStorage.getItem(`order_history_${phone}`);
@@ -813,17 +832,26 @@ export default function DemoMenu() {
                     {restaurantDisplayName} • {restaurantProfile.eta}
                   </p>
                 </div>
-                <button
-                  onClick={() =>
-                    scrollRef.current?.scrollTo({
-                      top: 280,
-                      behavior: "smooth",
-                    })
-                  }
-                  className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-700"
-                >
-                  <Search size={16} />
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() =>
+                      scrollRef.current?.scrollTo({
+                        top: 280,
+                        behavior: "smooth",
+                      })
+                    }
+                    className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-700"
+                  >
+                    <Search size={16} />
+                  </button>
+                  <button
+                    onClick={() => setShowProfile(true)}
+                    className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-700"
+                    aria-label="Open guest profile"
+                  >
+                    <User size={15} />
+                  </button>
+                </div>
               </div>
             </motion.div>
           )}
@@ -846,17 +874,26 @@ export default function DemoMenu() {
           >
             <ArrowLeft size={18} />
           </button>
-          <button
-            onClick={() =>
-              navigator.share?.({
-                title: restaurantDisplayName,
-                url: window.location.href,
-              })
-            }
-            className="absolute top-4 right-4 w-9 h-9 rounded-full bg-black/55 backdrop-blur-sm flex items-center justify-center text-white"
-          >
-            <Share2 size={18} />
-          </button>
+          <div className="absolute top-4 right-4 flex items-center gap-2">
+            <button
+              onClick={() =>
+                navigator.share?.({
+                  title: restaurantDisplayName,
+                  url: window.location.href,
+                })
+              }
+              className="w-9 h-9 rounded-full bg-black/55 backdrop-blur-sm flex items-center justify-center text-white"
+            >
+              <Share2 size={18} />
+            </button>
+            <button
+              onClick={() => setShowProfile(true)}
+              className="w-9 h-9 rounded-full bg-black/55 backdrop-blur-sm flex items-center justify-center text-white"
+              aria-label="Open guest profile"
+            >
+              <User size={16} />
+            </button>
+          </div>
 
           {/* Bottom row: social icons + Google review */}
           <div className="absolute bottom-0 left-0 right-0 px-4 pb-3 flex items-center justify-between">
@@ -972,6 +1009,13 @@ export default function DemoMenu() {
                   {orderHistory.length > 1 ? "s" : ""}
                 </Link>
               )}
+              <button
+                onClick={() => setShowProfile(true)}
+                className="w-8 h-8 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-700 hover:bg-gray-200 transition-colors"
+                aria-label="Open guest profile"
+              >
+                <User size={14} />
+              </button>
               <div className="flex items-center gap-1 bg-green-700 text-white px-3 py-1.5 rounded-full">
                 <Star size={12} className="fill-white" />
                 <span className="text-sm font-bold">
@@ -1884,6 +1928,135 @@ export default function DemoMenu() {
                 )}
               </div>
             </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Guest Profile Sheet */}
+        <AnimatePresence>
+          {showProfile && (
+            <>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 bg-black/40 z-[75]"
+                onClick={() => setShowProfile(false)}
+              />
+              <motion.div
+                initial={{ y: "100%" }}
+                animate={{ y: 0 }}
+                exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 24, stiffness: 210 }}
+                className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-white rounded-t-3xl z-[76] border-t border-gray-200"
+              >
+                <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+                  <p className="text-sm font-bold text-gray-900">
+                    Guest Profile
+                  </p>
+                  <button
+                    onClick={() => setShowProfile(false)}
+                    className="w-8 h-8 rounded-full bg-gray-100 text-gray-600"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <div className="p-4 space-y-3 max-h-[70vh] overflow-y-auto">
+                  <div className="rounded-2xl border border-gray-200 p-3 flex items-center gap-3 bg-gray-50">
+                    <div className="w-11 h-11 rounded-full bg-[#e8720c] text-white font-bold flex items-center justify-center text-lg">
+                      {guestInitial}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-gray-900 truncate">
+                        {guestDisplayName}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        +91 {guestPhone || "—"}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        Visits: {visitCount}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-gray-200 p-2">
+                    <button
+                      onClick={() => {
+                        setShowProfile(false);
+                        navigate("/history");
+                      }}
+                      className="w-full px-2 py-2.5 rounded-xl flex items-center gap-2.5 hover:bg-gray-50 text-left"
+                    >
+                      <History size={16} className="text-gray-600" />
+                      <div>
+                        <p className="text-sm font-semibold text-gray-900">
+                          Order History
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {orderHistory.length} saved orders
+                        </p>
+                      </div>
+                    </button>
+
+                    <div className="w-full px-2 py-2.5 rounded-xl flex items-center gap-2.5">
+                      <Settings size={16} className="text-gray-600" />
+                      <div>
+                        <p className="text-sm font-semibold text-gray-900">
+                          Settings
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {restaurantDisplayName} •{" "}
+                          {restaurantProfile.tableLabel}
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={handleGuestLogout}
+                      className="w-full px-2 py-2.5 rounded-xl flex items-center gap-2.5 hover:bg-red-50 text-left"
+                    >
+                      <LogOut size={16} className="text-red-600" />
+                      <div>
+                        <p className="text-sm font-semibold text-red-600">
+                          Logout
+                        </p>
+                        <p className="text-xs text-red-400">
+                          Clear session for this table
+                        </p>
+                      </div>
+                    </button>
+                  </div>
+
+                  {orderHistory.length > 0 ? (
+                    <div className="rounded-2xl border border-gray-200 p-3">
+                      <p className="text-xs font-bold text-gray-700 mb-2">
+                        Recent Orders
+                      </p>
+                      <div className="space-y-2">
+                        {orderHistory.slice(0, 3).map((order) => (
+                          <div
+                            key={order.id}
+                            className="rounded-lg border border-gray-100 px-2.5 py-2 text-xs flex items-center justify-between"
+                          >
+                            <div className="min-w-0 pr-2">
+                              <p className="font-semibold text-gray-800 truncate">
+                                #{order.id}
+                              </p>
+                              <p className="text-gray-500 truncate">
+                                {order.date}
+                              </p>
+                            </div>
+                            <p className="font-bold text-gray-900">
+                              ₹{order.total}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              </motion.div>
+            </>
           )}
         </AnimatePresence>
 
