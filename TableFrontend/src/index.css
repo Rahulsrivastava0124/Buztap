@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
-/* ── Custom DaisyUI restromenu theme ─────────────────────────── */
+/* ── Custom DaisyUI BuzTap theme ─────────────────────────── */
 @plugin "daisyui/theme" {
-  name: "restromenu";
+  name: "BuzTap";
   default: true;
   prefersdark: false;
   color-scheme: light;

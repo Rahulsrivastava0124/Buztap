@@ -651,8 +651,8 @@ export default function Landing() {
               Live in 5 minutes
             </h2>
             <p className="text-[#857c6e] mt-3 max-w-lg mx-auto">
-              Watch how restroMenu works step by step — from creating your menu
-              to receiving your first order.
+              Watch how BuzTap works step by step — from creating your menu to
+              receiving your first order.
             </p>
           </div>
 
@@ -1079,7 +1079,7 @@ export default function Landing() {
           </h2>
           <p className="text-white/80 text-lg mb-10 max-w-lg mx-auto">
             Free plan, forever. No credit card. Setup in under 5 minutes. Join
-            12 000+ restaurants already on restroMenu.
+            12 000+ restaurants already on BuzTap.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <button className="bg-white text-[#e8720c] font-bold text-base px-8 py-4 rounded-md hover:bg-[#fef0e4] transition-colors flex items-center justify-center gap-2">
@@ -1105,7 +1105,7 @@ export default function Landing() {
                 <Utensils size={16} className="text-white" />
               </span>
               <span className="font-display font-bold text-[#0f0e0b] text-lg">
-                restroMenu
+                BuzTap
               </span>
             </div>
             <p className="text-sm leading-relaxed mb-4">
@@ -1210,7 +1210,7 @@ export default function Landing() {
         </div>
 
         <div className="border-t border-[#e0d9ce] max-w-6xl mx-auto px-4 sm:px-6 py-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
-          <p>© {new Date().getFullYear()} restroMenu. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} BuzTap. All rights reserved.</p>
           <p className="flex items-center gap-1 flex-wrap justify-center">
             Made with <span className="text-[#e8720c]">♥</span> for India&apos;s
             restaurants ·

@@ -20,9 +20,7 @@ export function GuestPhone() {
       {/* status bar */}
       <div className=" px-4 py-1.5 flex items-center text-black justify-between shrink-0">
         <span className=" text-[9px]">EN ▾</span>
-        <span className=" text-[9px] font-bold tracking-widest">
-          restroMenu
-        </span>
+        <span className=" text-[9px] font-bold tracking-widest">BuzTap</span>
         <div className="flex gap-2">
           <Users size={11} className="" />
           <Menu size={11} className="" />

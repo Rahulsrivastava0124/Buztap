@@ -3,7 +3,7 @@
  * This module provides utilities to dynamically update meta tags for better SEO
  */
 
-const SITE_NAME = "restroMenu";
+const SITE_NAME = "BuzTap";
 const SITE_URL = "https://restro.buzingbee.com";
 const SITE_LOGO = `${SITE_URL}/logo.png`;
 
@@ -88,21 +88,21 @@ export const pageMetaConfig = {
   landing: {
     title: "Digital QR Menus for Restaurants & Hotels",
     description:
-      "restroMenu: Enable contactless table ordering, integrated POS billing, and seamless guest experience with QR code menus. Trusted by 12,000+ restaurants & hotels in India. Free setup in 5 minutes.",
+      "BuzTap: Enable contactless table ordering, integrated POS billing, and seamless guest experience with QR code menus. Trusted by 12,000+ restaurants & hotels in India. Free setup in 5 minutes.",
     keywords:
       "QR code menu, digital menu, restaurant ordering system, table ordering system, POS system, hotel room service, contactless menu, digital restaurant technology, QR menu software, digital ordering system",
   },
   features: {
     title: "Features & Benefits",
     description:
-      "Discover how restroMenu transforms the dining experience with QR code menus, table ordering, POS integration, analytics, and hotel room service.",
+      "Discover how BuzTap transforms the dining experience with QR code menus, table ordering, POS integration, analytics, and hotel room service.",
     keywords:
       "restaurant features, QR menu features, table ordering features, POS features, hotel room service features",
   },
   howItWorks: {
     title: "How It Works",
     description:
-      "See how restroMenu works in 5 simple steps. From menu creation to order delivery—seamless restaurant operations.",
+      "See how BuzTap works in 5 simple steps. From menu creation to order delivery—seamless restaurant operations.",
     keywords: "how QR menu works, table ordering process, POS workflow",
   },
   pricing: {
@@ -115,25 +115,25 @@ export const pageMetaConfig = {
   demo: {
     title: "Live Demo",
     description:
-      "Experience the restroMenu guest interface firsthand. Scan the QR code or click to try the interactive demo now.",
+      "Experience the BuzTap guest interface firsthand. Scan the QR code or click to try the interactive demo now.",
     keywords: "QR menu demo, restaurant demo, table ordering demo",
   },
   auth: {
     title: "Sign In / Create Account",
     description:
-      "Sign in to your restroMenu dashboard or create a free account to start managing your restaurant's digital menu.",
+      "Sign in to your BuzTap dashboard or create a free account to start managing your restaurant's digital menu.",
     keywords: "sign in, create account, restaurant dashboard",
   },
   dashboard: {
     title: "Restaurant Dashboard",
     description:
-      "Manage your menu, view orders, track analytics, and run your restaurant from the restroMenu dashboard.",
+      "Manage your menu, view orders, track analytics, and run your restaurant from the BuzTap dashboard.",
     keywords: "restaurant dashboard, order management, menu management",
   },
   contact: {
     title: "Contact Us",
     description:
-      "Get in touch with the restroMenu team. We're here to help your restaurant succeed.",
+      "Get in touch with the BuzTap team. We're here to help your restaurant succeed.",
     keywords: "contact support, customer service, restaurant support",
   },
 };
@@ -144,7 +144,7 @@ export const pageMetaConfig = {
 export const getProductStructuredData = () => ({
   "@context": "https://schema.org/",
   "@type": "SoftwareApplication",
-  name: "restroMenu",
+  name: "BuzTap",
   applicationCategory: "BusinessApplication",
   description:
     "QR-based digital menu ordering system with integrated POS for restaurants and hotels",
@@ -202,16 +202,16 @@ export const getFAQStructuredData = (faqs) => ({
 export const getOrganizationStructuredData = () => ({
   "@context": "https://schema.org/",
   "@type": "Organization",
-  name: "restroMenu",
+  name: "BuzTap",
   url: SITE_URL,
   logo: SITE_LOGO,
   description:
     "Digital QR code menus for restaurants & hotels with integrated POS and table ordering.",
   sameAs: [
-    "https://www.facebook.com/restromenu",
-    "https://twitter.com/restromenu",
-    "https://www.linkedin.com/company/restromenu",
-    "https://www.instagram.com/restromenu",
+    "https://www.facebook.com/BuzTap",
+    "https://twitter.com/BuzTap",
+    "https://www.linkedin.com/company/BuzTap",
+    "https://www.instagram.com/BuzTap",
   ],
   contactPoint: {
     "@type": "ContactPoint",
@@ -227,7 +227,7 @@ export const getOrganizationStructuredData = () => ({
 export const getLocalBusinessStructuredData = () => ({
   "@context": "https://schema.org",
   "@type": "LocalBusiness",
-  name: "restroMenu",
+  name: "BuzTap",
   description: "Digital QR menu and POS solution for restaurants and hotels",
   image: SITE_LOGO,
   url: SITE_URL,
@@ -252,12 +252,12 @@ export const getArticleStructuredData = (article) => ({
   dateModified: article.dateModified,
   author: {
     "@type": "Organization",
-    name: "restroMenu",
+    name: "BuzTap",
     url: SITE_URL,
   },
   publisher: {
     "@type": "Organization",
-    name: "restroMenu",
+    name: "BuzTap",
     logo: {
       "@type": "ImageObject",
       url: SITE_LOGO,
@@ -271,7 +271,7 @@ export const getArticleStructuredData = (article) => ({
 export const getReviewStructuredData = (reviews) => ({
   "@context": "https://schema.org",
   "@type": "Product",
-  name: "restroMenu",
+  name: "BuzTap",
   description: "Digital QR code menu for restaurants",
   url: SITE_URL,
   aggregateRating: {

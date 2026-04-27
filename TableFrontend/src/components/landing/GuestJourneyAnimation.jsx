@@ -143,7 +143,7 @@ export function GuestJourneyAnimation() {
                     >
                       <div className="px-4 py-1.5 flex items-center justify-center bg-white border-b border-[#f0ebe0]">
                         <span className="text-[9px] font-bold tracking-widest text-ink">
-                          restroMenu
+                          BuzTap
                         </span>
                       </div>
                       <div className="relative h-32 shrink-0">

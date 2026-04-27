@@ -11,7 +11,7 @@ export function AnimatedPhone({ activeStep }) {
       {/* app bar */}
       <div className=" px-4 py-2 flex items-center justify-center shrink-0">
         <span className="text-black text-[10px] font-semibold tracking-widest">
-          restroMenu
+          BuzTap
         </span>
       </div>
       {/* animated content */}

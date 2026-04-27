@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useState, useEffect } from "react";
+import { AnimatePresence } from "framer-motion";
 import {
   ArrowLeft,
   Search,
@@ -128,7 +128,6 @@ export default function DemoMenu() {
 
   useEffect(() => {
     if (orderPlaced) {
-      setOrderStatus(0);
       const timer1 = setTimeout(() => setOrderStatus(1), 3500);
       const timer2 = setTimeout(() => setOrderStatus(2), 7500);
       return () => {
@@ -155,7 +154,7 @@ export default function DemoMenu() {
   };
 
   const cartTotalPairs = Object.entries(cart);
-  const totalItems = cartTotalPairs.reduce((sum, [_, qty]) => sum + qty, 0);
+  const totalItems = cartTotalPairs.reduce((sum, [, qty]) => sum + qty, 0);
   const totalPrice = cartTotalPairs.reduce((sum, [id, qty]) => {
     const item = FOOD_ITEMS.find((i) => i.id === Number(id));
     return sum + (item ? item.price * qty : 0);
@@ -173,12 +172,7 @@ export default function DemoMenu() {
     activeCategory === "All"
       ? FOOD_ITEMS
       : FOOD_ITEMS.filter((item) => item.category === activeCategory);
-
-  useEffect(() => {
-    if (totalItems === 0 && showCart) {
-      setShowCart(false);
-    }
-  }, [totalItems, showCart]);
+  const isCartVisible = showCart && totalItems > 0;
 
   const applyCouponCode = () => {
     const normalized = couponCode.trim().toUpperCase();
@@ -471,7 +465,7 @@ export default function DemoMenu() {
               </a>
             </div>
             <p className="text-[10px] text-[#857c6e] mt-4 font-medium">
-              Powered by restroMenu © 2026
+              Powered by BuzTap © 2026
             </p>
           </div>
         </div>
@@ -520,7 +514,7 @@ export default function DemoMenu() {
 
         {/* Checkout Modal */}
         <AnimatePresence>
-          {showCart && (
+          {isCartVisible && (
             <motion.div
               initial={{ y: "100%" }}
               animate={{ y: 0 }}

@@ -1,110 +1,191 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
+// eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft,
-  History,
   Search,
   Plus,
   Minus,
   ShoppingBag,
   Star,
+  ChevronDown,
+  Share2,
+  UtensilsCrossed,
 } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
 
-const Instagram = ({ size = 24, color = "currentColor" }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke={color}
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
+
+const DEFAULT_HERO_IMAGE =
+  "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&q=80";
+
+const DEFAULT_SOCIAL_LINKS = {
+  instagram: "https://instagram.com",
+  facebook: "https://facebook.com",
+  x: "https://x.com",
+  googleReview: "https://g.page/r/review",
+};
+
+function getTableLabel(tableId) {
+  if (!tableId) return "Table 04";
+  return /^table\b/i.test(tableId) ? tableId : `Table ${tableId}`;
+}
+
+// ── Veg / Non-veg indicator icons ─────────────────────────────────────────────
+const VegIcon = ({ size = 14 }) => (
+  <span
+    style={{ width: size, height: size, borderColor: "#16a34a" }}
+    className="border-2 rounded-[3px] flex items-center justify-center flex-shrink-0"
   >
-    <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
-    <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
-    <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
-  </svg>
+    <span
+      style={{
+        width: size * 0.45,
+        height: size * 0.45,
+        backgroundColor: "#16a34a",
+      }}
+      className="rounded-full"
+    />
+  </span>
 );
-const Facebook = ({ size = 24, color = "currentColor" }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke={color}
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
+const NonVegIcon = ({ size = 14 }) => (
+  <span
+    style={{ width: size, height: size, borderColor: "#dc2626" }}
+    className="border-2 rounded-[3px] flex items-center justify-center flex-shrink-0"
   >
-    <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path>
-  </svg>
+    <span
+      className="w-0 h-0"
+      style={{
+        borderLeft: `${size * 0.3}px solid transparent`,
+        borderRight: `${size * 0.3}px solid transparent`,
+        borderBottom: `${size * 0.48}px solid #dc2626`,
+      }}
+    />
+  </span>
 );
-const Twitter = ({ size = 24, color = "currentColor" }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke={color}
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M22 4s-.7 2.1-2 3.4c1.6 10-9.4 17.3-18 11.6 2.2.1 4.4-.6 6-2C3 15.5.5 9.6 3 5c2.2 2.6 5.6 4.1 9 4-.9-4.2 4-6.6 7-3.8 1.1 0 3-1.2 3-1.2z"></path>
-  </svg>
-);
-import { Link } from "react-router-dom";
 
 const FOOD_ITEMS = [
   {
     id: 1,
-    name: "Paneer Butter Masala",
-    price: 280,
+    name: "Spicy Chicken Craver",
+    price: 89,
+    originalPrice: 99,
+    veg: false,
+    rating: 4.7,
+    popular: false,
+    desc: "Crispy spiced chicken in a soft roll with tangy sauce.",
+    img: "https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=400&q=80",
+    category: "Starters",
+  },
+  {
+    id: 2,
+    name: "Aloo Patty Sandwich",
+    price: 139,
+    originalPrice: 169,
     veg: true,
-    desc: "Soft paneer cubes in rich tomato gravy, slowly cooked to perfection.",
+    rating: 4.4,
+    popular: true,
+    desc: "Classic aloo tikki sandwich with fresh veggies and green chutney.",
+    img: "https://images.unsplash.com/photo-1553979459-d2229ba7433b?w=400&q=80",
+    category: "Mains",
+  },
+  {
+    id: 3,
+    name: "Veggie Delite Sandwich",
+    price: 139,
+    originalPrice: 159,
+    veg: true,
+    rating: 4.2,
+    popular: true,
+    desc: "Fresh veggies, herbs and sauces in a soft sandwich.",
+    img: "https://images.unsplash.com/photo-1540420773420-3366772f4999?w=400&q=80",
+    category: "Mains",
+  },
+  {
+    id: 4,
+    name: "Paneer Tikka Sub",
+    price: 199,
+    originalPrice: 249,
+    veg: true,
+    rating: 4.5,
+    popular: false,
+    desc: "Grilled paneer tikka with pickled onions and mint chutney.",
     img: "https://images.unsplash.com/photo-1631452180519-c014fe946bc7?w=400&q=80",
     category: "Mains",
   },
   {
-    id: 2,
+    id: 5,
     name: "Dal Makhani",
-    price: 220,
+    price: 199,
+    originalPrice: 220,
     veg: true,
+    rating: 4.6,
+    popular: true,
     desc: "Creamy slow-cooked black lentils with Indian spices.",
     img: "https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400&q=80",
     category: "Mains",
   },
   {
-    id: 3,
-    name: "Chicken Tikka",
-    price: 360,
+    id: 6,
+    name: "BBQ Chicken Sub",
+    price: 199,
+    originalPrice: 229,
     veg: false,
+    rating: 4.6,
+    popular: true,
+    desc: "Smoky BBQ chicken with coleslaw in a toasted sub.",
+    img: "https://images.unsplash.com/photo-1563379926898-05f4575a45d8?w=400&q=80",
+    category: "Starters",
+  },
+  {
+    id: 7,
+    name: "Paneer Butter Masala",
+    price: 249,
+    originalPrice: null,
+    veg: true,
+    rating: 4.8,
+    popular: true,
+    desc: "Soft paneer cubes in rich tomato gravy, slowly cooked to perfection.",
+    img: "https://images.unsplash.com/photo-1631452180519-c014fe946bc7?w=400&q=80",
+    category: "Mains",
+  },
+  {
+    id: 8,
+    name: "Chicken Tikka",
+    price: 299,
+    originalPrice: 360,
+    veg: false,
+    rating: 4.9,
+    popular: true,
     desc: "Charcoal grilled chicken chunks marinated in yogurt and spices.",
     img: "https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=400&q=80",
     category: "Starters",
   },
   {
-    id: 4,
+    id: 9,
     name: "Garlic Naan",
     price: 60,
+    originalPrice: null,
     veg: true,
+    rating: 4.3,
+    popular: false,
     desc: "Soft traditional Indian bread topped with finely chopped garlic.",
     img: "https://images.unsplash.com/photo-1565958011703-44f9829ba187?w=400&q=80",
     category: "Breads",
   },
   {
-    id: 5,
+    id: 10,
     name: "Virgin Mojito",
-    price: 150,
+    price: 120,
+    originalPrice: 150,
     veg: true,
+    rating: 4.5,
+    popular: false,
     desc: "Refreshing mint & lemon beverage served chilled.",
     img: "https://images.unsplash.com/photo-1551024709-8f23befc6f87?w=400&q=80",
     category: "Drinks",
   },
 ];
-
-const CATEGORIES = ["All", "Starters", "Mains", "Breads", "Drinks"];
 
 const ScratchCard = ({
   width,
@@ -244,7 +325,9 @@ const ScratchCard = ({
 };
 
 export default function DemoMenu() {
-  const [activeCategory, setActiveCategory] = useState("All");
+  const navigate = useNavigate();
+  const queryParams = new URLSearchParams(window.location.search);
+  const currentTableId = queryParams.get("table") || "04";
   const [cart, setCart] = useState({});
   const [showCart, setShowCart] = useState(false);
   const [orderPlaced, setOrderPlaced] = useState(false);
@@ -263,6 +346,31 @@ export default function DemoMenu() {
   const [freeItemClaimed, setFreeItemClaimed] = useState(false);
   const [orderHistory, setOrderHistory] = useState([]);
 
+  // Menu UI state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterVeg, setFilterVeg] = useState(false);
+  const [filterNonVeg, setFilterNonVeg] = useState(false);
+  const [filterRating, setFilterRating] = useState(false);
+  const [filterPopular, setFilterPopular] = useState(false);
+  const [collapsedSections, setCollapsedSections] = useState({});
+  const [scrolled, setScrolled] = useState(false);
+  const [restaurantProfile, setRestaurantProfile] = useState({
+    name: "Spice Garden",
+    eta: "15–20 mins",
+    rating: 4.5,
+    heroImage: DEFAULT_HERO_IMAGE,
+    tableLabel: getTableLabel(currentTableId),
+    totalTables: null,
+    socialLinks: DEFAULT_SOCIAL_LINKS,
+  });
+  const [liveMenuItems, setLiveMenuItems] = useState(FOOD_ITEMS);
+  const scrollRef = useRef(null);
+
+  const menuItems = liveMenuItems.length > 0 ? liveMenuItems : FOOD_ITEMS;
+
+  const findMenuItemById = (id) =>
+    menuItems.find((item) => String(item.id) === String(id));
+
   const loadOrderHistory = (phone) => {
     const savedHistory = localStorage.getItem(`order_history_${phone}`);
     return savedHistory ? JSON.parse(savedHistory) : [];
@@ -271,6 +379,62 @@ export default function DemoMenu() {
   const saveOrderHistory = (phone, history) => {
     localStorage.setItem(`order_history_${phone}`, JSON.stringify(history));
   };
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadQrMenu() {
+      if (!currentTableId) return;
+
+      try {
+        const response = await fetch(
+          `${API_BASE_URL}/qr/${encodeURIComponent(currentTableId)}`,
+        );
+
+        if (!response.ok) {
+          return;
+        }
+
+        const payload = await response.json();
+        if (cancelled) return;
+
+        setRestaurantProfile((prev) => ({
+          ...prev,
+          name: payload.business?.name || prev.name,
+          heroImage: DEFAULT_HERO_IMAGE,
+          tableLabel: payload.table?.label || getTableLabel(currentTableId),
+          totalTables:
+            typeof payload.totalTables === "number"
+              ? payload.totalTables
+              : prev.totalTables,
+          socialLinks: {
+            instagram:
+              payload.business?.socialLinks?.instagram ||
+              prev.socialLinks.instagram,
+            facebook:
+              payload.business?.socialLinks?.facebook ||
+              prev.socialLinks.facebook,
+            x: payload.business?.socialLinks?.x || prev.socialLinks.x,
+            googleReview:
+              payload.business?.socialLinks?.googleReview ||
+              prev.socialLinks.googleReview,
+          },
+        }));
+
+        if (Array.isArray(payload.menuItems) && payload.menuItems.length > 0) {
+          setLiveMenuItems(payload.menuItems);
+        }
+      } catch {
+        // Keep graceful fallbacks for the demo route when backend data is unavailable.
+      }
+    }
+
+    loadQrMenu();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentTableId]);
 
   // Load visit count and order history from localStorage when the guest logs in
   useEffect(() => {
@@ -331,12 +495,12 @@ export default function DemoMenu() {
   const cartTotalPairs = Object.entries(cart);
   const totalItems = cartTotalPairs.reduce((sum, [, qty]) => sum + qty, 0);
   const totalPrice = cartTotalPairs.reduce((sum, [id, qty]) => {
-    const item = FOOD_ITEMS.find((i) => i.id === Number(id));
+    const item = findMenuItemById(id);
     return sum + (item ? item.price * qty : 0);
   }, 0);
   const orderLineItems = cartTotalPairs
     .map(([id, qty]) => {
-      const item = FOOD_ITEMS.find((entry) => entry.id === Number(id));
+      const item = findMenuItemById(id);
 
       if (!item) {
         return null;
@@ -356,15 +520,54 @@ export default function DemoMenu() {
   const taxableAmount = Math.max(totalPrice - discountAmount, 0);
   const taxAmount = Math.round(taxableAmount * 0.05);
   const grandTotal = taxableAmount + taxAmount;
-  const recommendedItems = FOOD_ITEMS.filter((item) => !cart[item.id]).slice(
-    0,
-    3,
-  );
+  const recommendedItems = menuItems
+    .filter((item) => !cart[item.id])
+    .slice(0, 3);
 
-  const filteredItems =
-    activeCategory === "All"
-      ? FOOD_ITEMS
-      : FOOD_ITEMS.filter((item) => item.category === activeCategory);
+  // Scroll detection for sticky compact header
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const handler = () => setScrolled(el.scrollTop > 200);
+    el.addEventListener("scroll", handler, { passive: true });
+    return () => el.removeEventListener("scroll", handler);
+  }, [isJoined]);
+
+  // Menu filtered & grouped by price
+  const groupedItems = useMemo(() => {
+    let items = menuItems;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      items = items.filter(
+        (i) =>
+          i.name.toLowerCase().includes(q) || i.desc.toLowerCase().includes(q),
+      );
+    }
+    if (filterVeg && !filterNonVeg) items = items.filter((i) => i.veg);
+    if (filterNonVeg && !filterVeg) items = items.filter((i) => !i.veg);
+    if (filterRating) items = items.filter((i) => i.rating >= 4.0);
+    if (filterPopular) items = items.filter((i) => i.popular);
+    const groups = {};
+    for (const item of items) {
+      const key = item.price;
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(item);
+    }
+    return Object.entries(groups)
+      .sort(([a], [b]) => Number(a) - Number(b))
+      .map(([price, grpItems]) => ({ price: Number(price), items: grpItems }));
+  }, [
+    menuItems,
+    searchQuery,
+    filterVeg,
+    filterNonVeg,
+    filterRating,
+    filterPopular,
+  ]);
+
+  const toggleSection = (price) => {
+    setCollapsedSections((prev) => ({ ...prev, [price]: !prev[price] }));
+  };
 
   useEffect(() => {
     if (selectedOffer) {
@@ -409,73 +612,40 @@ export default function DemoMenu() {
 
   if (!isJoined) {
     return (
-      <div className="bg-[#faf7f2] min-h-screen font-body shadow-2xl relative flex flex-col md:pt-0 pb-12 lg:pb-0">
-        <div className="bg-white min-h-screen md:min-h-[850px] w-full max-w-md mx-auto relative lg:border-x lg:border-[#e0d9ce] flex flex-col md:rounded-3xl overflow-hidden shadow-2xl md:my-auto">
-          <div className="h-72 relative w-full shrink-0 bg-[#1a1814]">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="w-full max-w-sm bg-white rounded-3xl overflow-hidden shadow-2xl">
+          <div className="relative h-52">
             <img
-              src="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&q=80"
+              src={restaurantProfile.heroImage}
               alt="Restaurant"
               className="w-full h-full object-cover"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#0f0e0b]/90 via-[#0f0e0b]/30 to-transparent" />
-            <div className="absolute top-6 left-6 w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-lg">
-              <span className="text-xl font-black text-[#0f0e0b] font-display">
-                SG
-              </span>
-            </div>
-            <div className="absolute bottom-6 p-4 text-white flex justify-between w-full">
-              <div>
-                <h1 className="text-3xl font-bold mb-1 drop-shadow-md">
-                  Spice Garden
-                </h1>
-                <p className="text-white/80 font-medium drop-shadow-md">
-                  Scan & Order Demo
-                </p>
-              </div>
-              <div className="flex items-center gap-4">
-                <a
-                  href="#"
-                  className="w-[38px] h-[38px] rounded-full bg-white border border-[#e0d9ce] flex items-center justify-center text-[#423d33] hover:bg-[#e8720c] hover:border-[#e8720c] hover:text-white hover:-translate-y-0.5 transition-all shadow-sm"
-                >
-                  <Instagram size={17} />
-                </a>
-                <a
-                  href="#"
-                  className="w-[38px] h-[38px] rounded-full bg-white border border-[#e0d9ce] flex items-center justify-center text-[#423d33] hover:bg-[#e8720c] hover:border-[#e8720c] hover:text-white hover:-translate-y-0.5 transition-all shadow-sm"
-                >
-                  <Facebook size={17} />
-                </a>
-                <a
-                  href="#"
-                  className="w-[38px] h-[38px] rounded-full bg-white border border-[#e0d9ce] flex items-center justify-center text-[#423d33] hover:bg-[#e8720c] hover:border-[#e8720c] hover:text-white hover:-translate-y-0.5 transition-all shadow-sm"
-                >
-                  <Twitter size={17} />
-                </a>
-              </div>
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+            <div className="absolute bottom-4 left-4">
+              <h1 className="text-white text-2xl font-bold">
+                {restaurantProfile.name}
+              </h1>
+              <p className="text-white/80 text-sm">Scan & Order</p>
             </div>
           </div>
-          <div className="flex-1 p-8 flex flex-col justify-center -mt-6 bg-white rounded-t-3xl relative z-10 shadow-[0_-8px_30px_rgba(0,0,0,0.12)]">
-            <h2 className="text-2xl font-bold text-[#0f0e0b] mb-2 font-display tracking-tight">
-              Welcome!
-            </h2>
-            <p className="text-[#857c6e] text-sm mb-8 leading-relaxed">
-              Please enter your phone number to view our digital menu and place
-              your interactive order.
+          <div className="p-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-1">Welcome!</h2>
+            <p className="text-gray-500 text-sm mb-6">
+              Enter your phone to browse our menu and order.
             </p>
-
             <form
               onSubmit={(e) => {
                 e.preventDefault();
                 if (guestPhone) setIsJoined(true);
               }}
-              className="space-y-5"
+              className="space-y-4"
             >
               <div>
-                <label className="block text-[11px] font-bold text-[#857c6e] uppercase tracking-wider mb-2">
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
                   Phone Number
                 </label>
-                <div className="flex bg-[#faf7f2] border border-[#e0d9ce] rounded-xl overflow-hidden focus-within:border-[#e8720c] focus-within:ring-1 focus-within:ring-[#e8720c] transition-all">
-                  <div className="px-3 py-3.5 bg-[#f0ebe0] border-r border-[#e0d9ce] text-[#857c6e] font-semibold text-sm flex items-center justify-center pointer-events-none">
+                <div className="flex border border-gray-200 rounded-xl overflow-hidden focus-within:border-[#e8720c] focus-within:ring-1 focus-within:ring-[#e8720c] transition-all">
+                  <div className="px-3 py-3.5 bg-gray-50 border-r border-gray-200 text-gray-500 font-semibold text-sm flex items-center pointer-events-none">
                     +91
                   </div>
                   <input
@@ -489,14 +659,14 @@ export default function DemoMenu() {
                     placeholder="9999999999"
                     inputMode="numeric"
                     maxLength={10}
-                    className="w-full px-4 py-3.5 bg-transparent focus:outline-none text-[#0f0e0b] font-medium"
+                    className="w-full px-4 py-3.5 focus:outline-none text-gray-900 font-medium"
                     required
                   />
                 </div>
               </div>
               <button
                 type="submit"
-                className="w-full py-4 mt-6 bg-[#e8720c] hover:bg-[#d4620a] text-white font-bold rounded-xl shadow-[0_4px_20px_rgba(232,114,12,0.3)] transition-colors flex items-center justify-center gap-2"
+                className="w-full py-4 bg-[#e8720c] hover:bg-[#d4620a] text-white font-bold rounded-xl shadow-lg transition-colors flex items-center justify-center gap-2"
               >
                 View Menu <ArrowLeft size={18} className="rotate-180" />
               </button>
@@ -508,232 +678,419 @@ export default function DemoMenu() {
   }
 
   return (
-    <div className="bg-[#faf7f2] min-h-screen font-body shadow-2xl relative pb-24 lg:pb-0">
-      <div className="bg-[#faf7f2] min-h-screen max-w-md mx-auto relative lg:border-x lg:border-[#e0d9ce]">
-        {/* Header Image */}
-        <div className="relative h-56 w-full bg-[#1a1814]">
+    <div className="bg-gray-50 min-h-screen">
+      <div
+        ref={scrollRef}
+        className="bg-white max-w-md mx-auto min-h-screen relative overflow-y-auto"
+        style={{ height: "100dvh" }}
+      >
+        {/* ── Sticky compact header (appears on scroll) ────────────────── */}
+        <AnimatePresence>
+          {scrolled && (
+            <motion.div
+              initial={{ y: -50, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: -50, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-white border-b border-gray-100 z-50 shadow-sm"
+            >
+              <div className="flex items-center gap-3 px-4 py-3">
+                <button
+                  onClick={() => navigate(-1)}
+                  className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-700"
+                >
+                  <ArrowLeft size={16} />
+                </button>
+                <div className="flex-1 text-center">
+                  <p className="font-bold text-sm text-gray-900">
+                    {restaurantProfile.name} • {restaurantProfile.eta}
+                  </p>
+                </div>
+                <button
+                  onClick={() =>
+                    scrollRef.current?.scrollTo({
+                      top: 280,
+                      behavior: "smooth",
+                    })
+                  }
+                  className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-700"
+                >
+                  <Search size={16} />
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* ── Hero image ────────────────────────────────────────────────── */}
+        <div className="relative h-56 w-full bg-gray-900 flex-shrink-0">
           <img
-            src="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&q=80"
-            alt="Restaurant Banner"
+            src={restaurantProfile.heroImage}
+            alt={restaurantProfile.name}
             className="w-full h-full object-cover"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#0f0e0b]/90 via-[#0f0e0b]/30 to-transparent" />
+          {/* gradient: dark at top for buttons, dark at bottom for social row */}
+          <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/65" />
 
-          {/* Top Navbar */}
-          <div className="absolute top-0 left-0 w-full p-4 flex items-center justify-between z-10">
-            <Link
-              to="/"
-              className="w-10 h-10 rounded-full bg-black/20 backdrop-blur-md flex items-center justify-center text-white hover:bg-black/40 transition-colors border border-white/10"
-            >
-              <ArrowLeft size={20} />
-            </Link>
+          {/* Top controls */}
+          <button
+            onClick={() => navigate(-1)}
+            className="absolute top-4 left-4 w-9 h-9 rounded-full bg-black/55 backdrop-blur-sm flex items-center justify-center text-white"
+          >
+            <ArrowLeft size={18} />
+          </button>
+          <button
+            onClick={() =>
+              navigator.share?.({
+                title: restaurantProfile.name,
+                url: window.location.href,
+              })
+            }
+            className="absolute top-4 right-4 w-9 h-9 rounded-full bg-black/55 backdrop-blur-sm flex items-center justify-center text-white"
+          >
+            <Share2 size={18} />
+          </button>
+
+          {/* Bottom row: social icons + Google review */}
+          <div className="absolute bottom-0 left-0 right-0 px-4 pb-3 flex items-center justify-between">
+            {/* Social icons */}
             <div className="flex items-center gap-2">
-              <Link
-                to="/history"
-                className="relative w-10 h-10 rounded-full bg-black/20 backdrop-blur-md flex items-center justify-center text-white hover:bg-black/40 transition-colors border border-white/10"
+              {/* Instagram */}
+              <a
+                href={restaurantProfile.socialLinks.instagram}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-8 h-8 rounded-full bg-white/15 backdrop-blur-sm flex items-center justify-center hover:bg-white/25 transition-colors"
+                aria-label="Instagram"
               >
-                <History size={18} />
-                {orderHistory.length > 0 && (
-                  <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-[#e8720c] text-white text-[10px] font-bold flex items-center justify-center">
-                    {orderHistory.length}
-                  </span>
-                )}
-              </Link>
-              <Link
-                to="/search"
-                className="w-10 h-10 rounded-full bg-black/20 backdrop-blur-md flex items-center justify-center text-white hover:bg-black/40 transition-colors border border-white/10"
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <rect
+                    x="2"
+                    y="2"
+                    width="20"
+                    height="20"
+                    rx="5"
+                    stroke="white"
+                    strokeWidth="2"
+                  />
+                  <circle
+                    cx="12"
+                    cy="12"
+                    r="4"
+                    stroke="white"
+                    strokeWidth="2"
+                  />
+                  <circle cx="17.5" cy="6.5" r="1" fill="white" />
+                </svg>
+              </a>
+              {/* Facebook */}
+              <a
+                href={restaurantProfile.socialLinks.facebook}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-8 h-8 rounded-full bg-white/15 backdrop-blur-sm flex items-center justify-center hover:bg-white/25 transition-colors"
+                aria-label="Facebook"
               >
-                <Search size={20} />
-              </Link>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
+                  <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" />
+                </svg>
+              </a>
+              {/* Twitter / X */}
+              <a
+                href={restaurantProfile.socialLinks.x}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-8 h-8 rounded-full bg-white/15 backdrop-blur-sm flex items-center justify-center hover:bg-white/25 transition-colors"
+                aria-label="Twitter"
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="white">
+                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                </svg>
+              </a>
             </div>
-          </div>
 
-          {/* Restaurant Info */}
-          <div className="absolute bottom-0 left-0 w-full px-5 py-4 flex items-end gap-4 z-10">
-            <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-[0_4px_20px_rgba(0,0,0,0.2)] flex-shrink-0">
-              <span className="text-2xl font-black text-[#0f0e0b] font-display">
-                SG
-              </span>
-            </div>
-            <div className="pb-1">
-              <h1 className="text-white text-3xl font-bold mb-1 leading-tight drop-shadow-md">
-                Spice Garden
+            {/* Google Review button */}
+            <a
+              href={restaurantProfile.socialLinks.googleReview}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 bg-white/15 backdrop-blur-sm border border-white/30 rounded-full px-3 py-1.5 text-white text-xs font-semibold hover:bg-white/25 transition-colors"
+            >
+              {/* Google G logo */}
+              <svg width="13" height="13" viewBox="0 0 24 24">
+                <path
+                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                  fill="#4285F4"
+                />
+                <path
+                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                  fill="#34A853"
+                />
+                <path
+                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"
+                  fill="#FBBC05"
+                />
+                <path
+                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                  fill="#EA4335"
+                />
+              </svg>
+              Rate us
+            </a>
+          </div>
+        </div>
+
+        {/* ── Restaurant info ───────────────────────────────────────────── */}
+        <div className="bg-white px-4 pt-4 pb-3 border-b border-gray-100">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900 leading-tight">
+                {restaurantProfile.name}
               </h1>
-              <p className="text-white/90 text-sm font-medium drop-shadow-md">
-                North Indian • Table 04
+              <p className="text-gray-500 text-sm mt-0.5">
+                {restaurantProfile.eta} &nbsp;|&nbsp;{" "}
+                {restaurantProfile.tableLabel}
+                {restaurantProfile.totalTables
+                  ? ` • ${restaurantProfile.totalTables} tables`
+                  : ""}
               </p>
             </div>
-          </div>
-        </div>
-
-        {/* Visit Counter & Loyalty Progress */}
-        <div className="bg-[#faf7f2] px-4 py-3 border-b border-[#e0d9ce]">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-[#e8720c] rounded-full flex items-center justify-center">
-                  <span className="text-white text-sm font-bold">
-                    {visitCount}
-                  </span>
-                </div>
-                <span className="text-[#0f0e0b] font-medium text-sm">
-                  Visit{visitCount !== 1 ? "s" : ""}
+            <div className="flex items-center gap-2">
+              {orderHistory.length > 0 && (
+                <Link
+                  to="/history"
+                  className="text-xs text-gray-500 border border-gray-200 rounded-full px-2.5 py-1 hover:bg-gray-50"
+                >
+                  {orderHistory.length} past order
+                  {orderHistory.length > 1 ? "s" : ""}
+                </Link>
+              )}
+              <div className="flex items-center gap-1 bg-green-700 text-white px-3 py-1.5 rounded-full">
+                <Star size={12} className="fill-white" />
+                <span className="text-sm font-bold">
+                  {restaurantProfile.rating}
                 </span>
               </div>
-              {visitCount < 5 && (
-                <div className="flex items-center gap-1">
-                  <span className="text-[#857c6e] text-xs">
-                    {5 - visitCount} more to FREE food!
-                  </span>
-                  <div className="w-16 h-1.5 bg-[#e0d9ce] rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-[#e8720c] transition-all duration-500"
-                      style={{ width: `${(visitCount / 5) * 100}%` }}
-                    ></div>
-                  </div>
-                </div>
-              )}
-              {visitCount >= 5 &&
-                !localStorage.getItem(`reward_claimed_${guestPhone}`) && (
-                  <div className="flex items-center gap-2">
-                    <Star className="w-4 h-4 text-[#e8720c] fill-[#e8720c]" />
-                    <span className="text-[#e8720c] font-semibold text-sm">
-                      Reward Available!
-                    </span>
-                  </div>
-                )}
-              {freeItemClaimed && (
-                <div className="flex items-center gap-2">
-                  <Star className="w-4 h-4 text-green-600 fill-green-600" />
-                  <span className="text-green-600 font-semibold text-sm">
-                    Free Item Claimed! 🎉
-                  </span>
-                </div>
-              )}
             </div>
           </div>
+
+          {/* Loyalty bar */}
+          {freeItemClaimed ? (
+            <div className="mt-3 bg-green-50 rounded-xl px-3 py-2 flex items-center gap-2">
+              <Star size={14} className="text-green-600 fill-green-600" />
+              <span className="text-xs text-green-700 font-semibold">
+                Free item claimed! 🎉 Added to your cart.
+              </span>
+            </div>
+          ) : visitCount < 5 ? (
+            <div className="mt-3 flex items-center gap-2 bg-orange-50 rounded-xl px-3 py-2">
+              <span className="text-xs text-orange-600 font-medium">
+                🎁 {5 - visitCount} more visit{5 - visitCount !== 1 ? "s" : ""}{" "}
+                to FREE food!
+              </span>
+              <div className="flex-1 h-1.5 bg-orange-100 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-[#e8720c] rounded-full transition-all"
+                  style={{ width: `${(visitCount / 5) * 100}%` }}
+                />
+              </div>
+            </div>
+          ) : !localStorage.getItem(`reward_claimed_${guestPhone}`) ? (
+            <div className="mt-3 bg-orange-50 rounded-xl px-3 py-2 flex items-center gap-2">
+              <Star size={14} className="text-[#e8720c] fill-[#e8720c]" />
+              <span className="text-xs text-orange-600 font-semibold">
+                Reward unlocked! Place an order to claim.
+              </span>
+            </div>
+          ) : null}
         </div>
 
-        <div className="sticky top-0 bg-[#faf7f2] z-40 border-b border-[#e0d9ce] px-2 py-3 overflow-x-auto no-scrollbar shadow-sm">
-          <div className="flex gap-2">
-            {CATEGORIES.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setActiveCategory(cat)}
-                className={`px-5 py-2 rounded-full whitespace-nowrap font-semibold text-sm transition-colors ${
-                  activeCategory === cat
-                    ? "bg-[#e8720c] text-white shadow-md shadow-[#e8720c]/20"
-                    : "bg-white text-[#857c6e] border border-[#e0d9ce]"
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
+        {/* ── Search bar ────────────────────────────────────────────────── */}
+        <div className="bg-white px-4 py-3 border-b border-gray-100">
+          <div className="flex items-center gap-2 bg-gray-100 rounded-full px-4 py-2.5">
+            <Search size={15} className="text-gray-400 flex-shrink-0" />
+            <input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search for dishes"
+              className="flex-1 bg-transparent text-sm text-gray-700 placeholder-gray-400 outline-none"
+            />
           </div>
         </div>
 
-        {/* Menu List */}
-        <div className="p-4 space-y-4 pb-32">
-          {filteredItems.map((item) => (
-            <div
-              key={item.id}
-              className="bg-white rounded-2xl p-3 flex gap-4 shadow-sm border border-transparent hover:border-[#e0d9ce] transition-colors"
-            >
-              {/* Item Info */}
-              <div className="flex-1 flex flex-col justify-center">
-                <div className="flex items-center gap-1.5 mb-1.5">
-                  <span
-                    className="w-3.5 h-3.5 rounded-[3px] border-[1.5px] flex items-center justify-center flex-shrink-0"
-                    style={{ borderColor: item.veg ? "#3a6348" : "#c0392b" }}
-                  >
-                    <span
-                      className="w-1.5 h-1.5 rounded-full"
-                      style={{
-                        backgroundColor: item.veg ? "#3a6348" : "#c0392b",
-                      }}
-                    />
-                  </span>
-                  <h3 className="font-bold text-[#0f0e0b] text-[15px] leading-tight">
-                    {item.name}
-                  </h3>
-                </div>
-                <p className="font-semibold text-[#0f0e0b] mb-1">
-                  ₹{item.price}
-                </p>
-                <p className="text-xs text-[#857c6e] line-clamp-2 leading-relaxed pr-2">
-                  {item.desc}
-                </p>
-              </div>
+        {/* ── Filter chips ─────────────────────────────────────────────── */}
+        <div className="bg-white px-4 py-2.5 border-b border-gray-200 flex gap-2 overflow-x-auto no-scrollbar">
+          {/* Veg toggle */}
+          <button
+            onClick={() => {
+              setFilterVeg(!filterVeg);
+              setFilterNonVeg(false);
+            }}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-sm font-medium whitespace-nowrap transition-colors ${filterVeg ? "border-green-600 bg-green-50" : "border-gray-300 bg-white"}`}
+          >
+            <VegIcon size={14} />
+          </button>
+          {/* Non-veg toggle */}
+          <button
+            onClick={() => {
+              setFilterNonVeg(!filterNonVeg);
+              setFilterVeg(false);
+            }}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-sm font-medium whitespace-nowrap transition-colors ${filterNonVeg ? "border-red-500 bg-red-50" : "border-gray-300 bg-white"}`}
+          >
+            <NonVegIcon size={14} />
+          </button>
+          <button
+            onClick={() => setFilterRating(!filterRating)}
+            className={`px-3 py-1.5 rounded-full border text-sm font-medium whitespace-nowrap transition-colors ${filterRating ? "border-green-600 bg-green-50 text-green-700" : "border-gray-300 bg-white text-gray-700"}`}
+          >
+            Ratings 4.0+
+          </button>
+          <button
+            onClick={() => setFilterPopular(!filterPopular)}
+            className={`px-3 py-1.5 rounded-full border text-sm font-medium whitespace-nowrap transition-colors ${filterPopular ? "border-green-600 bg-green-50 text-green-700" : "border-gray-300 bg-white text-gray-700"}`}
+          >
+            Popular
+          </button>
+        </div>
 
-              {/* Item Image & Controls */}
-              <div className="flex flex-col items-center gap-2 flex-shrink-0">
-                <div className="w-24 h-24 rounded-xl overflow-hidden shadow-sm relative">
-                  <img
-                    src={item.img}
-                    alt={item.name}
-                    className="w-full h-full object-cover"
+        {/* ── Menu sections (grouped by price) ─────────────────────────── */}
+        <div className="bg-white pb-32">
+          {groupedItems.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-center px-6">
+              <UtensilsCrossed size={40} className="text-gray-300 mb-3" />
+              <p className="text-gray-500 font-medium">No dishes found</p>
+              <p className="text-gray-400 text-sm mt-1">
+                Try clearing filters or searching something else.
+              </p>
+            </div>
+          ) : (
+            groupedItems.map(({ price, items: sectionItems }) => (
+              <div key={price} className="border-b border-gray-100">
+                {/* Section header */}
+                <button
+                  onClick={() => toggleSection(price)}
+                  className="w-full flex items-center justify-between px-4 py-4 text-left"
+                >
+                  <h2 className="text-base font-bold text-gray-900">
+                    Items at ₹{price}{" "}
+                    <span className="text-gray-400 font-medium">
+                      ({sectionItems.length})
+                    </span>
+                  </h2>
+                  <ChevronDown
+                    size={20}
+                    className={`text-gray-500 transition-transform duration-200 ${collapsedSections[price] ? "-rotate-90" : ""}`}
                   />
-                </div>
-                {!cart[item.id] ? (
-                  <button
-                    onClick={() => addToCart(item.id)}
-                    className="w-full py-1.5 bg-[#fef0e4] text-[#e8720c] border border-[#e8720c]/30 rounded-lg text-sm font-bold shadow-sm hover:bg-[#e8720c] hover:text-white transition-colors"
-                  >
-                    ADD
-                  </button>
-                ) : (
-                  <div className="w-full flex items-center justify-between bg-white border border-[#e8720c] rounded-lg shadow-sm">
-                    <button
-                      onClick={() => removeFromCart(item.id)}
-                      className="p-1.5 text-[#e8720c]"
-                    >
-                      <Minus size={16} />
-                    </button>
-                    <span className="font-bold text-[#0f0e0b] text-sm">
-                      {cart[item.id]}
-                    </span>
-                    <button
-                      onClick={() => addToCart(item.id)}
-                      className="p-1.5 text-[#e8720c]"
-                    >
-                      <Plus size={16} />
-                    </button>
+                </button>
+
+                {/* Item grid */}
+                {!collapsedSections[price] && (
+                  <div className="grid grid-cols-2 gap-3 px-4 pb-4">
+                    {sectionItems.map((item) => (
+                      <div
+                        key={item.id}
+                        className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm"
+                      >
+                        {/* Image area */}
+                        <div className="relative">
+                          <img
+                            src={item.img}
+                            alt={item.name}
+                            className="w-full aspect-[4/3] object-cover"
+                          />
+                          {item.popular && (
+                            <span className="absolute top-2 left-2 text-xs font-bold text-green-600 bg-white/90 backdrop-blur-sm px-2 py-0.5 rounded-full shadow-sm">
+                              Popular
+                            </span>
+                          )}
+                          {/* Add / qty control */}
+                          {!cart[item.id] ? (
+                            <button
+                              onClick={() => addToCart(item.id)}
+                              className="absolute bottom-2 right-2 w-9 h-9 rounded-full bg-white shadow-md flex items-center justify-center border border-pink-400 text-pink-500 hover:bg-pink-50 transition-colors"
+                            >
+                              <Plus size={18} strokeWidth={2.5} />
+                            </button>
+                          ) : (
+                            <div className="absolute bottom-2 right-2 flex items-center gap-0.5 bg-white rounded-full shadow-md border border-pink-400 px-1.5 py-0.5">
+                              <button
+                                onClick={() => removeFromCart(item.id)}
+                                className="w-6 h-6 flex items-center justify-center text-pink-500"
+                              >
+                                <Minus size={13} strokeWidth={2.5} />
+                              </button>
+                              <span className="text-sm font-bold text-gray-800 min-w-[16px] text-center">
+                                {cart[item.id]}
+                              </span>
+                              <button
+                                onClick={() => addToCart(item.id)}
+                                className="w-6 h-6 flex items-center justify-center text-pink-500"
+                              >
+                                <Plus size={13} strokeWidth={2.5} />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                        {/* Info */}
+                        <div className="p-2.5">
+                          <div className="flex items-center gap-1 mb-1">
+                            {item.veg ? (
+                              <VegIcon size={12} />
+                            ) : (
+                              <NonVegIcon size={12} />
+                            )}
+                            <p className="text-sm font-bold text-gray-900 leading-tight line-clamp-2">
+                              {item.name}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-1 mb-1.5">
+                            <Star
+                              size={11}
+                              className="fill-green-600 text-green-600"
+                            />
+                            <span className="text-xs font-semibold text-green-700">
+                              {item.rating}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {item.originalPrice && (
+                              <span className="text-xs text-gray-400 line-through">
+                                ₹{item.originalPrice}
+                              </span>
+                            )}
+                            <span className="text-sm font-bold text-pink-500">
+                              ₹{item.price}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
-            </div>
-          ))}
+            ))
+          )}
 
-          {/* Social Media Footer */}
-          <div className="pt-8 pb-4 flex flex-col items-center justify-center border-t border-[#e0d9ce]/60 mt-8 mb-4">
-            <p className="text-[10px] font-bold text-[#857c6e] uppercase tracking-widest mb-4">
-              Follow Spice Garden
-            </p>
-            <div className="flex items-center gap-4">
-              <a
-                href="#"
-                className="w-[38px] h-[38px] rounded-full bg-white border border-[#e0d9ce] flex items-center justify-center text-[#423d33] hover:bg-[#e8720c] hover:border-[#e8720c] hover:text-white hover:-translate-y-0.5 transition-all shadow-sm"
-              >
-                <Instagram size={17} />
-              </a>
-              <a
-                href="#"
-                className="w-[38px] h-[38px] rounded-full bg-white border border-[#e0d9ce] flex items-center justify-center text-[#423d33] hover:bg-[#e8720c] hover:border-[#e8720c] hover:text-white hover:-translate-y-0.5 transition-all shadow-sm"
-              >
-                <Facebook size={17} />
-              </a>
-              <a
-                href="#"
-                className="w-[38px] h-[38px] rounded-full bg-white border border-[#e0d9ce] flex items-center justify-center text-[#423d33] hover:bg-[#e8720c] hover:border-[#e8720c] hover:text-white hover:-translate-y-0.5 transition-all shadow-sm"
-              >
-                <Twitter size={17} />
-              </a>
-            </div>
-            <p className="text-[10px] text-[#857c6e] mt-4 font-medium">
-              Powered by restroMenu © 2026
-            </p>
+          {/* Footer */}
+          <div className="pt-6 pb-4 text-center border-t border-gray-100 mt-4">
+            <p className="text-xs text-gray-400">Powered by BuzTap © 2026</p>
           </div>
         </div>
+
+        {/* ── Floating MENU button ──────────────────────────────────────── */}
+        <button
+          onClick={() =>
+            scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" })
+          }
+          className="fixed bottom-24 right-4 w-14 h-14 bg-gray-900 rounded-full flex flex-col items-center justify-center text-white shadow-xl z-40"
+          style={{ maxWidth: "calc(50vw)" }}
+        >
+          <UtensilsCrossed size={20} />
+          <span className="text-[9px] font-bold mt-0.5 tracking-wide">
+            MENU
+          </span>
+        </button>
 
         {/* Floating Cart */}
         <AnimatePresence>
@@ -839,9 +1196,7 @@ export default function DemoMenu() {
                       {/* Cart Items List */}
                       <div className="bg-white rounded-2xl p-4 shadow-sm space-y-4">
                         {cartTotalPairs.map(([id, qty]) => {
-                          const item = FOOD_ITEMS.find(
-                            (i) => i.id === Number(id),
-                          );
+                          const item = findMenuItemById(id);
                           if (!item) return null;
                           return (
                             <div
@@ -1268,8 +1623,8 @@ export default function DemoMenu() {
                           status: "Placed",
                           couponCode: appliedCoupon,
                           offerPercent: selectedOffer,
-                          restaurantName: "Spice Garden",
-                          tableName: "Table 04",
+                          restaurantName: restaurantProfile.name,
+                          tableName: restaurantProfile.tableLabel,
                           guestName: guestName || "Guest",
                           guestPhone,
                         };
@@ -1313,15 +1668,9 @@ export default function DemoMenu() {
           )}
         </AnimatePresence>
 
-        {/* CSS to hide scrollbar for horizontal categories list */}
         <style>{`
-          .no-scrollbar::-webkit-scrollbar {
-            display: none;
-          }
-          .no-scrollbar {
-            -ms-overflow-style: none;  /* IE and Edge */
-            scrollbar-width: none;  /* Firefox */
-          }
+          .no-scrollbar::-webkit-scrollbar { display: none; }
+          .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         `}</style>
       </div>
 
@@ -1363,7 +1712,7 @@ export default function DemoMenu() {
                 finishPercent={50}
                 onComplete={() => {
                   // Add a free item to cart (let's give them the most expensive item as reward)
-                  const freeItem = FOOD_ITEMS.reduce((prev, current) =>
+                  const freeItem = menuItems.reduce((prev, current) =>
                     prev.price > current.price ? prev : current,
                   );
                   addToCart(freeItem.id);
@@ -1389,7 +1738,7 @@ export default function DemoMenu() {
                     <div className="text-lg font-bold mb-1">FREE ITEM!</div>
                     <div className="text-sm opacity-90">
                       {
-                        FOOD_ITEMS.reduce((prev, current) =>
+                        menuItems.reduce((prev, current) =>
                           prev.price > current.price ? prev : current,
                         ).name
                       }
@@ -1404,7 +1753,7 @@ export default function DemoMenu() {
               <p className="text-[#857c6e] text-xs mt-4 leading-relaxed">
                 Scratch the card above to claim your free{" "}
                 {
-                  FOOD_ITEMS.reduce((prev, current) =>
+                  menuItems.reduce((prev, current) =>
                     prev.price > current.price ? prev : current,
                   ).name
                 }

@@ -38,11 +38,23 @@ export default function PosSystem() {
     getTotals,
   } = usePosStore();
 
-  const { data: menuItems = [] } = useQuery({
+  const {
+    data: menuItems = [],
+    isLoading: menuLoading,
+    isError: menuError,
+    error: menuErrorMessage,
+    refetch: refetchMenu,
+  } = useQuery({
     queryKey: ["pos-catalog"],
     queryFn: fetchPosCatalog,
   });
-  const { data: incomingOrders = [] } = useQuery({
+  const {
+    data: incomingOrders = [],
+    isLoading: incomingLoading,
+    isError: incomingError,
+    error: incomingErrorMessage,
+    refetch: refetchIncoming,
+  } = useQuery({
     queryKey: ["incoming-qr-orders"],
     queryFn: fetchIncomingQrOrders,
     refetchInterval: 12_000,
@@ -53,9 +65,13 @@ export default function PosSystem() {
     [menuItems],
   );
 
-  const modeOptions = isHotelMode
-    ? ["Room Service", "Takeaway", "Delivery"]
-    : ["Dine-in", "Takeaway", "Delivery"];
+  const modeOptions = useMemo(
+    () =>
+      isHotelMode
+        ? ["Room Service", "Takeaway", "Delivery"]
+        : ["Dine-in", "Takeaway", "Delivery"],
+    [isHotelMode],
+  );
 
   useEffect(() => {
     if (!modeOptions.includes(orderType)) {
@@ -142,6 +158,23 @@ export default function PosSystem() {
               <span className="text-xs text-muted">Auto-refresh 12s</span>
             </div>
             <div className="mt-2 space-y-1">
+              {incomingLoading ? (
+                <div className="text-xs text-muted">Loading QR orders...</div>
+              ) : null}
+              {incomingError ? (
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs text-error">
+                    {incomingErrorMessage?.message ||
+                      "Failed to load incoming orders."}
+                  </span>
+                  <button
+                    onClick={() => refetchIncoming()}
+                    className="text-xs px-2 py-1 rounded border border-border hover:bg-white"
+                  >
+                    Retry
+                  </button>
+                </div>
+              ) : null}
               {visibleIncomingOrders.map((order) => (
                 <div
                   key={order.id}
@@ -159,6 +192,29 @@ export default function PosSystem() {
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4">
+            {menuLoading ? (
+              <p className="col-span-full text-sm text-muted">
+                Loading menu...
+              </p>
+            ) : null}
+            {menuError ? (
+              <div className="col-span-full flex items-center justify-between gap-4">
+                <p className="text-sm text-error">
+                  {menuErrorMessage?.message || "Failed to load menu catalog."}
+                </p>
+                <button
+                  onClick={() => refetchMenu()}
+                  className="text-xs px-3 py-1.5 rounded-md border border-border hover:bg-paper"
+                >
+                  Retry
+                </button>
+              </div>
+            ) : null}
+            {!menuLoading && !menuError && filteredItems.length === 0 ? (
+              <p className="col-span-full text-sm text-muted">
+                No menu items found.
+              </p>
+            ) : null}
             {filteredItems.map((item) => (
               <button
                 key={item.id}

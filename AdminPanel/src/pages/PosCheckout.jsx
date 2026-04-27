@@ -11,8 +11,10 @@ import {
   Utensils,
   X,
 } from "lucide-react";
+import toast from "react-hot-toast";
 import { usePosStore } from "../features/pos/store/usePosStore";
 import { useAuth } from "../context/AuthContext";
+import { createPosOrder } from "../services/api";
 
 export default function PosCheckout() {
   const navigate = useNavigate();
@@ -36,6 +38,8 @@ export default function PosCheckout() {
   const [couponCode, setCouponCode] = useState("");
   const [couponError, setCouponError] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState("");
+  const [checkoutError, setCheckoutError] = useState("");
+  const [submittingOrder, setSubmittingOrder] = useState(false);
 
   const selectedTable =
     location.state?.selectedTable || (isHotelMode ? "101" : "01");
@@ -91,11 +95,49 @@ export default function PosCheckout() {
     URL.revokeObjectURL(url);
   };
 
-  const handlePayAndGenerate = () => {
+  const paymentOptions = isHotelMode
+    ? ["Cash", "Card/UPI", "Room Charge"]
+    : ["Cash", "Card/UPI"];
+
+  const handlePayAndGenerate = async () => {
     if (!cart.length) return;
-    downloadInvoice();
-    clearCart();
-    navigate("/pos", { replace: true });
+    if (submittingOrder) return;
+
+    try {
+      setSubmittingOrder(true);
+      setCheckoutError("");
+
+      await createPosOrder({
+        tableId: isHotelMode
+          ? undefined
+          : `T-${String(selectedTable).padStart(2, "0")}`,
+        roomId: isHotelMode ? String(selectedTable) : undefined,
+        orderType,
+        source: "POS",
+        discountPct,
+        paymentMethod: selectedPayment,
+        items: cart.map((item) => ({
+          menuItemId: item.id,
+          name: item.name,
+          quantity: item.qty,
+          price: item.price,
+          notes: item.notes,
+          modifiers: item.modifiers,
+        })),
+      });
+
+      downloadInvoice();
+      toast.success("Order placed and invoice generated");
+      clearCart();
+      navigate("/pos", { replace: true });
+    } catch (error) {
+      toast.error(error?.message || "Unable to place order");
+      setCheckoutError(
+        error?.message || "Unable to place order. Please try again.",
+      );
+    } finally {
+      setSubmittingOrder(false);
+    }
   };
 
   const applyCouponCode = () => {
@@ -108,10 +150,12 @@ export default function PosCheckout() {
 
     const matched = couponMap[normalized];
     if (!matched) {
+      toast.error("Invalid coupon code");
       setCouponError("Invalid coupon code");
       return;
     }
     if (subtotal < matched.minSubtotal) {
+      toast.error(`Minimum bill ₹${matched.minSubtotal} required`);
       setCouponError(`Minimum bill ₹${matched.minSubtotal} required`);
       return;
     }
@@ -121,6 +165,7 @@ export default function PosCheckout() {
     setCouponError("");
     setCouponCode("");
     setCouponModalOpen(false);
+    toast.success(`${normalized} applied successfully`);
   };
 
   return (
@@ -263,12 +308,7 @@ export default function PosCheckout() {
                 Payment
               </p>
               <div className="grid grid-cols-2 gap-2 mt-2">
-                {[
-                  "Cash",
-                  "Card/UPI",
-                  "Kitchen Transfer",
-                  isHotelMode ? "Room Charge" : "Table Bill",
-                ].map((method) => (
+                {paymentOptions.map((method) => (
                   <button
                     key={method}
                     onClick={() => setSelectedPayment(method)}
@@ -302,6 +342,9 @@ export default function PosCheckout() {
             </div>
 
             <div className="grid grid-cols-1 gap-2">
+              {checkoutError ? (
+                <p className="text-xs text-red-500">{checkoutError}</p>
+              ) : null}
               <button
                 onClick={downloadInvoice}
                 disabled={!cart.length}
@@ -311,7 +354,7 @@ export default function PosCheckout() {
               </button>
               <button
                 onClick={handlePayAndGenerate}
-                disabled={!cart.length}
+                disabled={!cart.length || submittingOrder}
                 className="py-3 rounded-xl bg-saffron hover:bg-saffron2 text-white font-bold disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {selectedPayment === "Cash" ? (
@@ -319,7 +362,9 @@ export default function PosCheckout() {
                 ) : (
                   <CreditCard size={16} />
                 )}
-                Pay & Generate Invoice
+                {submittingOrder
+                  ? "Placing Order..."
+                  : "Pay & Generate Invoice"}
               </button>
             </div>
           </div>

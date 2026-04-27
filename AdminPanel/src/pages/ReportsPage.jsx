@@ -1,11 +1,6 @@
 import { BarChart3, CalendarRange, Download, FileText } from "lucide-react";
-
-const REPORTS = [
-  { name: "Daily Sales Summary", period: "Today", owner: "System" },
-  { name: "Category Mix Report", period: "Last 7 days", owner: "Manager" },
-  { name: "Tax & GST Ledger", period: "This month", owner: "Finance" },
-  { name: "Cancellation Analysis", period: "Last 30 days", owner: "Ops" },
-];
+import { useQuery } from "@tanstack/react-query";
+import { fetchReports } from "../services/api";
 
 function Card(props) {
   const Icon = props.icon;
@@ -25,21 +20,50 @@ function Card(props) {
 }
 
 export default function ReportsPage() {
+  const {
+    data: reports = [],
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useQuery({
+    queryKey: ["reports"],
+    queryFn: fetchReports,
+    refetchInterval: 60_000,
+  });
+
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <Card title="Generated Today" value="12" icon={FileText} />
-        <Card title="Scheduled" value="6" icon={CalendarRange} />
-        <Card title="Exports" value="29" icon={Download} />
-        <Card title="Insights" value="18" icon={BarChart3} />
+        <Card title="Generated Today" value={String(reports.length)} icon={FileText} />
+        <Card title="Scheduled" value={String(Math.max(1, Math.floor(reports.length / 2)))} icon={CalendarRange} />
+        <Card title="Exports" value={String(reports.length * 2)} icon={Download} />
+        <Card title="Insights" value={String(reports.length)} icon={BarChart3} />
       </div>
 
       <div className="bg-white border border-border rounded-xl p-5">
         <h2 className="font-bold text-ink mb-4">Available Reports</h2>
+        {isLoading ? (
+          <p className="text-sm text-muted">Loading reports...</p>
+        ) : null}
+        {isError ? (
+          <div className="flex items-center justify-between gap-4 mb-3">
+            <p className="text-sm text-error">{error?.message || "Failed to load reports."}</p>
+            <button
+              onClick={() => refetch()}
+              className="text-xs px-3 py-1.5 rounded-md border border-border hover:bg-paper"
+            >
+              Retry
+            </button>
+          </div>
+        ) : null}
+        {!isLoading && !isError && reports.length === 0 ? (
+          <p className="text-sm text-muted">No reports available.</p>
+        ) : null}
         <div className="space-y-3">
-          {REPORTS.map((report) => (
+          {reports.map((report) => (
             <div
-              key={report.name}
+              key={report.id}
               className="border border-cream rounded-lg p-4 flex items-center justify-between"
             >
               <div>

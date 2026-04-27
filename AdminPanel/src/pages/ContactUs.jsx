@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowLeft,
@@ -8,7 +8,7 @@ import {
   Send,
   MessageCircle,
 } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion as Motion } from "framer-motion";
 
 export default function ContactUs() {
   const [formData, setFormData] = useState({
@@ -45,7 +45,7 @@ export default function ContactUs() {
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-32 pb-24 grid lg:grid-cols-2 gap-16 lg:gap-24 items-center">
         {/* ── Left Side: Contact Info ── */}
-        <motion.div
+        <Motion.div
           initial={{ opacity: 0, x: -30 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.6 }}
@@ -113,17 +113,17 @@ export default function ContactUs() {
               </div>
             </div>
           </div>
-        </motion.div>
+        </Motion.div>
 
         {/* ── Right Side: Contact Form ── */}
-        <motion.div
+        <Motion.div
           initial={{ opacity: 0, x: 30 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.6, delay: 0.2 }}
           className="bg-white rounded-3xl p-6 sm:p-10 shadow-[0_8px_30px_rgba(15,14,11,0.06)] border border-[#e0d9ce] relative overflow-hidden"
         >
           {isSubmitted ? (
-            <motion.div
+            <Motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               className="py-12 flex flex-col items-center justify-center text-center h-full"
@@ -144,12 +144,9 @@ export default function ContactUs() {
               >
                 Send another message
               </button>
-            </motion.div>
+            </Motion.div>
           ) : (
-            <form
-              onSubmit={handleSubmit}
-              className="space-y-5 relative relative z-10"
-            >
+            <form onSubmit={handleSubmit} className="space-y-5 relative z-10">
               <div className="grid sm:grid-cols-2 gap-5">
                 <div>
                   <label
@@ -235,7 +232,7 @@ export default function ContactUs() {
               </button>
             </form>
           )}
-        </motion.div>
+        </Motion.div>
       </div>
     </div>
   );

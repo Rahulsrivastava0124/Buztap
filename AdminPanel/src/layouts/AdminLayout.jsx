@@ -1,5 +1,11 @@
-import { useEffect, useState } from "react";
-import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  Link,
+  Outlet,
+  useLocation,
+  useNavigate,
+  useParams,
+} from "react-router-dom";
 import {
   LayoutDashboard,
   MonitorSmartphone,
@@ -20,14 +26,16 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { motion as Motion, AnimatePresence } from "framer-motion";
+import toast from "react-hot-toast";
 import { useAuth } from "../context/AuthContext";
 import { hasRoleAccess } from "../utils/access";
+import { fetchIncomingQrOrders } from "../services/api";
 
 const SIDEBAR_ITEMS = [
   {
     path: "/dashboard/overview",
     icon: LayoutDashboard,
-    label: "Overview",
+    label: "Dashboard",
     minimumRole: "cashier",
   },
   {
@@ -37,7 +45,7 @@ const SIDEBAR_ITEMS = [
     minimumRole: "manager",
   },
   {
-    path: "/dashboard/menu",
+    path: "/menu",
     icon: UtensilsCrossed,
     label: "Menu & Products",
     minimumRole: "manager",
@@ -77,36 +85,22 @@ const SIDEBAR_ITEMS = [
   },
 ];
 
-export default function AdminLayout() {
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const [compactSidebar, setCompactSidebar] = useState(
-    () => localStorage.getItem("sidebarCompact") === "true",
-  );
+function SidebarContent({
+  slug,
+  compactSidebar,
+  visibleSidebarItems,
+  isHotelMode,
+  handleLogout,
+}) {
   const location = useLocation();
-  const { logout, role, businessType } = useAuth();
-  const navigate = useNavigate();
-  const visibleSidebarItems = SIDEBAR_ITEMS.filter((item) =>
-    hasRoleAccess(role, item.minimumRole),
-  );
-  const isHotelMode = businessType === "hotel";
-
-  useEffect(() => {
-    localStorage.setItem("sidebarCompact", String(compactSidebar));
-  }, [compactSidebar]);
-
-  const handleLogout = () => {
-    logout();
-    navigate("/");
-  };
-
-  const SidebarContent = () => (
+  return (
     <div className="flex flex-col h-full bg-white border-r border-border">
       {/* Brand */}
       <div
         className={`h-16 flex items-center border-b border-border ${compactSidebar ? "px-3 justify-center" : "px-6"}`}
       >
         <Link
-          to="/dashboard"
+          to={`/${slug}/dashboard/overview`}
           className={`flex items-center ${compactSidebar ? "justify-center" : "gap-2.5"}`}
         >
           <span className="w-8 h-8 bg-saffron rounded-lg flex items-center justify-center">
@@ -114,7 +108,7 @@ export default function AdminLayout() {
           </span>
           {!compactSidebar ? (
             <span className="font-display font-bold text-ink text-xl tracking-tight">
-              restroMenu
+              BuzTap
             </span>
           ) : null}
         </Link>
@@ -123,7 +117,8 @@ export default function AdminLayout() {
       {/* Nav Items */}
       <nav className="flex-1 px-4 py-6 space-y-1">
         {visibleSidebarItems.map((item) => {
-          const isActive = location.pathname.startsWith(item.path);
+          const fullPath = `/${slug}${item.path}`;
+          const isActive = location.pathname.startsWith(fullPath);
           const dynamicLabel =
             item.path === "/tables"
               ? isHotelMode
@@ -136,8 +131,8 @@ export default function AdminLayout() {
                 : item.label;
           return (
             <Link
-              key={`${item.path}-${dynamicLabel}`}
-              to={item.path}
+              key={`${fullPath}-${dynamicLabel}`}
+              to={fullPath}
               title={compactSidebar ? dynamicLabel : undefined}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium text-sm transition-colors ${
                 isActive
@@ -165,6 +160,102 @@ export default function AdminLayout() {
       </div>
     </div>
   );
+}
+
+export default function AdminLayout() {
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [compactSidebar, setCompactSidebar] = useState(
+    () => localStorage.getItem("sidebarCompact") === "true",
+  );
+  const location = useLocation();
+  const { slug } = useParams();
+  const { logout, role, businessType, businessName } = useAuth();
+  const navigate = useNavigate();
+  const [incomingQrOrders, setIncomingQrOrders] = useState([]);
+  const [loadingIncomingOrders, setLoadingIncomingOrders] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const notifiedOrderIdsRef = useRef(new Set());
+  const firstLoadRef = useRef(true);
+  const notificationRef = useRef(null);
+  const visibleSidebarItems = SIDEBAR_ITEMS.filter((item) =>
+    hasRoleAccess(role, item.minimumRole),
+  );
+  const isHotelMode = businessType === "hotel";
+  const canViewIncomingOrders = hasRoleAccess(role, "cashier");
+  const unreadIncomingCount = incomingQrOrders.length;
+  const formattedIncomingOrders = useMemo(
+    () =>
+      incomingQrOrders.map((order) => ({
+        ...order,
+        amountLabel: `Rs ${Number(order.amount || 0).toLocaleString("en-IN")}`,
+      })),
+    [incomingQrOrders],
+  );
+
+  useEffect(() => {
+    localStorage.setItem("sidebarCompact", String(compactSidebar));
+  }, [compactSidebar]);
+
+  useEffect(() => {
+    if (!canViewIncomingOrders) return;
+
+    let isMounted = true;
+
+    const loadIncomingQrOrders = async () => {
+      try {
+        if (isMounted) setLoadingIncomingOrders(true);
+        const orders = await fetchIncomingQrOrders();
+        if (!isMounted) return;
+
+        setIncomingQrOrders(orders || []);
+
+        const newOrders = (orders || []).filter(
+          (order) => !notifiedOrderIdsRef.current.has(order.id),
+        );
+
+        if (!firstLoadRef.current && newOrders.length > 0) {
+          toast.success(`Incoming QR orders: ${newOrders.length}`);
+        }
+
+        newOrders.forEach((order) => notifiedOrderIdsRef.current.add(order.id));
+        firstLoadRef.current = false;
+      } catch {
+        if (!isMounted) return;
+      } finally {
+        if (isMounted) setLoadingIncomingOrders(false);
+      }
+    };
+
+    loadIncomingQrOrders();
+    const poller = setInterval(loadIncomingQrOrders, 15000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(poller);
+    };
+  }, [canViewIncomingOrders]);
+
+  useEffect(() => {
+    if (!showNotifications) return;
+
+    const handleClickOutside = (event) => {
+      if (
+        notificationRef.current &&
+        !notificationRef.current.contains(event.target)
+      ) {
+        setShowNotifications(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showNotifications]);
+
+  const handleLogout = async () => {
+    await logout();
+    toast.success("Signed out");
+    navigate("/auth");
+  };
 
   return (
     <div className="min-h-screen bg-paper font-[Inter,sans-serif] flex">
@@ -172,7 +263,13 @@ export default function AdminLayout() {
       <div
         className={`hidden lg:block fixed inset-y-0 z-20 transition-all ${compactSidebar ? "w-20" : "w-64"}`}
       >
-        <SidebarContent />
+        <SidebarContent
+          slug={slug}
+          compactSidebar={compactSidebar}
+          visibleSidebarItems={visibleSidebarItems}
+          isHotelMode={isHotelMode}
+          handleLogout={handleLogout}
+        />
         <button
           onClick={() => setCompactSidebar((prev) => !prev)}
           className="absolute -right-3 top-6 w-6 h-6 rounded-full border border-border bg-white text-muted hover:text-ink shadow-sm flex items-center justify-center"
@@ -205,7 +302,13 @@ export default function AdminLayout() {
               transition={{ type: "spring", bounce: 0, duration: 0.3 }}
               className="lg:hidden fixed inset-y-0 left-0 w-64 z-40 bg-white"
             >
-              <SidebarContent />
+              <SidebarContent
+                slug={slug}
+                compactSidebar={compactSidebar}
+                visibleSidebarItems={visibleSidebarItems}
+                isHotelMode={isHotelMode}
+                handleLogout={handleLogout}
+              />
             </Motion.div>
           </>
         )}
@@ -225,38 +328,111 @@ export default function AdminLayout() {
               <Menu size={20} />
             </button>
             <h1 className="font-semibold text-ink text-lg sm:text-xl">
-              {location.pathname.includes("/overview") && "Executive Overview"}
+              {location.pathname.includes("/overview") && "Dashboard"}
               {location.pathname.includes("/finance") && "Sales & Finance"}
               {location.pathname.includes("/menu") && "Menu & Products"}
               {location.pathname.includes("/operations") &&
                 (isHotelMode ? "Operations & Rooms" : "Operations & Tables")}
-              {location.pathname.startsWith("/pos") &&
-                (location.pathname === "/pos/checkout"
-                  ? "POS Checkout"
-                  : "Point of Sale")}
-              {location.pathname === "/orders" && "Orders"}
-              {location.pathname === "/tables" &&
+              {location.pathname.includes("/pos/checkout") && "POS Checkout"}
+              {location.pathname.includes("/pos") &&
+                !location.pathname.includes("/checkout") &&
+                "Point of Sale"}
+              {location.pathname.includes("/orders") &&
+                !location.pathname.includes("/pos") &&
+                "Orders"}
+              {location.pathname.includes("/tables") &&
                 (isHotelMode ? "Rooms" : "Tables")}
-              {location.pathname === "/inventory" && "Inventory"}
-              {location.pathname === "/staff" && "Staff"}
-              {location.pathname === "/reports" && "Reports"}
-              {location.pathname === "/settings" && "Settings"}
+              {location.pathname.includes("/inventory") && "Inventory"}
+              {location.pathname.includes("/staff") && "Staff"}
+              {location.pathname.includes("/reports") && "Reports"}
+              {location.pathname.includes("/settings") && "Settings"}
             </h1>
           </div>
 
           <div className="flex items-center gap-4">
-            <button className="relative p-2 text-muted hover:bg-paper rounded-full transition-colors">
-              <Bell size={18} />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-saffron rounded-full border border-white" />
-            </button>
+            <div className="relative" ref={notificationRef}>
+              <button
+                onClick={() => setShowNotifications((prev) => !prev)}
+                className="relative p-2 text-muted hover:bg-paper rounded-full transition-colors"
+                title="Incoming QR orders"
+              >
+                <Bell size={18} />
+                {canViewIncomingOrders && unreadIncomingCount > 0 ? (
+                  <span className="absolute -top-0.5 -right-0.5 min-w-4 h-4 px-1 text-[10px] font-bold text-white bg-saffron rounded-full border border-white flex items-center justify-center">
+                    {unreadIncomingCount > 9 ? "9+" : unreadIncomingCount}
+                  </span>
+                ) : null}
+              </button>
+
+              {showNotifications ? (
+                <div className="absolute right-0 mt-2 w-80 bg-white border border-border rounded-xl shadow-[0_16px_38px_rgba(15,14,11,0.14)] z-30 overflow-hidden">
+                  <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+                    <p className="text-sm font-semibold text-ink">
+                      Incoming Orders
+                    </p>
+                    <button
+                      onClick={() => {
+                        setShowNotifications(false);
+                        navigate(`/${slug}/orders`);
+                      }}
+                      className="text-xs text-saffron font-semibold hover:underline"
+                    >
+                      View all
+                    </button>
+                  </div>
+
+                  <div className="max-h-80 overflow-y-auto">
+                    {loadingIncomingOrders ? (
+                      <p className="px-4 py-3 text-xs text-muted">
+                        Checking for incoming QR orders...
+                      </p>
+                    ) : formattedIncomingOrders.length === 0 ? (
+                      <p className="px-4 py-3 text-xs text-muted">
+                        No incoming QR orders right now.
+                      </p>
+                    ) : (
+                      formattedIncomingOrders.map((order) => (
+                        <button
+                          key={order.id}
+                          onClick={() => {
+                            setShowNotifications(false);
+                            navigate(`/${slug}/orders`);
+                          }}
+                          className="w-full text-left px-4 py-3 border-b border-border/70 last:border-b-0 hover:bg-paper transition-colors"
+                        >
+                          <p className="text-sm font-semibold text-ink">
+                            {order.id}
+                          </p>
+                          <p className="text-xs text-muted mt-0.5">
+                            {order.source}
+                          </p>
+                          <p className="text-xs font-semibold text-saffron mt-1">
+                            {order.amountLabel}
+                          </p>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </div>
+              ) : null}
+            </div>
             <div className="h-8 w-px bg-border" />
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-full bg-[#fbdabf] border border-saffron-lt flex items-center justify-center">
-                <span className="text-xs font-bold text-saffron">SG</span>
+                <span className="text-xs font-bold text-saffron">
+                  {businessName
+                    ? businessName
+                        .split(" ")
+                        .slice(0, 2)
+                        .map((w) => w[0])
+                        .join("")
+                        .toUpperCase()
+                    : "?"}
+                </span>
               </div>
               <div className="hidden sm:block">
                 <p className="text-xs font-semibold text-ink leading-tight">
-                  Spice Garden
+                  {businessName || "—"}
                 </p>
                 <p className="text-xs text-muted">
                   {businessType === "hotel" ? "Hotel Mode" : "Restaurant Mode"}

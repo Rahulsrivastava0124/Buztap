@@ -1,4 +1,10 @@
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
+import {
+  clearAuthSession,
+  fetchAuthMe,
+  loginAdmin,
+  logoutAdmin,
+} from "../services/api";
 
 const AuthContext = createContext();
 
@@ -7,25 +13,14 @@ const BUSINESS_TYPES = {
   HOTEL: "hotel",
 };
 
-const ROLE_CREDENTIALS = [
-  {
-    role: "admin",
-    username:
-      import.meta.env.VITE_ADMIN_USERNAME ?? import.meta.env.VITE_APP_USERNAME,
-    password:
-      import.meta.env.VITE_ADMIN_PASSWORD ?? import.meta.env.VITE_APP_PASSWORD,
-  },
-  {
-    role: "manager",
-    username: import.meta.env.VITE_MANAGER_USERNAME,
-    password: import.meta.env.VITE_MANAGER_PASSWORD,
-  },
-  {
-    role: "cashier",
-    username: import.meta.env.VITE_CASHIER_USERNAME,
-    password: import.meta.env.VITE_CASHIER_PASSWORD,
-  },
-].filter((entry) => entry.username && entry.password);
+function toSlug(value) {
+  return String(value || "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40);
+}
 
 export function AuthProvider({ children }) {
   const [isAuthenticated, setIsAuthenticated] = useState(
@@ -37,48 +32,126 @@ export function AuthProvider({ children }) {
   const [businessType, setBusinessType] = useState(
     () => sessionStorage.getItem("adminBusinessType") || BUSINESS_TYPES.RESTRO,
   );
-  const loading = false;
+  const [loading, setLoading] = useState(true);
+  const [businessName, setBusinessName] = useState(
+    () => sessionStorage.getItem("adminBusinessName") || "",
+  );
+  const [userName, setUserName] = useState(
+    () => sessionStorage.getItem("adminUserName") || "",
+  );
+  const [subdomain, setSubdomain] = useState(
+    () => sessionStorage.getItem("adminSubdomain") || "",
+  );
 
-  const login = (username, password) => {
-    const matched = ROLE_CREDENTIALS.find(
-      (entry) => entry.username === username && entry.password === password,
-    );
-    const detectedBusinessType = username.toLowerCase().includes("hotel")
-      ? BUSINESS_TYPES.HOTEL
-      : BUSINESS_TYPES.RESTRO;
+  useEffect(() => {
+    let mounted = true;
 
-    if (matched) {
+    const bootstrap = async () => {
+      try {
+        if (sessionStorage.getItem("adminAuth") !== "true") {
+          if (mounted) setLoading(false);
+          return;
+        }
+
+        const me = await fetchAuthMe();
+        if (!mounted) return;
+
+        setIsAuthenticated(true);
+        setRole(me.role || "cashier");
+        setBusinessType(me.businessType || BUSINESS_TYPES.RESTRO);
+        sessionStorage.setItem("adminAuth", "true");
+        sessionStorage.setItem("adminAuthRole", me.role || "cashier");
+        sessionStorage.setItem(
+          "adminBusinessType",
+          me.businessType || BUSINESS_TYPES.RESTRO,
+        );
+        if (me.businessName) {
+          setBusinessName(me.businessName);
+          sessionStorage.setItem("adminBusinessName", me.businessName);
+        }
+        if (me.name) {
+          setUserName(me.name);
+          sessionStorage.setItem("adminUserName", me.name);
+        }
+        const resolvedSubdomain = me.subdomain || toSlug(me.businessName);
+        setSubdomain(resolvedSubdomain);
+        if (resolvedSubdomain) {
+          sessionStorage.setItem("adminSubdomain", resolvedSubdomain);
+        }
+      } catch {
+        clearAuthSession();
+        if (!mounted) return;
+        setIsAuthenticated(false);
+        setRole("cashier");
+        setBusinessType(BUSINESS_TYPES.RESTRO);
+        setBusinessName("");
+        setUserName("");
+        setSubdomain("");
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+
+    bootstrap();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  // Auto-logout when the API detects an expired/revoked token mid-session
+  useEffect(() => {
+    const handleExpired = () => {
+      setIsAuthenticated(false);
+      setRole("cashier");
+      setBusinessType(BUSINESS_TYPES.RESTRO);
+      setBusinessName("");
+      setUserName("");
+      setSubdomain("");
+    };
+    window.addEventListener("auth:expired", handleExpired);
+    return () => window.removeEventListener("auth:expired", handleExpired);
+  }, []);
+
+  const login = async (identifier, password) => {
+    try {
+      const data = await loginAdmin(identifier, password);
       setIsAuthenticated(true);
-      setRole(matched.role || "admin");
-      setBusinessType(detectedBusinessType);
+      setRole(data.role || "cashier");
+      setBusinessType(data.businessType || BUSINESS_TYPES.RESTRO);
       sessionStorage.setItem("adminAuth", "true");
-      sessionStorage.setItem("adminAuthRole", matched.role || "admin");
-      sessionStorage.setItem("adminBusinessType", detectedBusinessType);
-      return true;
+      sessionStorage.setItem("adminAuthRole", data.role || "cashier");
+      sessionStorage.setItem(
+        "adminBusinessType",
+        data.businessType || BUSINESS_TYPES.RESTRO,
+      );
+      if (data.businessName) {
+        setBusinessName(data.businessName);
+        sessionStorage.setItem("adminBusinessName", data.businessName);
+      }
+      if (data.name) {
+        setUserName(data.name);
+        sessionStorage.setItem("adminUserName", data.name);
+      }
+      const resolvedSubdomain = data.subdomain || toSlug(data.businessName);
+      setSubdomain(resolvedSubdomain);
+      if (resolvedSubdomain) {
+        sessionStorage.setItem("adminSubdomain", resolvedSubdomain);
+      }
+      return { success: true, subdomain: resolvedSubdomain || "" };
+    } catch {
+      return { success: false, subdomain: "" };
     }
-
-    const genericUser = import.meta.env.VITE_APP_USERNAME;
-    const genericPass = import.meta.env.VITE_APP_PASSWORD;
-    if (username === genericUser && password === genericPass) {
-      setIsAuthenticated(true);
-      setRole("admin");
-      setBusinessType(detectedBusinessType);
-      sessionStorage.setItem("adminAuth", "true");
-      sessionStorage.setItem("adminAuthRole", "admin");
-      sessionStorage.setItem("adminBusinessType", detectedBusinessType);
-      return true;
-    }
-
-    return false;
   };
 
-  const logout = () => {
+  const logout = async () => {
+    await logoutAdmin();
     setIsAuthenticated(false);
     setRole("cashier");
     setBusinessType(BUSINESS_TYPES.RESTRO);
-    sessionStorage.removeItem("adminAuth");
-    sessionStorage.removeItem("adminAuthRole");
-    sessionStorage.removeItem("adminBusinessType");
+    setBusinessName("");
+    setUserName("");
+    setSubdomain("");
+    clearAuthSession();
   };
 
   return (
@@ -88,6 +161,9 @@ export function AuthProvider({ children }) {
         role,
         businessType,
         setBusinessType,
+        businessName,
+        userName,
+        subdomain,
         login,
         logout,
         loading,

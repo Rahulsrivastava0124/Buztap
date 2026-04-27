@@ -1,4 +1,4 @@
-# restroMenu robots.txt
+# BuzTap robots.txt
 # This file instructs search engines on how to crawl and index the website
 
 # Allow all bots by default

@@ -1,16 +1,26 @@
-import { Navigate, Outlet } from "react-router-dom";
+import { Navigate, Outlet, useParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { hasRoleAccess } from "../utils/access";
 
 export default function ProtectedRoute({ minimumRole = "cashier" }) {
-  const { isAuthenticated, role } = useAuth();
+  const { isAuthenticated, role, subdomain } = useAuth();
+  const { slug } = useParams();
 
   if (!isAuthenticated) {
     return <Navigate to="/auth" replace />;
   }
 
+  // If there's a slug in the URL that doesn't match the logged-in business, redirect to the correct one
+  if (slug && subdomain && slug !== subdomain) {
+    return <Navigate to={`/${subdomain}/dashboard/overview`} replace />;
+  }
+
   if (!hasRoleAccess(role, minimumRole)) {
-    return <Navigate to="/dashboard/overview" replace />;
+    const base = slug || subdomain;
+    if (!base) {
+      return <Navigate to="/auth" replace />;
+    }
+    return <Navigate to={`/${base}/dashboard/overview`} replace />;
   }
 
   return <Outlet />;

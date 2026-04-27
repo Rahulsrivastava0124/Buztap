@@ -1,9 +1,6 @@
 import { useMemo, useState } from "react";
 import {
-  ArrowUpRight,
-  ArrowDownRight,
   Clock,
-  CheckCircle2,
   Banknote,
   UtensilsCrossed,
   Smartphone,
@@ -15,6 +12,14 @@ import {
   Wallet,
   Percent,
   AlertTriangle,
+  UserCheck,
+  UserPlus,
+  QrCode,
+  MonitorSmartphone,
+  Armchair,
+  Activity,
+  ArrowUpRight,
+  ArrowDownRight,
 } from "lucide-react";
 import {
   Chart as ChartJS,
@@ -28,10 +33,18 @@ import {
 } from "chart.js";
 import { Line } from "react-chartjs-2";
 import { Navigate, Route, Routes } from "react-router-dom";
-import { RECENT_ORDERS } from "../data/database";
 import { useQuery } from "@tanstack/react-query";
-import { fetchDashboardSnapshot } from "../services/api";
+import {
+  fetchDashboardSnapshot,
+  fetchRecentOrders,
+  fetchRevenueTrend,
+  fetchTodayStats,
+} from "../services/api";
 import ProtectedRoute from "../components/ProtectedRoute";
+import KpiCard from "../components/shared/KpiCard";
+import OrderStatusBadge from "../components/shared/OrderStatusBadge";
+import ErrorBoundary from "../components/shared/ErrorBoundary";
+import PageShell from "../components/layout/PageShell";
 
 ChartJS.register(
   CategoryScale,
@@ -43,75 +56,27 @@ ChartJS.register(
   Filler,
 );
 
-const SERIES_BY_RANGE = {
-  "1D": {
-    labels: ["9 AM", "11 AM", "1 PM", "3 PM", "5 PM", "7 PM", "9 PM", "11 PM"],
-    data: [1200, 2400, 5800, 3200, 1800, 6500, 8900, 4200],
-  },
-  "7D": {
-    labels: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
-    data: [12500, 14200, 13800, 15600, 24500, 31000, 28000],
-  },
-  "1M": {
-    labels: ["Week 1", "Week 2", "Week 3", "Week 4"],
-    data: [85000, 92000, 89000, 105000],
-  },
-  "6M": {
-    labels: ["Oct", "Nov", "Dec", "Jan", "Feb", "Mar"],
-    data: [420000, 435000, 580000, 410000, 450000, 520000],
-  },
+const CHART_COLORS = {
+  borderColor: "#e8720c",
+  gradientStart: "rgba(232,114,12,0.35)",
+  gradientEnd: "rgba(232,114,12,0.0)",
 };
 
-const MENU_PRODUCTS = [
-  {
-    n: "Paneer Butter Masala",
-    c: "Mains",
-    q: 145,
-    r: 40600,
-    margin: 34,
-    stock: "Healthy",
-  },
-  {
-    n: "Garlic Naan",
-    c: "Breads",
-    q: 420,
-    r: 25200,
-    margin: 42,
-    stock: "Healthy",
-  },
-  {
-    n: "Chicken Tikka",
-    c: "Starters",
-    q: 98,
-    r: 31360,
-    margin: 28,
-    stock: "Low",
-  },
-  {
-    n: "Mango Lassi",
-    c: "Beverage",
-    q: 110,
-    r: 13200,
-    margin: 48,
-    stock: "Healthy",
-  },
-  { n: "Veg Samosa", c: "Starters", q: 76, r: 6080, margin: 36, stock: "Low" },
-];
-
-const getChartData = (timeRange) => {
-  const series = SERIES_BY_RANGE[timeRange] ?? { labels: [], data: [] };
+const buildChartData = (trend) => {
+  const labels = trend?.labels ?? [];
+  const data = trend?.data ?? [];
   return {
-    labels: series.labels,
+    labels,
     datasets: [
       {
         fill: true,
-        data: series.data,
-        borderColor: "#e8720c",
+        data,
+        borderColor: CHART_COLORS.borderColor,
         backgroundColor: (context) => {
           const ctx = context.chart.ctx;
           const gradient = ctx.createLinearGradient(0, 0, 0, 300);
-          gradient.addColorStop(0, "rgba(232,114,12,0.35)");
-          gradient.addColorStop(1, "rgba(232,114,12,0.0)");
+          gradient.addColorStop(0, CHART_COLORS.gradientStart);
+          gradient.addColorStop(1, CHART_COLORS.gradientEnd);
           return gradient;
         },
         borderWidth: 2.5,
@@ -162,40 +127,6 @@ const chartOptions = {
   interaction: { intersect: false, mode: "index" },
 };
 
-function KpiCard({ title, value, change, isPositive, extraIcon: Icon }) {
-  return (
-    <div className="bg-white rounded-xl border border-border p-5 shadow-sm flex flex-col justify-between hover:border-cream2 transition-colors">
-      <div className="flex justify-between items-start mb-2">
-        <p className="text-xs font-semibold text-muted uppercase tracking-wider">
-          {title}
-        </p>
-        {Icon && <Icon size={16} className="text-muted2" />}
-      </div>
-      <div className="flex items-end justify-between mt-1">
-        <p className="font-roboto text-3xl font-black text-ink tracking-tight">
-          {value}
-        </p>
-        {change && (
-          <span
-            className={`text-xs font-semibold px-2 py-1 rounded-md flex items-center gap-0.5 ${isPositive ? "bg-sage-lt text-sage" : "bg-red-50 text-red-600"}`}
-          >
-            {isPositive ? (
-              <ArrowUpRight size={14} />
-            ) : (
-              <ArrowDownRight size={14} />
-            )}{" "}
-            {change}
-          </span>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function DashboardPageShell({ children }) {
-  return <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">{children}</div>;
-}
-
 export default function Dashboard() {
   return (
     <Routes>
@@ -203,9 +134,11 @@ export default function Dashboard() {
       <Route
         path="overview"
         element={
-          <DashboardPageShell>
-            <OverviewTab />
-          </DashboardPageShell>
+          <PageShell>
+            <ErrorBoundary label="Overview">
+              <OverviewTab />
+            </ErrorBoundary>
+          </PageShell>
         }
       />
 
@@ -213,17 +146,21 @@ export default function Dashboard() {
         <Route
           path="finance"
           element={
-            <DashboardPageShell>
-              <FinanceTab />
-            </DashboardPageShell>
+            <PageShell>
+              <ErrorBoundary label="Finance">
+                <FinanceTab />
+              </ErrorBoundary>
+            </PageShell>
           }
         />
         <Route
           path="menu"
           element={
-            <DashboardPageShell>
-              <MenuTab />
-            </DashboardPageShell>
+            <PageShell>
+              <ErrorBoundary label="Menu Analytics">
+                <MenuTab />
+              </ErrorBoundary>
+            </PageShell>
           }
         />
       </Route>
@@ -231,9 +168,11 @@ export default function Dashboard() {
       <Route
         path="operations"
         element={
-          <DashboardPageShell>
-            <OperationsTab />
-          </DashboardPageShell>
+          <PageShell>
+            <ErrorBoundary label="Operations">
+              <OperationsTab />
+            </ErrorBoundary>
+          </PageShell>
         }
       />
     </Routes>
@@ -244,38 +183,314 @@ export default function Dashboard() {
 
 export function OverviewTab() {
   const [timeRange, setTimeRange] = useState("1D");
+  const {
+    data: recentOrders = [],
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useQuery({
+    queryKey: ["dashboard-recent-orders"],
+    queryFn: fetchRecentOrders,
+    refetchInterval: 12_000,
+  });
+
+  const { data: stats } = useQuery({
+    queryKey: ["dashboard-today-stats"],
+    queryFn: fetchTodayStats,
+    refetchInterval: 30_000,
+  });
+
+  const { data: revenueTrend } = useQuery({
+    queryKey: ["dashboard-revenue-trend", timeRange],
+    queryFn: () => fetchRevenueTrend(timeRange),
+    staleTime: 2 * 60 * 1000,
+  });
+
+  // Bar chart max for scaling
+  const maxHourly = stats
+    ? Math.max(...stats.hourlyVisits.map((h) => h.count), 1)
+    : 1;
+
+  // Format last updated time
+  const lastUpdatedTime = stats?.lastUpdated
+    ? new Date(stats.lastUpdated).toLocaleTimeString("en-IN", {
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : null;
+
   return (
     <div className="space-y-6">
+      {/* KPI row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         <KpiCard
           title="Today's Revenue"
-          value="₹42,850"
-          change="+14.5%"
-          isPositive={true}
+          value={stats ? `₹${stats.totalRevenue.toLocaleString()}` : "₹0"}
           extraIcon={TrendingUp}
         />
         <KpiCard
           title="Total Orders"
-          value="128"
-          change="+5.2%"
-          isPositive={true}
+          value={stats ? String(stats.servedToday + stats.activeOrders) : "0"}
         />
         <KpiCard
-          title="Avg. Order Value"
-          value="₹334"
-          change="-2.1%"
-          isPositive={false}
+          title="Avg. Spend / Guest"
+          value={stats ? `₹${stats.avgSpendPerVisitor}` : "₹0"}
         />
         <KpiCard
-          title="Active Tables"
-          value="14 / 20"
-          change="70%"
+          title="Table Occupancy"
+          value={
+            stats ? `${stats.occupiedTables} / ${stats.totalTables}` : "— / —"
+          }
+          change={
+            stats && stats.totalTables > 0
+              ? `${Math.round((stats.occupiedTables / stats.totalTables) * 100)}%`
+              : "0%"
+          }
           isPositive={true}
           extraIcon={Users}
         />
       </div>
+
+      {/* Today's Visitor Intelligence */}
+      <div className="bg-white border border-border rounded-xl shadow-sm p-5 sm:p-6">
+        <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-saffron/10 flex items-center justify-center">
+              <Activity size={16} className="text-saffron" />
+            </div>
+            <div>
+              <h2 className="font-bold text-ink text-base leading-none">
+                Today&apos;s Visitor Intelligence
+              </h2>
+              <p className="text-[11px] text-muted mt-0.5">
+                {new Date().toLocaleDateString("en-IN", {
+                  weekday: "long",
+                  day: "numeric",
+                  month: "long",
+                })}
+                {lastUpdatedTime && (
+                  <span className="ml-2 text-[10px] text-muted/70">
+                    · updated {lastUpdatedTime}
+                  </span>
+                )}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
+            </span>
+            <span className="text-[10px] font-bold text-green-600 uppercase tracking-wide">
+              Live
+            </span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+          {/* Total Visitors */}
+          <div className="col-span-1 bg-gradient-to-br from-saffron to-orange-500 rounded-xl p-4 text-white">
+            <div className="flex items-center justify-between mb-2">
+              <Users size={16} className="opacity-80" />
+              <span className="text-[10px] font-bold uppercase opacity-80 tracking-wider">
+                Total
+              </span>
+            </div>
+            <p className="text-2xl font-black leading-none">
+              {stats?.totalVisitors ?? "—"}
+            </p>
+            <p className="text-[11px] mt-1 opacity-80">Visitors today</p>
+          </div>
+
+          {/* New Guests */}
+          <div className="bg-paper rounded-xl p-4 border border-border">
+            <div className="flex items-center justify-between mb-2">
+              <UserPlus size={15} className="text-blue-500" />
+              <ArrowUpRight size={13} className="text-green-500" />
+            </div>
+            <p className="text-xl font-black text-ink leading-none">
+              {stats?.newGuests ?? "—"}
+            </p>
+            <p className="text-[11px] text-muted mt-1">New guests</p>
+          </div>
+
+          {/* Returning Guests */}
+          <div className="bg-paper rounded-xl p-4 border border-border">
+            <div className="flex items-center justify-between mb-2">
+              <UserCheck size={15} className="text-purple-500" />
+              <span className="text-[10px] font-bold text-purple-500">
+                {stats && stats.totalVisitors > 0
+                  ? `${Math.round((stats.returningGuests / stats.totalVisitors) * 100)}%`
+                  : "—"}
+              </span>
+            </div>
+            <p className="text-xl font-black text-ink leading-none">
+              {stats?.returningGuests ?? "—"}
+            </p>
+            <p className="text-[11px] text-muted mt-1">Returning</p>
+          </div>
+
+          {/* POS vs QR */}
+          <div className="bg-paper rounded-xl p-4 border border-border">
+            <div className="flex items-center justify-between mb-2">
+              <MonitorSmartphone size={15} className="text-saffron" />
+              <span className="text-[10px] font-bold text-saffron">POS</span>
+            </div>
+            <p className="text-xl font-black text-ink leading-none">
+              {stats?.posOrders ?? "—"}
+            </p>
+            <p className="text-[11px] text-muted mt-1">Walk-in orders</p>
+          </div>
+
+          <div className="bg-paper rounded-xl p-4 border border-border">
+            <div className="flex items-center justify-between mb-2">
+              <QrCode size={15} className="text-emerald-500" />
+              <span className="text-[10px] font-bold text-emerald-600">QR</span>
+            </div>
+            <p className="text-xl font-black text-ink leading-none">
+              {stats?.qrOrders ?? "—"}
+            </p>
+            <p className="text-[11px] text-muted mt-1">QR scan orders</p>
+          </div>
+
+          {/* Active right now */}
+          <div className="bg-paper rounded-xl p-4 border border-border">
+            <div className="flex items-center justify-between mb-2">
+              <Armchair size={15} className="text-rose-500" />
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500" />
+              </span>
+            </div>
+            <p className="text-xl font-black text-ink leading-none">
+              {stats?.activeOrders ?? "—"}
+            </p>
+            <p className="text-[11px] text-muted mt-1">Active orders</p>
+          </div>
+        </div>
+
+        {/* Hourly visit bar chart */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs font-bold text-muted uppercase tracking-wider">
+              Hourly Visit Pattern
+            </p>
+            {stats?.peakHour?.count > 0 && (
+              <span className="flex items-center gap-1 text-[11px] font-semibold text-saffron bg-saffron/10 px-2.5 py-1 rounded-full">
+                <TrendingUp size={10} />
+                Peak: {stats.peakHour.label} ({stats.peakHour.count} orders)
+              </span>
+            )}
+          </div>
+          <div className="flex items-end gap-1 h-16">
+            {(
+              stats?.hourlyVisits ?? [
+                { label: "8AM", count: 0 },
+                { label: "9AM", count: 0 },
+                { label: "10AM", count: 0 },
+                { label: "11AM", count: 0 },
+                { label: "12PM", count: 0 },
+                { label: "1PM", count: 0 },
+                { label: "2PM", count: 0 },
+                { label: "3PM", count: 0 },
+                { label: "4PM", count: 0 },
+                { label: "5PM", count: 0 },
+                { label: "6PM", count: 0 },
+                { label: "7PM", count: 0 },
+                { label: "8PM", count: 0 },
+                { label: "9PM", count: 0 },
+                { label: "10PM", count: 0 },
+                { label: "11PM", count: 0 },
+              ]
+            ).map((h) => {
+              const isPeak = stats?.peakHour?.label === h.label && h.count > 0;
+              const heightPct =
+                maxHourly > 0 ? Math.round((h.count / maxHourly) * 100) : 0;
+              return (
+                <div
+                  key={h.label}
+                  className="flex-1 flex flex-col items-center gap-1 group"
+                  title={`${h.label}: ${h.count} orders`}
+                >
+                  <div className="w-full flex items-end justify-center h-12">
+                    <div
+                      className={`w-full rounded-t-sm transition-all ${
+                        isPeak
+                          ? "bg-saffron"
+                          : h.count > 0
+                            ? "bg-saffron/30 group-hover:bg-saffron/50"
+                            : "bg-border"
+                      }`}
+                      style={{
+                        height:
+                          h.count === 0 ? "4px" : `${Math.max(heightPct, 8)}%`,
+                      }}
+                    />
+                  </div>
+                  <span className="text-[8px] text-muted leading-none hidden sm:block">
+                    {h.label}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Summary footer */}
+          <div className="flex flex-wrap gap-4 mt-4 pt-4 border-t border-border">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-lg bg-green-50 flex items-center justify-center">
+                <ArrowUpRight size={13} className="text-green-600" />
+              </div>
+              <div>
+                <p className="text-[10px] text-muted leading-none">Served</p>
+                <p className="text-sm font-bold text-ink">
+                  {stats?.servedToday ?? "—"}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-lg bg-red-50 flex items-center justify-center">
+                <ArrowDownRight size={13} className="text-red-500" />
+              </div>
+              <div>
+                <p className="text-[10px] text-muted leading-none">Cancelled</p>
+                <p className="text-sm font-bold text-ink">
+                  {stats?.cancelledToday ?? "—"}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-lg bg-saffron/10 flex items-center justify-center">
+                <Banknote size={13} className="text-saffron" />
+              </div>
+              <div>
+                <p className="text-[10px] text-muted leading-none">Avg Spend</p>
+                <p className="text-sm font-bold text-ink">
+                  ₹{stats?.avgSpendPerVisitor ?? "—"}
+                </p>
+              </div>
+            </div>
+            <div className="ml-auto flex items-center gap-2">
+              <div className="w-6 h-6 rounded-lg bg-purple-50 flex items-center justify-center">
+                <Armchair size={13} className="text-purple-500" />
+              </div>
+              <div>
+                <p className="text-[10px] text-muted leading-none">Occupancy</p>
+                <p className="text-sm font-bold text-ink">
+                  {stats
+                    ? `${stats.occupiedTables}/${stats.totalTables} tables`
+                    : "—"}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Revenue chart + Live feed */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        <div className="xl:col-span-2 bg-white border border-border rounded-xl shadow-sm p-5 sm:p-6 flex flex-col">
+        <div className="xl:col-span-2 self-start bg-white border border-border rounded-xl shadow-sm p-5 sm:p-6 flex flex-col">
           <div className="flex items-center justify-between mb-6">
             <h2 className="font-bold text-ink flex items-center gap-2">
               Revenue Trend
@@ -292,8 +507,8 @@ export function OverviewTab() {
               ))}
             </div>
           </div>
-          <div className="flex-1 w-full min-h-65 relative">
-            <Line data={getChartData(timeRange)} options={chartOptions} />
+          <div className="w-full h-72 sm:h-80 relative">
+            <Line data={buildChartData(revenueTrend)} options={chartOptions} />
           </div>
         </div>
         <div className="bg-white border border-border rounded-xl shadow-sm p-4 sm:p-6 flex flex-col">
@@ -310,7 +525,26 @@ export function OverviewTab() {
             </div>
           </div>
           <div className="flex-1 overflow-y-auto space-y-3 custom-scrollbar pr-1">
-            {RECENT_ORDERS.map((o) => (
+            {isLoading ? (
+              <div className="text-xs text-muted">Loading recent orders...</div>
+            ) : null}
+            {isError ? (
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs text-red-600">
+                  {error?.message || "Failed to load live orders."}
+                </span>
+                <button
+                  onClick={() => refetch()}
+                  className="text-xs px-2 py-1 rounded border border-border hover:bg-white"
+                >
+                  Retry
+                </button>
+              </div>
+            ) : null}
+            {!isLoading && !isError && recentOrders.length === 0 ? (
+              <div className="text-xs text-muted">No recent orders yet.</div>
+            ) : null}
+            {recentOrders.map((o) => (
               <div
                 key={o.id}
                 className="p-3 border border-[#f0ebe0] rounded-lg bg-paper hover:border-border"
@@ -318,7 +552,7 @@ export function OverviewTab() {
                 <div className="flex justify-between mb-1">
                   <div className="flex items-center gap-2">
                     <span className="bg-white text-xs font-bold px-2 py-0.5 rounded shadow-sm">
-                      T-{o.table}
+                      {o.table}
                     </span>
                     <span className="text-xs text-muted">{o.id}</span>
                   </div>
@@ -329,21 +563,7 @@ export function OverviewTab() {
                   <span className="flex items-center gap-1 text-xs text-muted">
                     <Clock size={12} /> {o.time}
                   </span>
-                  {o.status === "preparing" && (
-                    <span className="text-xs font-semibold text-saffron bg-saffron-lt px-2 py-0.5 rounded">
-                      Preparing
-                    </span>
-                  )}
-                  {o.status === "ready" && (
-                    <span className="text-xs font-semibold text-white bg-saffron px-2 shadow-sm py-0.5 rounded">
-                      Ready to Serve
-                    </span>
-                  )}
-                  {o.status === "served" && (
-                    <span className="text-xs font-semibold text-sage bg-sage-lt px-2 py-0.5 rounded flex items-center gap-1">
-                      <CheckCircle2 size={12} /> Served
-                    </span>
-                  )}
+                  <OrderStatusBadge status={o.status} />
                 </div>
               </div>
             ))}
@@ -355,71 +575,61 @@ export function OverviewTab() {
 }
 
 export function FinanceTab() {
-  const { data } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["dashboard-snapshot"],
     queryFn: fetchDashboardSnapshot,
   });
 
-  const paymentBreakup = data?.paymentBreakup?.map((item, idx) => ({
+  const paymentBreakup = (data?.paymentBreakup ?? []).map((item, idx) => ({
     label: item.label,
     amount: item.amount,
     share: item.share,
     color: ["bg-saffron", "bg-sage", "bg-muted2"][idx] ?? "bg-muted2",
-  })) ?? [
-    { label: "Card & UPI", amount: 32450, share: 75, color: "bg-saffron" },
-    { label: "Cash in Drawer", amount: 10400, share: 24, color: "bg-sage" },
-    { label: "House Account", amount: 1350, share: 1, color: "bg-muted2" },
-  ];
+  }));
 
-  const settlements = data?.settlements ?? [
-    {
-      channel: "Razorpay UPI",
-      gross: 14850,
-      fee: 223,
-      net: 14627,
-      status: "Settled",
-    },
-    {
-      channel: "Card Terminal",
-      gross: 17600,
-      fee: 317,
-      net: 17283,
-      status: "Pending",
-    },
-    { channel: "Wallets", gross: 4800, fee: 96, net: 4704, status: "Settled" },
-  ];
+  const settlements = data?.settlements ?? [];
 
-  const totalGross = settlements.reduce((acc, item) => acc + item.gross, 0);
   const totalNet = settlements.reduce((acc, item) => acc + item.net, 0);
+  const totalGross = settlements.reduce((acc, item) => acc + item.gross, 0);
   const totalFees = totalGross - totalNet;
 
   return (
     <div className="space-y-6">
+      {isLoading ? (
+        <div className="text-sm text-muted">Loading finance data...</div>
+      ) : null}
+      {isError ? (
+        <div className="flex items-center justify-between gap-4 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+          <p className="text-sm text-red-600">
+            {error?.message || "Failed to load finance snapshot."}
+          </p>
+          <button
+            onClick={() => refetch()}
+            className="text-xs px-3 py-1.5 rounded-md border border-border hover:bg-white"
+          >
+            Retry
+          </button>
+        </div>
+      ) : null}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         <KpiCard
           title="Gross Sales"
-          value="₹54,200"
-          change="+8.3%"
-          isPositive={true}
+          value={`₹${(data?.grossSales ?? 0).toLocaleString()}`}
           extraIcon={Banknote}
         />
         <KpiCard
           title="Net Collected"
           value={`₹${totalNet.toLocaleString()}`}
-          change="+6.9%"
-          isPositive={true}
           extraIcon={Wallet}
         />
         <KpiCard
           title="Total Tax (5% GST)"
-          value="₹2,580"
+          value={`₹${(data?.gstAmount ?? 0).toLocaleString()}`}
           extraIcon={Receipt}
         />
         <KpiCard
           title="Gateway Fees"
           value={`₹${totalFees.toLocaleString()}`}
-          change="-2.4%"
-          isPositive={true}
           extraIcon={Percent}
         />
       </div>
@@ -431,6 +641,11 @@ export function FinanceTab() {
             Breakup
           </h2>
           <div className="space-y-4 pt-2">
+            {paymentBreakup.length === 0 && !isLoading ? (
+              <p className="text-sm text-muted py-4 text-center">
+                No payment channel data yet.
+              </p>
+            ) : null}
             {paymentBreakup.map((method) => (
               <div key={method.label}>
                 <div className="flex justify-between text-sm font-semibold mb-1">
@@ -456,6 +671,11 @@ export function FinanceTab() {
             <TrendingUp size={18} className="text-saffron" /> Settlement Summary
           </h2>
           <div className="space-y-3">
+            {settlements.length === 0 && !isLoading ? (
+              <p className="text-sm text-muted py-4 text-center">
+                No settlement records yet.
+              </p>
+            ) : null}
             {settlements.map((row) => (
               <div
                 key={row.channel}
@@ -505,20 +725,19 @@ export function FinanceTab() {
 }
 
 export function MenuTab() {
-  const { data } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["dashboard-snapshot"],
     queryFn: fetchDashboardSnapshot,
   });
   const [category, setCategory] = useState("All");
-  const sourceItems =
-    data?.productMix?.map((item) => ({
-      n: item.name,
-      c: item.category,
-      q: item.units,
-      r: item.revenue,
-      margin: item.margin,
-      stock: item.stock,
-    })) ?? MENU_PRODUCTS;
+  const sourceItems = (data?.productMix ?? []).map((item) => ({
+    n: item.name,
+    c: item.category,
+    q: item.units,
+    r: item.revenue,
+    margin: item.margin,
+    stock: item.stock,
+  }));
 
   const categories = useMemo(
     () => ["All", ...new Set(sourceItems.map((i) => i.c))],
@@ -538,24 +757,33 @@ export function MenuTab() {
 
   return (
     <div className="space-y-6">
+      {isLoading ? (
+        <div className="text-sm text-muted">Loading menu analytics...</div>
+      ) : null}
+      {isError ? (
+        <div className="flex items-center justify-between gap-4 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+          <p className="text-sm text-red-600">
+            {error?.message || "Failed to load menu analytics."}
+          </p>
+          <button
+            onClick={() => refetch()}
+            className="text-xs px-3 py-1.5 rounded-md border border-border hover:bg-white"
+          >
+            Retry
+          </button>
+        </div>
+      ) : null}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
         <KpiCard
           title="Total Units Sold"
-          value="842"
-          change="+12%"
-          isPositive={true}
+          value={String(data?.totalUnitsSold ?? 0)}
         />
         <KpiCard
           title="Most Popular Cat."
-          value="Mains"
+          value={data?.topCategory ?? "—"}
           extraIcon={UtensilsCrossed}
         />
-        <KpiCard
-          title="Avg Margin"
-          value={`${avgMargin}%`}
-          change="+1.1%"
-          isPositive={true}
-        />
+        <KpiCard title="Avg Margin" value={`${avgMargin}%`} />
       </div>
 
       <div className="bg-white border border-border rounded-xl p-6">
@@ -636,53 +864,61 @@ export function MenuTab() {
 }
 
 export function OperationsTab() {
-  const { data } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["dashboard-snapshot"],
     queryFn: fetchDashboardSnapshot,
     refetchInterval: 20_000,
   });
   const [serviceMode, setServiceMode] = useState("Dine-in");
-  const tableHealth = data?.areaLoad ?? [
-    { area: "Ground Floor", occupied: 9, total: 12, avgTurn: 42 },
-    { area: "First Floor", occupied: 6, total: 8, avgTurn: 47 },
-    { area: "Patio", occupied: 2, total: 4, avgTurn: 38 },
-  ];
-
-  const kitchenQueue = data?.kitchenQueue ?? [
-    { ticket: "#K-2849", stage: "Prep", wait: "4m", priority: "Normal" },
-    { ticket: "#K-2850", stage: "Cook", wait: "11m", priority: "High" },
-    { ticket: "#K-2851", stage: "Plating", wait: "2m", priority: "Normal" },
-  ];
+  const tableHealth = data?.areaLoad ?? [];
+  const kitchenQueue = data?.kitchenQueue ?? [];
 
   const totalOccupied = tableHealth.reduce((acc, row) => acc + row.occupied, 0);
   const totalCapacity = tableHealth.reduce((acc, row) => acc + row.total, 0);
 
   return (
     <div className="space-y-6">
+      {isLoading ? (
+        <div className="text-sm text-muted">Loading operations data...</div>
+      ) : null}
+      {isError ? (
+        <div className="flex items-center justify-between gap-4 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+          <p className="text-sm text-red-600">
+            {error?.message || "Failed to load operations data."}
+          </p>
+          <button
+            onClick={() => refetch()}
+            className="text-xs px-3 py-1.5 rounded-md border border-border hover:bg-white"
+          >
+            Retry
+          </button>
+        </div>
+      ) : null}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         <KpiCard
           title="Avg Table Turnover"
-          value="45m"
-          change="-5m"
-          isPositive={true}
+          value={
+            data
+              ? data.avgTableTurnover > 0
+                ? `${data.avgTableTurnover}m`
+                : "—"
+              : "—"
+          }
           extraIcon={Clock4}
         />
         <KpiCard
           title="QR Menu Scans"
-          value="214"
-          change="+42"
-          isPositive={true}
+          value={String(data?.qrScans ?? 0)}
           extraIcon={Smartphone}
         />
-        <KpiCard
-          title="QR Conv. Rate"
-          value="68%"
-          change="+3%"
-          isPositive={true}
-        />
+        <KpiCard title="QR Conv. Rate" value={`${data?.qrConvRate ?? 0}%`} />
         <KpiCard
           title="Table Occupancy"
-          value={`${Math.round((totalOccupied / totalCapacity) * 100)}%`}
+          value={
+            totalCapacity > 0
+              ? `${Math.round((totalOccupied / totalCapacity) * 100)}%`
+              : "0%"
+          }
           change={`${totalOccupied}/${totalCapacity}`}
           isPositive={true}
         />
@@ -706,6 +942,11 @@ export function OperationsTab() {
           </div>
 
           <div className="space-y-3">
+            {tableHealth.length === 0 && !isLoading ? (
+              <p className="text-sm text-muted">
+                No table areas configured yet.
+              </p>
+            ) : null}
             {tableHealth.map((zone) => {
               const percent = Math.round((zone.occupied / zone.total) * 100);
               return (
@@ -737,6 +978,9 @@ export function OperationsTab() {
         <div className="bg-white border border-border rounded-xl p-5">
           <h2 className="font-bold text-ink mb-4">Kitchen Queue SLA</h2>
           <div className="space-y-3">
+            {kitchenQueue.length === 0 && !isLoading ? (
+              <p className="text-sm text-muted">No active kitchen tickets.</p>
+            ) : null}
             {kitchenQueue.map((ticket) => (
               <div
                 key={ticket.ticket}
@@ -761,10 +1005,16 @@ export function OperationsTab() {
               </div>
             ))}
           </div>
-          <div className="mt-4 p-3 rounded-lg bg-saffron-lt text-saffron text-xs font-semibold flex items-center gap-2">
-            <AlertTriangle size={14} /> 1 ticket above 10 minutes. Escalate to
-            captain.
-          </div>
+          {kitchenQueue.some((t) => parseInt(t.wait) >= 10) && (
+            <div className="mt-4 p-3 rounded-lg bg-saffron-lt text-saffron text-xs font-semibold flex items-center gap-2">
+              <AlertTriangle size={14} />
+              {kitchenQueue.filter((t) => parseInt(t.wait) >= 10).length} ticket
+              {kitchenQueue.filter((t) => parseInt(t.wait) >= 10).length > 1
+                ? "s"
+                : ""}{" "}
+              above 10 minutes. Escalate to captain.
+            </div>
+          )}
         </div>
       </div>
     </div>

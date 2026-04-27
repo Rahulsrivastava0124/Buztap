@@ -80,7 +80,7 @@ export function PhoneScreen({ screen }) {
         <div className="flex items-center gap-1.5 bg-[#fef0e4] px-3 py-1.5 rounded-full">
           <div className="w-1.5 h-1.5 rounded-full bg-[#e8720c] pulse-dot" />
           <span className="text-[8px] font-semibold text-[#e8720c]">
-            restroMenu · Live
+            BuzTap · Live
           </span>
         </div>
       </div>

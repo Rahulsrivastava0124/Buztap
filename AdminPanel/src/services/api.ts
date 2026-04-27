@@ -2,6 +2,36 @@ export type UserRole = "admin" | "manager" | "cashier";
 
 export type PaymentMethod = "Cash" | "Card/UPI" | "Room Charge";
 
+export interface TodayStats {
+  totalVisitors: number;
+  activeOrders: number;
+  servedToday: number;
+  cancelledToday: number;
+  posOrders: number;
+  qrOrders: number;
+  hourlyVisits: Array<{ label: string; count: number }>;
+  peakHour: { label: string; count: number };
+  totalRevenue: number;
+  avgSpendPerVisitor: number;
+  newGuests: number;
+  returningGuests: number;
+  occupiedTables: number;
+  totalTables: number;
+  lastUpdated: string;
+}
+
+export interface RevenueTrend {
+  labels: string[];
+  data: number[];
+}
+
+export interface SocialLinks {
+  instagram: string;
+  facebook: string;
+  x: string;
+  googleReview: string;
+}
+
 export interface DashboardSnapshot {
   paymentBreakup: Array<{ label: string; amount: number; share: number }>;
   settlements: Array<{
@@ -32,10 +62,45 @@ export interface DashboardSnapshot {
     priority: "Normal" | "High";
   }>;
   channelSplit: Array<{ channel: string; value: number }>;
+  grossSales: number;
+  gstAmount: number;
+  totalUnitsSold: number;
+  topCategory: string;
+  avgTableTurnover: number;
+  qrScans: number;
+  qrConvRate: number;
+  dailyRevenue: number;
+  totalOrders: number;
+}
+
+export interface BusinessProfile {
+  id: string;
+  name: string;
+  type: "restro" | "hotel";
+  email: string;
+  phone: string;
+  address: string;
+  socialLinks: SocialLinks;
+  plan: "free" | "pro" | "enterprise";
+  subdomain: string;
+  branches: number;
+  tableCount: number;
+  isActive: boolean;
+}
+
+export interface UpdateBusinessProfileInput {
+  name: string;
+  email: string;
+  phone?: string;
+  address?: string;
+  socialLinks?: Partial<SocialLinks>;
+  subdomain?: string;
+  branches?: number;
+  tableCount?: number;
 }
 
 export interface PosMenuItem {
-  id: number;
+  id: string;
   name: string;
   price: number;
   cat: string;
@@ -49,168 +114,485 @@ export interface TableRecord {
   guestName: string | null;
 }
 
-const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
-const DASHBOARD: DashboardSnapshot = {
-  paymentBreakup: [
-    { label: "Card & UPI", amount: 32450, share: 75 },
-    { label: "Cash", amount: 10400, share: 24 },
-    { label: "Room Charge", amount: 1350, share: 1 },
-  ],
-  settlements: [
-    {
-      channel: "Razorpay UPI",
-      gross: 14850,
-      fee: 223,
-      net: 14627,
-      status: "Settled",
-    },
-    {
-      channel: "Card Terminal",
-      gross: 17600,
-      fee: 317,
-      net: 17283,
-      status: "Pending",
-    },
-    { channel: "Wallet", gross: 4800, fee: 96, net: 4704, status: "Settled" },
-  ],
-  productMix: [
-    {
-      name: "Paneer Butter Masala",
-      category: "Mains",
-      units: 145,
-      revenue: 40600,
-      margin: 34,
-      stock: "Healthy",
-    },
-    {
-      name: "Garlic Naan",
-      category: "Breads",
-      units: 420,
-      revenue: 25200,
-      margin: 42,
-      stock: "Healthy",
-    },
-    {
-      name: "Chicken Tikka",
-      category: "Starters",
-      units: 98,
-      revenue: 31360,
-      margin: 28,
-      stock: "Low",
-    },
-    {
-      name: "Mango Lassi",
-      category: "Beverage",
-      units: 110,
-      revenue: 13200,
-      margin: 48,
-      stock: "Healthy",
-    },
-  ],
-  areaLoad: [
-    { area: "Ground Floor", occupied: 9, total: 12, avgTurn: 42 },
-    { area: "First Floor", occupied: 6, total: 8, avgTurn: 47 },
-    { area: "Patio", occupied: 2, total: 4, avgTurn: 38 },
-  ],
-  kitchenQueue: [
-    { ticket: "#K-2849", stage: "Prep", wait: "4m", priority: "Normal" },
-    { ticket: "#K-2850", stage: "Cook", wait: "11m", priority: "High" },
-    { ticket: "#K-2851", stage: "Plating", wait: "2m", priority: "Normal" },
-  ],
-  channelSplit: [
-    { channel: "POS Walk-in", value: 48 },
-    { channel: "QR Dine-in", value: 37 },
-    { channel: "QR Room", value: 15 },
-  ],
-};
-
-const POS_MENU: PosMenuItem[] = [
-  {
-    id: 1,
-    name: "Paneer Butter Masala",
-    price: 280,
-    cat: "Mains",
-    img: "https://images.unsplash.com/photo-1565557623262-b51c2513a695?w=300&q=70",
-  },
-  {
-    id: 2,
-    name: "Garlic Naan",
-    price: 60,
-    cat: "Breads",
-    img: "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=300&q=70",
-  },
-  {
-    id: 3,
-    name: "Dal Makhani",
-    price: 220,
-    cat: "Mains",
-    img: "https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=300&q=70",
-  },
-  {
-    id: 4,
-    name: "Chicken Tikka",
-    price: 320,
-    cat: "Starters",
-    img: "https://images.unsplash.com/photo-1599487405613-2b63b2f1aa0c?w=300&q=70",
-  },
-  {
-    id: 5,
-    name: "Mango Lassi",
-    price: 120,
-    cat: "Beverages",
-    img: "https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?w=300&q=70",
-  },
-];
-
-let TABLES: TableRecord[] = Array.from({ length: 20 }).map((_, i) => {
-  const n = i + 1;
-  const statuses: TableRecord["status"][] = [
-    "Occupied",
-    "Free",
-    "Reserved",
-    "Cleaning",
-  ];
-  return {
-    id: `T-${String(n).padStart(2, "0")}`,
-    seats: n % 3 === 0 ? 6 : n % 2 === 0 ? 4 : 2,
-    status: statuses[i % 4],
-    guestName: statuses[i % 4] === "Occupied" ? `Guest ${n}` : null,
+export interface TableQrPayload {
+  tableId: string;
+  qrValue: string;
+  menuUrl: string;
+  businessName: string;
+  totalTables: number;
+  table: {
+    id: string;
+    label: string;
+    seats: number;
+    area: string;
   };
-});
+}
+
+export interface AdminLoginResponse {
+  token: string;
+  role: UserRole;
+  businessType: "restro" | "hotel";
+  businessName?: string;
+  subdomain?: string;
+  name?: string;
+  businessId?: string;
+}
+
+export interface OrderQueueItem {
+  id: string;
+  source: string;
+  items: number;
+  amount: number;
+  status: "Preparing" | "Ready" | "Served" | "Cancelled";
+  eta: string;
+}
+
+export interface InventoryItem {
+  id: string;
+  item: string;
+  unit: string;
+  inStock: number;
+  reorderAt: number;
+  status: "Healthy" | "Low" | "Out of Stock";
+}
+
+export interface StaffRecord {
+  id: string;
+  name: string;
+  role: string;
+  shift: string;
+  score: number;
+}
+
+export interface ReportRecord {
+  id: string;
+  name: string;
+  period: string;
+  owner?: string;
+}
+
+export interface MenuItem {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  price: number;
+  cost: number;
+  image: string;
+  isVeg: boolean;
+  isAvailable: boolean;
+  preparationTime: number;
+  spiceLevel: number;
+  allergens: string[];
+}
+
+export interface CreateMenuItemInput {
+  name: string;
+  description?: string;
+  category: string;
+  price: number;
+  cost?: number;
+  image?: string;
+  isVeg?: boolean;
+  isAvailable?: boolean;
+  preparationTime?: number;
+  spiceLevel?: number;
+  allergens?: string[];
+}
+
+export interface PosOrderItemInput {
+  menuItemId?: string;
+  name: string;
+  quantity: number;
+  price: number;
+  notes?: string;
+  modifiers?: string[];
+}
+
+export interface CreatePosOrderInput {
+  tableId?: string;
+  roomId?: string;
+  guestName?: string;
+  guestPhone?: string;
+  orderType?: "Dine-in" | "Takeaway" | "Delivery" | "Room Service";
+  source?: "POS" | "QR";
+  items: PosOrderItemInput[];
+  discountPct?: number;
+  discountReason?: string;
+  paymentMethod?: PaymentMethod;
+}
+
+export interface PosOrderResponse {
+  orderId: string;
+  total: number;
+  status: "Preparing" | "Ready" | "Served" | "Cancelled";
+}
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
+const AUTH_TOKEN_KEY = "adminAuthToken";
+
+function getFallbackBusinessProfile(): BusinessProfile {
+  const businessType =
+    (sessionStorage.getItem("adminBusinessType") as "restro" | "hotel") ||
+    "restro";
+
+  return {
+    id: "fallback-profile",
+    name: "",
+    type: businessType,
+    email: "",
+    phone: "",
+    address: "",
+    socialLinks: {
+      instagram: "",
+      facebook: "",
+      x: "",
+      googleReview: "",
+    },
+    plan: "free",
+    subdomain: "",
+    branches: 1,
+    tableCount: 0,
+    isActive: true,
+  };
+}
+
+function getAuthToken() {
+  return sessionStorage.getItem(AUTH_TOKEN_KEY);
+}
+
+export function clearAuthSession() {
+  sessionStorage.removeItem("adminAuth");
+  sessionStorage.removeItem("adminAuthRole");
+  sessionStorage.removeItem("adminBusinessType");
+  sessionStorage.removeItem("adminSubdomain");
+  sessionStorage.removeItem(AUTH_TOKEN_KEY);
+}
+
+async function request<T>(
+  path: string,
+  options: RequestInit = {},
+  useAuth = true,
+): Promise<T> {
+  const headers = new Headers(options.headers || {});
+  if (!headers.has("Content-Type") && options.body) {
+    headers.set("Content-Type", "application/json");
+  }
+
+  if (useAuth) {
+    const token = getAuthToken();
+    if (token) headers.set("Authorization", `Bearer ${token}`);
+  }
+
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    ...options,
+    headers,
+  });
+
+  const payload = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      clearAuthSession();
+      // Notify the app so AuthContext can redirect to login
+      window.dispatchEvent(new CustomEvent("auth:expired"));
+    }
+    throw new Error(payload?.error || `Request failed: ${response.status}`);
+  }
+
+  return payload as T;
+}
+
+export async function loginAdmin(
+  identifier: string,
+  password: string,
+): Promise<AdminLoginResponse> {
+  const data = await request<AdminLoginResponse>(
+    "/auth/login",
+    {
+      method: "POST",
+      body: JSON.stringify({ identifier, password }),
+    },
+    false,
+  );
+
+  sessionStorage.setItem(AUTH_TOKEN_KEY, data.token);
+  return data;
+}
+
+export async function fetchAuthMe(): Promise<{
+  role: UserRole;
+  businessType: "restro" | "hotel";
+  businessName?: string;
+  subdomain?: string;
+  name?: string;
+}> {
+  return request("/auth/me");
+}
+
+export async function logoutAdmin(): Promise<void> {
+  try {
+    await request("/auth/logout", { method: "POST" });
+  } finally {
+    clearAuthSession();
+  }
+}
 
 export async function fetchDashboardSnapshot(): Promise<DashboardSnapshot> {
-  await wait(120);
-  return DASHBOARD;
+  return request("/dashboard/snapshot");
+}
+
+export async function fetchBusinessProfile(): Promise<BusinessProfile> {
+  try {
+    return await request("/business/profile");
+  } catch (err: any) {
+    const message = err?.message || "";
+    // Backward compatible fallback when backend does not yet expose /business/profile
+    if (
+      message === "Route not found" ||
+      message === "Business profile not found"
+    ) {
+      return getFallbackBusinessProfile();
+    }
+    throw err;
+  }
+}
+
+export async function updateBusinessProfile(
+  payload: UpdateBusinessProfileInput,
+): Promise<BusinessProfile> {
+  return request("/business/profile", {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function fetchRevenueTrend(
+  range: "1D" | "7D" | "1M" | "6M",
+): Promise<RevenueTrend> {
+  return request(`/dashboard/revenue-trend?range=${range}`);
 }
 
 export async function fetchPosCatalog(): Promise<PosMenuItem[]> {
-  await wait(80);
-  return POS_MENU;
+  const rows = await request<Array<any>>("/menu");
+  return rows.map((item) => ({
+    id: item._id,
+    name: item.name,
+    price: Number(item.price || 0),
+    cat: item.category || "Uncategorized",
+    img: item.image || "",
+  }));
 }
 
 export async function fetchTables(): Promise<TableRecord[]> {
-  await wait(120);
-  return TABLES;
+  const rows = await request<Array<any>>("/tables");
+  return rows.map((table) => ({
+    id: table.tableId,
+    seats: Number(table.seats || 0),
+    status: table.status,
+    guestName: table.guestName ?? null,
+  }));
 }
 
 export async function updateTableStatus(
   tableId: string,
   status: TableRecord["status"],
-): Promise<TableRecord[]> {
-  await wait(100);
-  TABLES = TABLES.map((table) =>
-    table.id === tableId ? { ...table, status } : table,
-  );
-  return TABLES;
+): Promise<TableRecord> {
+  const table = await request<any>(`/tables/${tableId}/status`, {
+    method: "PUT",
+    body: JSON.stringify({ status }),
+  });
+  return {
+    id: table.tableId,
+    seats: Number(table.seats || 0),
+    status: table.status,
+    guestName: table.guestName ?? null,
+  };
 }
 
 export async function fetchIncomingQrOrders(): Promise<
   Array<{ id: string; source: string; amount: number }>
 > {
-  await wait(90);
-  return [
-    { id: "Q-1002", source: "Table 04", amount: 420 },
-    { id: "Q-1003", source: "Room 216", amount: 880 },
-  ];
+  return request("/orders/incoming/qr");
+}
+
+export async function fetchTableQr(tableId: string): Promise<TableQrPayload> {
+  return request(`/qr/${encodeURIComponent(tableId)}`, {}, false);
+}
+
+export async function fetchOrders(): Promise<OrderQueueItem[]> {
+  const data = await request<{ orders: Array<any> }>("/orders?limit=100");
+  const now = Date.now();
+  return (data.orders || []).map((order) => {
+    const minutes = Math.max(
+      1,
+      Math.round((now - new Date(order.createdAt).getTime()) / 60000),
+    );
+    const sourceLabel = order.tableId
+      ? order.tableId
+      : order.roomId
+        ? `Room ${order.roomId}`
+        : order.orderType;
+    const items = Array.isArray(order.items)
+      ? order.items.reduce(
+          (acc: number, item: any) => acc + (item.quantity || 0),
+          0,
+        )
+      : 0;
+    return {
+      id: order.orderId,
+      source: sourceLabel,
+      items,
+      amount: Number(order.total || 0),
+      status: order.status,
+      eta: order.status === "Served" ? "Done" : `${minutes}m`,
+    };
+  });
+}
+
+export async function fetchRecentOrders(): Promise<
+  Array<{
+    id: string;
+    table: string;
+    items: string;
+    total: string;
+    status: string;
+    time: string;
+  }>
+> {
+  const orders = await fetchOrders();
+  return orders.slice(0, 8).map((order) => ({
+    id: order.id,
+    table: order.source,
+    items: `${order.items} item${order.items === 1 ? "" : "s"}`,
+    total: `₹${order.amount.toLocaleString()}`,
+    status: order.status.toLowerCase(),
+    time: order.eta,
+  }));
+}
+
+export async function fetchInventory(): Promise<InventoryItem[]> {
+  const rows = await request<Array<any>>("/inventory");
+  return rows.map((item) => ({
+    id: item._id,
+    item: item.itemName,
+    unit: item.unit,
+    inStock: Number(item.inStock || 0),
+    reorderAt: Number(item.reorderAt || 0),
+    status: item.status,
+  }));
+}
+
+export async function fetchStaff(): Promise<StaffRecord[]> {
+  const rows = await request<Array<any>>("/staff");
+  return rows.map((member) => ({
+    id: member._id,
+    name: member.name,
+    role: member.role,
+    shift: member.shift,
+    score: Number(member.serviceScore || 0),
+  }));
+}
+
+export async function fetchReports(): Promise<ReportRecord[]> {
+  const rows = await request<Array<any>>("/reports");
+  return rows.map((report) => ({
+    id: report.id || report._id || report.name,
+    name: report.name,
+    period: report.period || "N/A",
+    owner: report.owner || "System",
+  }));
+}
+
+export async function createPosOrder(
+  payload: CreatePosOrderInput,
+): Promise<PosOrderResponse> {
+  const order = await request<any>("/orders", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+
+  return {
+    orderId: order.orderId,
+    total: Number(order.total || 0),
+    status: order.status,
+  };
+}
+
+function mapMenuItem(item: any): MenuItem {
+  return {
+    id: item._id,
+    name: item.name,
+    description: item.description || "",
+    category: item.category,
+    price: Number(item.price || 0),
+    cost: Number(item.cost || 0),
+    image: item.image || "",
+    isVeg: item.isVeg !== false,
+    isAvailable: item.isAvailable !== false,
+    preparationTime: Number(item.preparationTime || 15),
+    spiceLevel: Number(item.spiceLevel || 2),
+    allergens: Array.isArray(item.allergens) ? item.allergens : [],
+  };
+}
+
+export async function fetchMenuItems(): Promise<MenuItem[]> {
+  const rows = await request<Array<any>>("/menu");
+  return rows.map(mapMenuItem);
+}
+
+export async function fetchMenuCategories(): Promise<string[]> {
+  const data = await request<{ categories: string[] }>("/menu/categories");
+  return data.categories;
+}
+
+export async function createMenuItem(
+  payload: CreateMenuItemInput,
+): Promise<MenuItem> {
+  const item = await request<any>("/menu", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+  return mapMenuItem(item);
+}
+
+export async function updateMenuItem(
+  id: string,
+  payload: Partial<CreateMenuItemInput>,
+): Promise<MenuItem> {
+  const item = await request<any>(`/menu/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+  return mapMenuItem(item);
+}
+
+export async function deleteMenuItem(id: string): Promise<void> {
+  await request(`/menu/${id}`, { method: "DELETE" });
+}
+
+export async function fetchTodayStats(): Promise<TodayStats> {
+  return request("/dashboard/today-stats");
+}
+
+export async function uploadMenuImage(file: File): Promise<string> {
+  const token = getAuthToken();
+  const formData = new FormData();
+  formData.append("image", file);
+
+  const response = await fetch(`${API_BASE_URL}/upload`, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: formData,
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    if (response.status === 401) clearAuthSession();
+    throw new Error(payload?.error || `Upload failed: ${response.status}`);
+  }
+
+  // R2 returns an absolute URL directly
+  return payload.url as string;
 }
