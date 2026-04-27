@@ -7,15 +7,13 @@ import PageShell from "../components/layout/PageShell";
 
 const MENU_BASE = import.meta.env.VITE_MENU_BASE_URL || "http://localhost:5173";
 
-function buildGuestMenuUrl(baseUrl, businessId, tableId = "04") {
+function buildGuestMenuUrl(baseUrl, businessId, tableId = "04", slug = "") {
   const base = String(baseUrl || "").replace(/\/$/, "");
-  const params = new URLSearchParams({ table: tableId });
-
-  if (businessId) {
-    params.set("biz", String(businessId));
-  }
-
-  return `${base}/menu?${params.toString()}`;
+  const params = new URLSearchParams();
+  if (slug) params.set("restro", slug);
+  params.set("table", tableId);
+  if (businessId) params.set("biz", String(businessId));
+  return `${base}/order?${params.toString()}`;
 }
 
 function slugify(value) {
@@ -120,8 +118,8 @@ export default function SettingsPage() {
   });
 
   const previewMenuUrl = useMemo(
-    () => buildGuestMenuUrl(MENU_BASE, profile?.id, "04"),
-    [profile?.id],
+    () => buildGuestMenuUrl(MENU_BASE, profile?.id, "04", form.subdomain),
+    [profile?.id, form.subdomain],
   );
 
   function onChange(e) {

@@ -64,25 +64,40 @@ function getRequestOrigin(req) {
   return `${proto}://${host}`;
 }
 
-function buildMenuUrl({ req, tableId, businessId, subdomain }) {
-  const menuPath = "/menu";
-  const configuredMenuBase =
-    normalizeBaseUrl(process.env.MENU_APP_BASE_URL) ||
-    normalizeBaseUrl(process.env.MENU_WEB_BASE_URL);
+function buildMenuUrl({ req, tableId, businessId, subdomain, slug }) {
   const appBaseDomain = process.env.APP_BASE_DOMAIN || "";
 
+  function makeUrl(base) {
+    const params = new URLSearchParams();
+    if (slug) params.set("restro", slug);
+    params.set("table", tableId);
+    params.set("biz", String(businessId));
+    return `${base}/order?${params.toString()}`;
+  }
+
+  // Priority 1 — Subdomain routing (e.g. rahulrestro.buztap.com)
   if (subdomain && appBaseDomain) {
-    return `https://${subdomain}.${appBaseDomain}${menuPath}?table=${encodeURIComponent(tableId)}&biz=${encodeURIComponent(String(businessId))}`;
+    return makeUrl(`https://${subdomain}.${appBaseDomain}`);
   }
 
+  // Priority 2 — Explicitly set public customer-facing menu URL
+  const publicMenuBase = normalizeBaseUrl(process.env.PUBLIC_MENU_BASE_URL);
+  if (publicMenuBase) return makeUrl(publicMenuBase);
+
+  // Priority 3 — Local dev: use request origin only when it's localhost
   const baseFromRequest = getRequestOrigin(req);
-  const fallbackMenuBase = configuredMenuBase || baseFromRequest;
+  const isLocalOrigin = /localhost|127\.0\.0\.1/i.test(baseFromRequest);
+  if (isLocalOrigin && baseFromRequest) return makeUrl(baseFromRequest);
 
-  if (fallbackMenuBase) {
-    return `${fallbackMenuBase}${menuPath}?table=${encodeURIComponent(tableId)}&biz=${encodeURIComponent(String(businessId))}`;
-  }
+  // Priority 4 — Legacy MENU_APP_BASE_URL, skip if it's an admin domain
+  const legacyBase =
+    normalizeBaseUrl(process.env.MENU_APP_BASE_URL) ||
+    normalizeBaseUrl(process.env.MENU_WEB_BASE_URL);
+  const isAdminDomain = /admin/i.test(legacyBase);
+  if (legacyBase && !isAdminDomain) return makeUrl(legacyBase);
 
-  return `https://restroadmin.buzingbee.com${menuPath}?table=${encodeURIComponent(tableId)}&biz=${encodeURIComponent(String(businessId))}`;
+  // Final fallback — hardcoded production guest app domain
+  return makeUrl("https://restro.buzingbee.com");
 }
 
 async function getQr(req, res, next) {
@@ -102,6 +117,7 @@ async function getQr(req, res, next) {
       tableId: table.tableId,
       businessId: table.businessId,
       subdomain: business?.subdomain || "",
+      slug: business?.subdomain || "",
     });
 
     res.json({

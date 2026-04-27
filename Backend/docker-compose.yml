@@ -39,7 +39,8 @@ services:
       JWT_SECRET: ${JWT_SECRET:-change_this_to_a_long_random_secret_in_production}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:5174}
-      MENU_APP_BASE_URL: ${MENU_APP_BASE_URL:-http://localhost:5174}
+      MENU_APP_BASE_URL: ${MENU_APP_BASE_URL:-http://localhost:5173}
+      PUBLIC_MENU_BASE_URL: ${PUBLIC_MENU_BASE_URL:-https://restro.buzingbee.com}
       APP_BASE_DOMAIN: ${APP_BASE_DOMAIN:-}
       # Cloudflare R2 (leave blank if not using image uploads)
       R2_ACCOUNT_ID: ${R2_ACCOUNT_ID:-}
