@@ -334,6 +334,8 @@ export default function DemoMenu() {
   const [isJoined, setIsJoined] = useState(false);
   const [guestName, setGuestName] = useState("");
   const [guestPhone, setGuestPhone] = useState("");
+  const [joinLoading, setJoinLoading] = useState(false);
+  const [joinError, setJoinError] = useState("");
   const [orderStatus, setOrderStatus] = useState(0);
   const [orderNo, setOrderNo] = useState("");
   const [rating, setRating] = useState(0);
@@ -634,9 +636,26 @@ export default function DemoMenu() {
               Enter your phone to browse our menu and order.
             </p>
             <form
-              onSubmit={(e) => {
+              onSubmit={async (e) => {
                 e.preventDefault();
-                if (guestPhone) setIsJoined(true);
+                if (!guestPhone) return;
+                setJoinLoading(true);
+                setJoinError("");
+                try {
+                  await fetch(`${API_BASE_URL}/guests/register`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      phone: `+91${guestPhone}`,
+                      name: guestName || "Guest",
+                    }),
+                  });
+                } catch {
+                  // Backend unavailable — allow entry anyway so the demo still works
+                } finally {
+                  setJoinLoading(false);
+                }
+                setIsJoined(true);
               }}
               className="space-y-4"
             >
@@ -664,11 +683,21 @@ export default function DemoMenu() {
                   />
                 </div>
               </div>
+              {joinError && (
+                <p className="text-red-500 text-sm text-center">{joinError}</p>
+              )}
               <button
                 type="submit"
-                className="w-full py-4 bg-[#e8720c] hover:bg-[#d4620a] text-white font-bold rounded-xl shadow-lg transition-colors flex items-center justify-center gap-2"
+                disabled={joinLoading || guestPhone.length < 10}
+                className="w-full py-4 bg-[#e8720c] hover:bg-[#d4620a] disabled:opacity-60 text-white font-bold rounded-xl shadow-lg transition-colors flex items-center justify-center gap-2"
               >
-                View Menu <ArrowLeft size={18} className="rotate-180" />
+                {joinLoading ? (
+                  <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <>
+                    View Menu <ArrowLeft size={18} className="rotate-180" />
+                  </>
+                )}
               </button>
             </form>
           </div>
@@ -1077,20 +1106,6 @@ export default function DemoMenu() {
             <p className="text-xs text-gray-400">Powered by BuzTap © 2026</p>
           </div>
         </div>
-
-        {/* ── Floating MENU button ──────────────────────────────────────── */}
-        <button
-          onClick={() =>
-            scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" })
-          }
-          className="fixed bottom-24 right-4 w-14 h-14 bg-gray-900 rounded-full flex flex-col items-center justify-center text-white shadow-xl z-40"
-          style={{ maxWidth: "calc(50vw)" }}
-        >
-          <UtensilsCrossed size={20} />
-          <span className="text-[9px] font-bold mt-0.5 tracking-wide">
-            MENU
-          </span>
-        </button>
 
         {/* Floating Cart */}
         <AnimatePresence>

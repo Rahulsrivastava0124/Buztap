@@ -88,7 +88,8 @@ export function updateOrderStatus(id, status) {
   return request("PATCH", `/orders/${id}/status`, { status });
 }
 
-// ── Dashboard snapshot ───────────────────────────────────────────────────────
-export function fetchDashboardSnapshot() {
-  return request("GET", "/dashboard/snapshot");
+// ── Guests ───────────────────────────────────────────────────────────────────
+// No auth required — upserts the guest record by phone number.
+export function registerGuest(phone, name) {
+  return request("POST", "/guests/register", { phone, name: name || "Guest" });
 }
