@@ -15,7 +15,7 @@ import {
 import { Link, useNavigate } from "react-router-dom";
 
 const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
+  import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
 const DEFAULT_HERO_IMAGE =
   "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&q=80";
