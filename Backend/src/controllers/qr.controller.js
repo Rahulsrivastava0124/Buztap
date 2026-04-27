@@ -44,7 +44,7 @@ function mapPublicMenuItem(item) {
 
 function buildMenuUrl({ tableId, businessId, subdomain }) {
   const localMenuBase =
-    process.env.MENU_APP_BASE_URL || "http://localhost:5174";
+    process.env.MENU_APP_BASE_URL || "http://localhost:5173";
   const appBaseDomain = process.env.APP_BASE_DOMAIN || "";
 
   if (subdomain && appBaseDomain) {

@@ -5,7 +5,18 @@ import toast from "react-hot-toast";
 import { fetchBusinessProfile, updateBusinessProfile } from "../services/api";
 import PageShell from "../components/layout/PageShell";
 
-const MENU_BASE = import.meta.env.VITE_MENU_BASE_URL || "http://localhost:5174";
+const MENU_BASE = import.meta.env.VITE_MENU_BASE_URL || "http://localhost:5173";
+
+function buildDemoMenuUrl(baseUrl, businessId, tableId = "04") {
+  const base = String(baseUrl || "").replace(/\/$/, "");
+  const params = new URLSearchParams({ table: tableId });
+
+  if (businessId) {
+    params.set("biz", String(businessId));
+  }
+
+  return `${base}/demo?${params.toString()}`;
+}
 
 function slugify(value) {
   return String(value || "")
@@ -107,6 +118,11 @@ export default function SettingsPage() {
       );
     },
   });
+
+  const previewMenuUrl = useMemo(
+    () => buildDemoMenuUrl(MENU_BASE, profile?.id, "04"),
+    [profile?.id],
+  );
 
   function onChange(e) {
     const { name, value } = e.target;
@@ -321,10 +337,10 @@ export default function SettingsPage() {
             </label>
 
             <label className="text-sm md:col-span-2">
-              <span className="text-muted">Menu URL</span>
+              <span className="text-muted">Restaurant Slug</span>
               <div className="mt-1 flex items-center rounded-lg border border-border overflow-hidden">
                 <span className="px-3 py-2.5 text-xs bg-paper border-r border-border text-muted shrink-0">
-                  {MENU_BASE.replace(/https?:\/\//, "")}/
+                  slug
                 </span>
                 <input
                   name="subdomain"
@@ -334,16 +350,19 @@ export default function SettingsPage() {
                   placeholder="spice-route"
                 />
               </div>
-              {form.subdomain.trim() ? (
+              <p className="mt-1.5 text-xs text-muted">
+                This slug identifies your restaurant. The live guest menu opens in the demo route below.
+              </p>
+              {previewMenuUrl ? (
                 <div className="mt-1.5 flex items-center gap-2">
                   <span className="text-xs text-muted">Menu link:</span>
                   <a
-                    href={`${MENU_BASE}/${form.subdomain.trim()}`}
+                    href={previewMenuUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-xs text-saffron font-medium hover:underline break-all"
                   >
-                    {`${MENU_BASE}/${form.subdomain.trim()}`}
+                    {previewMenuUrl}
                   </a>
                 </div>
               ) : null}
