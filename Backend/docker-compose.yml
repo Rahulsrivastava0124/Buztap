@@ -1,0 +1,59 @@
+version: "3.9"
+
+services:
+  # ── MongoDB ──────────────────────────────────────────────────────────────────
+  mongo:
+    image: mongo:7-jammy
+    container_name: tableqr-mongo
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_DATABASE: tableqr
+    volumes:
+      - mongo_data:/data/db
+    ports:
+      - "27017:27017"       # expose only for local dev tools (Compass, etc.)
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+
+  # ── Backend API ───────────────────────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: tableqr-api
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+    ports:
+      - "5000:5000"
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      # Use the Docker-internal service name "mongo" instead of localhost
+      MONGO_URI: mongodb://mongo:27017/tableqr
+      JWT_SECRET: ${JWT_SECRET:-change_this_to_a_long_random_secret_in_production}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:5174}
+      MENU_APP_BASE_URL: ${MENU_APP_BASE_URL:-http://localhost:5174}
+      APP_BASE_DOMAIN: ${APP_BASE_DOMAIN:-}
+      # Cloudflare R2 (leave blank if not using image uploads)
+      R2_ACCOUNT_ID: ${R2_ACCOUNT_ID:-}
+      R2_BUCKET_NAME: ${R2_BUCKET_NAME:-}
+      R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID:-}
+      R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY:-}
+      R2_PUBLIC_URL: ${R2_PUBLIC_URL:-}
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:5000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+volumes:
+  mongo_data:
+    driver: local
