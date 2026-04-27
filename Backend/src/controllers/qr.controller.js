@@ -42,16 +42,46 @@ function mapPublicMenuItem(item) {
   };
 }
 
-function buildMenuUrl({ tableId, businessId, subdomain }) {
-  const localMenuBase =
-    process.env.MENU_APP_BASE_URL || "http://localhost:5173";
+function normalizeBaseUrl(value) {
+  const base = String(value || "").trim();
+  if (!base) return "";
+  return base.replace(/\/$/, "");
+}
+
+function getRequestOrigin(req) {
+  const explicitOrigin = normalizeBaseUrl(req.get("origin"));
+  if (explicitOrigin) return explicitOrigin;
+
+  const forwardedProto = String(req.get("x-forwarded-proto") || "").trim();
+  const forwardedHost = String(req.get("x-forwarded-host") || "").trim();
+  if (forwardedProto && forwardedHost) {
+    return `${forwardedProto}://${forwardedHost}`;
+  }
+
+  const host = String(req.get("host") || "").trim();
+  if (!host) return "";
+  const proto = req.protocol || "https";
+  return `${proto}://${host}`;
+}
+
+function buildMenuUrl({ req, tableId, businessId, subdomain }) {
+  const configuredMenuBase =
+    normalizeBaseUrl(process.env.MENU_APP_BASE_URL) ||
+    normalizeBaseUrl(process.env.MENU_WEB_BASE_URL);
   const appBaseDomain = process.env.APP_BASE_DOMAIN || "";
 
   if (subdomain && appBaseDomain) {
     return `https://${subdomain}.${appBaseDomain}/demo?table=${encodeURIComponent(tableId)}&biz=${encodeURIComponent(String(businessId))}`;
   }
 
-  return `${localMenuBase}/demo?table=${encodeURIComponent(tableId)}&biz=${encodeURIComponent(String(businessId))}`;
+  const baseFromRequest = getRequestOrigin(req);
+  const fallbackMenuBase = configuredMenuBase || baseFromRequest;
+
+  if (fallbackMenuBase) {
+    return `${fallbackMenuBase}/demo?table=${encodeURIComponent(tableId)}&biz=${encodeURIComponent(String(businessId))}`;
+  }
+
+  return `https://restroadmin.buzingbee.com/demo?table=${encodeURIComponent(tableId)}&biz=${encodeURIComponent(String(businessId))}`;
 }
 
 async function getQr(req, res, next) {
@@ -67,6 +97,7 @@ async function getQr(req, res, next) {
         .lean(),
     ]);
     const menuUrl = buildMenuUrl({
+      req,
       tableId: table.tableId,
       businessId: table.businessId,
       subdomain: business?.subdomain || "",

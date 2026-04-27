@@ -358,6 +358,7 @@ export default function DemoMenu() {
   const [showReward, setShowReward] = useState(false);
   const [freeItemClaimed, setFreeItemClaimed] = useState(false);
   const [orderHistory, setOrderHistory] = useState([]);
+  const [selectedItem, setSelectedItem] = useState(null);
 
   // Menu UI state
   const [searchQuery, setSearchQuery] = useState("");
@@ -655,13 +656,16 @@ export default function DemoMenu() {
 
   if (!isJoined) {
     return (
-      <div className="relative min-h-[100dvh] overflow-hidden bg-[#0f0e0b]">
-        <img
-          src={restaurantProfile.heroImage}
-          alt="Restaurant"
-          className="absolute inset-0 h-full w-full object-cover"
-        />
-        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(12,11,9,0.28)_0%,rgba(12,11,9,0.56)_38%,rgba(12,11,9,0.88)_100%)]" />
+      <div className="relative min-h-[100dvh] bg-[#0f0e0b]">
+        {/* Hero image — top portion only */}
+        <div className="absolute top-0 left-0 right-0 h-[42vh] overflow-hidden">
+          <img
+            src={restaurantProfile.heroImage}
+            alt="Restaurant"
+            className="h-full w-full object-cover"
+          />
+          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(12,11,9,0.18)_0%,rgba(12,11,9,0.55)_60%,rgba(12,11,9,1)_100%)]" />
+        </div>
 
         <div className="relative z-10 flex min-h-[100dvh] flex-col justify-between p-5 sm:p-8">
           <div className="flex items-start justify-between gap-4 text-white">
@@ -818,7 +822,7 @@ export default function DemoMenu() {
         </AnimatePresence>
 
         {/* ── Hero image ────────────────────────────────────────────────── */}
-        <div className="relative h-56 w-full bg-gray-900 flex-shrink-0">
+        <div className="relative h-40 w-full bg-gray-900 flex-shrink-0">
           <img
             src={restaurantProfile.heroImage}
             alt={restaurantProfile.name}
@@ -1092,7 +1096,8 @@ export default function DemoMenu() {
                           <img
                             src={item.img}
                             alt={item.name}
-                            className="w-full aspect-[4/3] object-cover"
+                            className="w-full aspect-[4/3] object-cover cursor-pointer"
+                            onClick={() => setSelectedItem(item)}
                           />
                           {item.popular && (
                             <span className="absolute top-2 left-2 text-xs font-bold text-green-600 bg-white/90 backdrop-blur-sm px-2 py-0.5 rounded-full shadow-sm">
@@ -1173,6 +1178,131 @@ export default function DemoMenu() {
           </div>
         </div>
 
+        {/* ── Item Detail Modal ──────────────────────────────────────── */}
+        <AnimatePresence>
+          {selectedItem && (
+            <motion.div
+              key="item-detail-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[70] bg-black/60 backdrop-blur-[2px]"
+              onClick={() => setSelectedItem(null)}
+            />
+          )}
+          {selectedItem && (
+            <motion.div
+              key="item-detail-sheet"
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 28, stiffness: 220 }}
+              className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md z-[71] bg-white rounded-t-3xl overflow-hidden shadow-2xl"
+            >
+              {/* Close pill */}
+              <button
+                onClick={() => setSelectedItem(null)}
+                className="absolute top-4 right-4 z-10 w-8 h-8 bg-black/50 rounded-full flex items-center justify-center text-white backdrop-blur-sm"
+              >
+                <span className="text-lg leading-none">&times;</span>
+              </button>
+
+              {/* Large image */}
+              <div className="relative w-full h-64 bg-gray-100">
+                <img
+                  src={selectedItem.img}
+                  alt={selectedItem.name}
+                  className="w-full h-full object-cover"
+                />
+                {selectedItem.popular && (
+                  <span className="absolute top-3 left-3 text-xs font-bold text-green-700 bg-white/90 px-2.5 py-1 rounded-full shadow">
+                    Popular
+                  </span>
+                )}
+              </div>
+
+              {/* Details */}
+              <div className="px-5 pt-4 pb-8">
+                {/* Veg / Non-veg + name */}
+                <div className="flex items-start gap-2 mb-1">
+                  {selectedItem.veg ? (
+                    <VegIcon size={16} />
+                  ) : (
+                    <NonVegIcon size={16} />
+                  )}
+                  <h3 className="text-xl font-bold text-gray-900 leading-tight">
+                    {selectedItem.name}
+                  </h3>
+                </div>
+
+                {/* Price row */}
+                <div className="flex items-center gap-2 mt-1 mb-2">
+                  <span className="text-lg font-bold text-gray-900">
+                    ₹{selectedItem.price}
+                  </span>
+                  {selectedItem.originalPrice && (
+                    <span className="text-sm text-gray-400 line-through">
+                      ₹{selectedItem.originalPrice}
+                    </span>
+                  )}
+                </div>
+
+                {/* Rating */}
+                <div className="flex items-center gap-1 mb-3">
+                  <Star size={14} className="fill-green-600 text-green-600" />
+                  <span className="text-sm font-semibold text-green-700">
+                    {selectedItem.rating}
+                  </span>
+                </div>
+
+                {/* Description */}
+                {selectedItem.desc && (
+                  <p className="text-sm text-gray-500 leading-relaxed mb-5">
+                    {selectedItem.desc}
+                  </p>
+                )}
+
+                {/* ADD / qty control */}
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex-1">
+                    {!cart[selectedItem.id] ? (
+                      <button
+                        onClick={() => {
+                          addToCart(selectedItem.id);
+                        }}
+                        className="w-full py-3 rounded-2xl border-2 border-pink-400 text-pink-500 font-extrabold text-base tracking-wide hover:bg-pink-50 transition-colors"
+                      >
+                        ADD
+                      </button>
+                    ) : (
+                      <div className="flex items-center justify-between border-2 border-pink-400 rounded-2xl px-4 py-2.5">
+                        <button
+                          onClick={() => removeFromCart(selectedItem.id)}
+                          className="text-pink-500 font-bold text-xl leading-none"
+                        >
+                          −
+                        </button>
+                        <span className="text-base font-extrabold text-gray-900">
+                          {cart[selectedItem.id]}
+                        </span>
+                        <button
+                          onClick={() => addToCart(selectedItem.id)}
+                          className="text-pink-500 font-bold text-xl leading-none"
+                        >
+                          +
+                        </button>
+                      </div>
+                    )}
+                    <p className="text-center text-xs text-gray-400 mt-1">
+                      Customisable
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Floating Cart */}
         <AnimatePresence>
           {totalItems > 0 && (
@@ -1183,31 +1313,29 @@ export default function DemoMenu() {
               className="fixed bottom-6 left-0 w-full px-4 z-50 pointer-events-none"
             >
               <div className="max-w-md mx-auto pointer-events-auto">
-                <div className="bg-[#e8720c] rounded-2xl shadow-[0_12px_30px_rgba(232,114,12,0.35)] p-4 flex items-center justify-between text-white">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center relative">
-                      <ShoppingBag size={20} />
-                      <span className="absolute -top-1 -right-1 w-5 h-5 bg-[#0f0e0b] rounded-full flex items-center justify-center text-[10px] font-bold">
+                <div className="bg-[#e8720c] rounded-xl shadow-[0_8px_24px_rgba(232,114,12,0.35)] px-3 py-2.5 flex items-center justify-between text-white">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center relative">
+                      <ShoppingBag size={16} />
+                      <span className="absolute -top-1 -right-1 w-4 h-4 bg-[#0f0e0b] rounded-full flex items-center justify-center text-[9px] font-bold">
                         {totalItems}
                       </span>
                     </div>
                     <div>
-                      <p className="text-[10px] font-bold text-white/80 uppercase tracking-widest mb-0.5">
+                      <p className="text-[9px] font-bold text-white/80 uppercase tracking-widest">
                         Total to pay
                       </p>
-                      <p className="font-bold text-lg leading-none">
+                      <p className="font-bold text-sm leading-none">
                         ₹{totalPrice}
                       </p>
                     </div>
                   </div>
                   <button
                     onClick={() => setShowCart(true)}
-                    className="flex items-center gap-2 font-bold text-sm bg-[#faf7f2] text-[#e8720c] px-5 py-2.5 rounded-xl hover:bg-white transition-colors shadow-sm"
+                    className="flex items-center gap-1.5 font-bold text-xs bg-[#faf7f2] text-[#e8720c] px-4 py-2 rounded-lg hover:bg-white transition-colors shadow-sm"
                   >
                     View Cart
-                    <div className="bg-[#fef0e4] p-1 rounded-md hidden sm:block">
-                      <ArrowLeft size={14} className="rotate-180" />
-                    </div>
+                    <ArrowLeft size={13} className="rotate-180" />
                   </button>
                 </div>
               </div>
