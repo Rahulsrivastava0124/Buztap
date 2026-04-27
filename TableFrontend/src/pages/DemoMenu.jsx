@@ -37,7 +37,9 @@ function getGuestSessionKey(tableId) {
 }
 
 function normalizeGuestPhone(value) {
-  return String(value || "").replace(/\D/g, "").slice(-10);
+  return String(value || "")
+    .replace(/\D/g, "")
+    .slice(-10);
 }
 
 // ── Veg / Non-veg indicator icons ─────────────────────────────────────────────
@@ -688,7 +690,8 @@ export default function DemoMenu() {
               Open the menu in full screen
             </h2>
             <p className="mt-2 text-sm leading-6 text-gray-500 sm:text-base">
-              Enter your phone number once to start browsing and keep your demo session active after refresh.
+              Enter your phone number once to start browsing and keep your demo
+              session active after refresh.
             </p>
 
             <form

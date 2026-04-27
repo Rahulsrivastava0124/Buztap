@@ -351,7 +351,8 @@ export default function SettingsPage() {
                 />
               </div>
               <p className="mt-1.5 text-xs text-muted">
-                This slug identifies your restaurant. The live guest menu opens in the demo route below.
+                This slug identifies your restaurant. The live guest menu opens
+                in the demo route below.
               </p>
               {previewMenuUrl ? (
                 <div className="mt-1.5 flex items-center gap-2">
