@@ -11,6 +11,7 @@ export default function App() {
     <Routes>
       <Route path="/" element={<Landing />} />
       <Route path="/auth" element={<AuthPage />} />
+      <Route path="/menu" element={<DemoMenu />} />
       <Route path="/demo" element={<DemoMenu />} />
       <Route path="/history" element={<OrderHistory />} />
       <Route path="/search" element={<RestaurantSearch />} />

@@ -65,23 +65,24 @@ function getRequestOrigin(req) {
 }
 
 function buildMenuUrl({ req, tableId, businessId, subdomain }) {
+  const menuPath = "/menu";
   const configuredMenuBase =
     normalizeBaseUrl(process.env.MENU_APP_BASE_URL) ||
     normalizeBaseUrl(process.env.MENU_WEB_BASE_URL);
   const appBaseDomain = process.env.APP_BASE_DOMAIN || "";
 
   if (subdomain && appBaseDomain) {
-    return `https://${subdomain}.${appBaseDomain}/demo?table=${encodeURIComponent(tableId)}&biz=${encodeURIComponent(String(businessId))}`;
+    return `https://${subdomain}.${appBaseDomain}${menuPath}?table=${encodeURIComponent(tableId)}&biz=${encodeURIComponent(String(businessId))}`;
   }
 
   const baseFromRequest = getRequestOrigin(req);
   const fallbackMenuBase = configuredMenuBase || baseFromRequest;
 
   if (fallbackMenuBase) {
-    return `${fallbackMenuBase}/demo?table=${encodeURIComponent(tableId)}&biz=${encodeURIComponent(String(businessId))}`;
+    return `${fallbackMenuBase}${menuPath}?table=${encodeURIComponent(tableId)}&biz=${encodeURIComponent(String(businessId))}`;
   }
 
-  return `https://restroadmin.buzingbee.com/demo?table=${encodeURIComponent(tableId)}&biz=${encodeURIComponent(String(businessId))}`;
+  return `https://restroadmin.buzingbee.com${menuPath}?table=${encodeURIComponent(tableId)}&biz=${encodeURIComponent(String(businessId))}`;
 }
 
 async function getQr(req, res, next) {

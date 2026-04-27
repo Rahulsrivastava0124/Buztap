@@ -7,7 +7,7 @@ import PageShell from "../components/layout/PageShell";
 
 const MENU_BASE = import.meta.env.VITE_MENU_BASE_URL || "http://localhost:5173";
 
-function buildDemoMenuUrl(baseUrl, businessId, tableId = "04") {
+function buildGuestMenuUrl(baseUrl, businessId, tableId = "04") {
   const base = String(baseUrl || "").replace(/\/$/, "");
   const params = new URLSearchParams({ table: tableId });
 
@@ -15,7 +15,7 @@ function buildDemoMenuUrl(baseUrl, businessId, tableId = "04") {
     params.set("biz", String(businessId));
   }
 
-  return `${base}/demo?${params.toString()}`;
+  return `${base}/menu?${params.toString()}`;
 }
 
 function slugify(value) {
@@ -120,7 +120,7 @@ export default function SettingsPage() {
   });
 
   const previewMenuUrl = useMemo(
-    () => buildDemoMenuUrl(MENU_BASE, profile?.id, "04"),
+    () => buildGuestMenuUrl(MENU_BASE, profile?.id, "04"),
     [profile?.id],
   );
 
@@ -352,7 +352,7 @@ export default function SettingsPage() {
               </div>
               <p className="mt-1.5 text-xs text-muted">
                 This slug identifies your restaurant. The live guest menu opens
-                in the demo route below.
+                in the menu route below.
               </p>
               {previewMenuUrl ? (
                 <div className="mt-1.5 flex items-center gap-2">
