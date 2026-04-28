@@ -22,6 +22,7 @@ import {
   Boxes,
   Users2,
   FileBarChart2,
+  TicketPercent,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
@@ -33,8 +34,9 @@ import {
   fetchIncomingQrOrders,
   approveQrOrder,
   declineQrOrder,
+  fetchBusinessProfile,
 } from "../services/api";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 const SIDEBAR_ITEMS = [
   {
@@ -83,6 +85,12 @@ const SIDEBAR_ITEMS = [
     minimumRole: "manager",
   },
   {
+    path: "/offers",
+    icon: TicketPercent,
+    label: "Coupons & Offers",
+    minimumRole: "manager",
+  },
+  {
     path: "/settings",
     icon: Settings,
     label: "Settings",
@@ -96,6 +104,8 @@ function SidebarContent({
   visibleSidebarItems,
   isHotelMode,
   handleLogout,
+  brandName,
+  logoImage,
 }) {
   const location = useLocation();
   return (
@@ -108,12 +118,20 @@ function SidebarContent({
           to={`/${slug}/dashboard/overview`}
           className={`flex items-center ${compactSidebar ? "justify-center" : "gap-2.5"}`}
         >
-          <span className="w-8 h-8 bg-saffron rounded-lg flex items-center justify-center">
-            <Utensils size={16} className="text-white" strokeWidth={2.2} />
+          <span className="w-10 h-10 bg-saffron rounded-lg border border-saffron-lt overflow-hidden flex items-center justify-center shrink-0">
+            {logoImage ? (
+              <img
+                src={logoImage}
+                alt={brandName || "Restaurant logo"}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <Utensils size={18} className="text-white" strokeWidth={2.2} />
+            )}
           </span>
           {!compactSidebar ? (
             <span className="font-display font-bold text-ink text-xl tracking-tight">
-              BuzTap
+              {brandName}
             </span>
           ) : null}
         </Link>
@@ -187,6 +205,14 @@ export default function AdminLayout() {
   const visibleSidebarItems = SIDEBAR_ITEMS.filter((item) =>
     hasRoleAccess(role, item.minimumRole),
   );
+  const { data: businessProfile } = useQuery({
+    queryKey: ["business-profile"],
+    queryFn: fetchBusinessProfile,
+  });
+
+  const brandName = businessProfile?.name || businessName || "BuzTap";
+  const brandLogo = businessProfile?.logoImage || "";
+
   const isHotelMode = businessType === "hotel";
   const canViewIncomingOrders = hasRoleAccess(role, "cashier");
   const unreadIncomingCount = incomingQrOrders.length;
@@ -317,6 +343,8 @@ export default function AdminLayout() {
           visibleSidebarItems={visibleSidebarItems}
           isHotelMode={isHotelMode}
           handleLogout={handleLogout}
+          brandName={brandName}
+          logoImage={brandLogo}
         />
         <button
           onClick={() => setCompactSidebar((prev) => !prev)}
@@ -356,6 +384,8 @@ export default function AdminLayout() {
                 visibleSidebarItems={visibleSidebarItems}
                 isHotelMode={isHotelMode}
                 handleLogout={handleLogout}
+                brandName={brandName}
+                logoImage={brandLogo}
               />
             </Motion.div>
           </>
@@ -393,6 +423,7 @@ export default function AdminLayout() {
               {location.pathname.includes("/inventory") && "Inventory"}
               {location.pathname.includes("/staff") && "Staff"}
               {location.pathname.includes("/reports") && "Reports"}
+              {location.pathname.includes("/offers") && "Coupons & Offers"}
               {location.pathname.includes("/settings") && "Settings"}
             </h1>
           </div>

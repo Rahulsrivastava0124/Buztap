@@ -1,5 +1,6 @@
 import { lazy, Suspense } from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
+import ErrorBoundary from "./components/shared/ErrorBoundary";
 
 const Landing = lazy(() => import("./pages/Landing"));
 const AuthPage = lazy(() => import("./pages/AuthPage"));
@@ -21,6 +22,14 @@ function LegacyGuestRedirect() {
   return <Navigate to={`/order${search || ""}`} replace />;
 }
 
+function DemoMenuWithBoundary() {
+  return (
+    <ErrorBoundary>
+      <DemoMenu />
+    </ErrorBoundary>
+  );
+}
+
 export default function App() {
   return (
     <Suspense fallback={<PageLoader />}>
@@ -28,7 +37,7 @@ export default function App() {
         <Route path="/" element={<Landing />} />
         <Route path="/auth" element={<AuthPage />} />
         {/* Primary guest ordering route */}
-        <Route path="/order" element={<DemoMenu />} />
+        <Route path="/order" element={<DemoMenuWithBoundary />} />
         {/* Backward-compat aliases so old QR codes & links still work */}
         <Route path="/menu" element={<LegacyGuestRedirect />} />
         <Route path="/demo" element={<LegacyGuestRedirect />} />

@@ -17,6 +17,7 @@ const guestsRoutes = require("./routes/guests.routes");
 const qrRoutes = require("./routes/qr.routes");
 const uploadRoutes = require("./routes/upload.routes");
 const businessRoutes = require("./routes/business.routes");
+const offersRoutes = require("./routes/offers.routes");
 
 const mongoose = require("mongoose");
 
@@ -106,6 +107,7 @@ app.use("/api/guests", guestsRoutes);
 app.use("/api/qr", qrRoutes);
 app.use("/api/upload", uploadRoutes);
 app.use("/api/business", businessRoutes);
+app.use("/api/offers", offersRoutes);
 
 // 404
 app.use((_req, res) => res.status(404).json({ error: "Route not found" }));

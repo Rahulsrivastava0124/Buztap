@@ -18,6 +18,9 @@ function mapPublicBusiness(business) {
     name: business.name || "",
     phone: business.phone || "",
     address: business.address || "",
+    restroUpi: business.restroUpi || "",
+    headerImage: business.headerImage || "",
+    logoImage: business.logoImage || "",
     socialLinks: {
       instagram: business.socialLinks?.instagram || "",
       facebook: business.socialLinks?.facebook || "",
@@ -154,7 +157,9 @@ async function getQr(req, res, next) {
 
     const [business, totalTables, availableMenuItems] = await Promise.all([
       Business.findById(table.businessId)
-        .select("name phone address socialLinks subdomain")
+        .select(
+          "name phone address socialLinks subdomain headerImage logoImage restroUpi",
+        )
         .lean(),
       Table.countDocuments({ businessId: table.businessId, isActive: true }),
       MenuItem.find({ businessId: table.businessId, isAvailable: true })

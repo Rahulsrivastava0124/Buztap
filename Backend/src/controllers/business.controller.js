@@ -18,22 +18,29 @@ const socialLinksSchema = z.object({
   googleReview: z.string().trim().url().optional().or(z.literal("")),
 });
 
-const updateBusinessSchema = z.object({
-  name: z.string().trim().min(2).max(120),
-  email: z.string().trim().email(),
-  phone: z.string().trim().max(30).optional().or(z.literal("")),
-  address: z.string().trim().max(240).optional().or(z.literal("")),
-  subdomain: z
-    .string()
-    .trim()
-    .toLowerCase()
-    .max(80)
-    .optional()
-    .or(z.literal("")),
-  branches: z.coerce.number().int().min(1).max(999).optional(),
-  tableCount: z.coerce.number().int().min(0).max(9999).optional(),
-  socialLinks: socialLinksSchema.optional(),
-});
+const updateBusinessSchema = z
+  .object({
+    name: z.string().trim().min(2).max(120).optional(),
+    email: z.string().trim().email().optional(),
+    phone: z.string().trim().max(30).optional().or(z.literal("")),
+    address: z.string().trim().max(240).optional().or(z.literal("")),
+    subdomain: z
+      .string()
+      .trim()
+      .toLowerCase()
+      .max(80)
+      .optional()
+      .or(z.literal("")),
+    branches: z.coerce.number().int().min(1).max(999).optional(),
+    tableCount: z.coerce.number().int().min(0).max(9999).optional(),
+    restroUpi: z.string().trim().max(120).optional().or(z.literal("")),
+    socialLinks: socialLinksSchema.optional(),
+    headerImage: z.string().trim().url().optional().or(z.literal("")),
+    logoImage: z.string().trim().url().optional().or(z.literal("")),
+  })
+  .refine((value) => Object.keys(value).length > 0, {
+    message: "At least one field is required",
+  });
 
 function mapBusinessProfile(business) {
   return {
@@ -53,6 +60,9 @@ function mapBusinessProfile(business) {
     subdomain: business.subdomain || slugify(business.name),
     branches: Number(business.branches || 1),
     tableCount: Number(business.tableCount ?? 0),
+    restroUpi: business.restroUpi || "",
+    headerImage: business.headerImage || "",
+    logoImage: business.logoImage || "",
     isActive: Boolean(business.isActive),
   };
 }
@@ -166,33 +176,91 @@ async function getBusinessProfile(req, res, next) {
   }
 }
 
+async function getPublicHeaderImage(req, res, next) {
+  try {
+    const restro = String(req.query.restro || "").trim();
+    const biz = String(req.query.biz || req.query.businessId || "").trim();
+
+    let business = null;
+    if (biz) {
+      business = await Business.findById(biz)
+        .select("_id name subdomain headerImage logoImage")
+        .lean();
+    } else if (restro) {
+      business = await Business.findOne({ subdomain: restro })
+        .select("_id name subdomain headerImage logoImage")
+        .lean();
+    }
+
+    if (!business) {
+      return res.status(404).json({ error: "Business not found" });
+    }
+
+    res.set("Cache-Control", "public, max-age=30");
+    res.json({
+      businessId: String(business._id),
+      name: business.name || "",
+      subdomain: business.subdomain || "",
+      headerImage: business.headerImage || "",
+      logoImage: business.logoImage || "",
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 async function updateBusinessProfile(req, res, next) {
   try {
     const payload = updateBusinessSchema.parse(req.body);
+    const updateSet = {
+      ...(payload.name !== undefined ? { name: payload.name } : {}),
+      ...(payload.email !== undefined ? { email: payload.email } : {}),
+      ...(payload.phone !== undefined ? { phone: payload.phone || "" } : {}),
+      ...(payload.address !== undefined
+        ? { address: payload.address || "" }
+        : {}),
+      ...(payload.branches !== undefined ? { branches: payload.branches } : {}),
+      ...(payload.tableCount !== undefined
+        ? { tableCount: payload.tableCount }
+        : {}),
+      ...(payload.restroUpi !== undefined
+        ? { restroUpi: payload.restroUpi || "" }
+        : {}),
+      ...(payload.headerImage !== undefined
+        ? { headerImage: payload.headerImage }
+        : {}),
+      ...(payload.logoImage !== undefined
+        ? { logoImage: payload.logoImage }
+        : {}),
+    };
+
+    if (payload.socialLinks) {
+      if (payload.socialLinks.instagram !== undefined) {
+        updateSet["socialLinks.instagram"] =
+          payload.socialLinks.instagram || "";
+      }
+      if (payload.socialLinks.facebook !== undefined) {
+        updateSet["socialLinks.facebook"] = payload.socialLinks.facebook || "";
+      }
+      if (payload.socialLinks.x !== undefined) {
+        updateSet["socialLinks.x"] = payload.socialLinks.x || "";
+      }
+      if (payload.socialLinks.googleReview !== undefined) {
+        updateSet["socialLinks.googleReview"] =
+          payload.socialLinks.googleReview || "";
+      }
+    }
+
+    if (payload.subdomain !== undefined) {
+      updateSet.subdomain = payload.subdomain || slugify(payload.name || "");
+    } else if (payload.name !== undefined) {
+      updateSet.subdomain = slugify(payload.name);
+    }
+
     const updated = await Business.findOneAndUpdate(
       { _id: req.user.businessId },
       {
-        $set: {
-          name: payload.name,
-          email: payload.email,
-          phone: payload.phone || "",
-          address: payload.address || "",
-          ...(payload.socialLinks
-            ? {
-                socialLinks: {
-                  instagram: payload.socialLinks.instagram || "",
-                  facebook: payload.socialLinks.facebook || "",
-                  x: payload.socialLinks.x || "",
-                  googleReview: payload.socialLinks.googleReview || "",
-                },
-              }
-            : {}),
-          subdomain: payload.subdomain || slugify(payload.name),
-          ...(payload.branches ? { branches: payload.branches } : {}),
-          ...(payload.tableCount !== undefined
-            ? { tableCount: payload.tableCount }
-            : {}),
-        },
+        $set: updateSet,
       },
       { new: true },
     ).lean();
@@ -213,5 +281,6 @@ async function updateBusinessProfile(req, res, next) {
 
 module.exports = {
   getBusinessProfile,
+  getPublicHeaderImage,
   updateBusinessProfile,
 };

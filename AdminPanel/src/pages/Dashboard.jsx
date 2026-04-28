@@ -966,8 +966,8 @@ function VisitorsTab() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="bg-white border border-border rounded-xl p-4">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="bg-white border border-border rounded-xl p-4 lg:col-span-2">
                 <p className="text-sm font-bold text-ink mb-3">Visitor Trend</p>
                 <div className="h-64">
                   <Line

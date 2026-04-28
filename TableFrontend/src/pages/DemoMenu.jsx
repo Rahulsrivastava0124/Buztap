@@ -233,8 +233,7 @@ const FOOD_ITEMS = [
 ];
 
 const ScratchCard = ({
-  width,
-  height,
+  aspectRatio = 280 / 120,
   children,
   finishPercent = 70,
   onComplete,
@@ -243,100 +242,128 @@ const ScratchCard = ({
   const [scratchedPercent, setScratchedPercent] = useState(0);
   const [isComplete, setIsComplete] = useState(false);
   const canvasRef = useRef(null);
-  const [ctx, setCtx] = useState(null);
+  const containerRef = useRef(null);
+  const ctxRef = useRef(null);
+  const dimsRef = useRef({ w: 0, h: 0 });
+
+  // Initialize / re-initialize canvas when container size is known
+  const initCanvas = (w, h) => {
+    const canvas = canvasRef.current;
+    if (!canvas || w === 0) return;
+    dimsRef.current = { w, h };
+    canvas.width = w;
+    canvas.height = h;
+    const context = canvas.getContext("2d");
+    context.fillStyle = "#c0c0c0";
+    context.fillRect(0, 0, w, h);
+    context.globalCompositeOperation = "destination-out";
+    ctxRef.current = context;
+  };
 
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (canvas) {
-      const context = canvas.getContext("2d");
-      context.fillStyle = "#ffffff";
-      context.fillRect(0, 0, width, height);
-      context.globalCompositeOperation = "destination-out";
-      setCtx(context);
+    if (!containerRef.current) return;
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const w = Math.floor(entry.contentRect.width);
+        const h = Math.round(w / aspectRatio);
+        initCanvas(w, h);
+      }
+    });
+    ro.observe(containerRef.current);
+    return () => ro.disconnect();
+  }, [aspectRatio]);
+
+  const getPos = (e) => {
+    const rect = canvasRef.current.getBoundingClientRect();
+    const scaleX = dimsRef.current.w / rect.width;
+    const scaleY = dimsRef.current.h / rect.height;
+    const clientX = e.clientX ?? e.touches?.[0]?.clientX ?? 0;
+    const clientY = e.clientY ?? e.touches?.[0]?.clientY ?? 0;
+    return {
+      x: (clientX - rect.left) * scaleX,
+      y: (clientY - rect.top) * scaleY,
+    };
+  };
+
+  const doScratch = (e) => {
+    if (!ctxRef.current || !isScratching) return;
+    const { x, y } = getPos(e);
+    const { w, h } = dimsRef.current;
+    ctxRef.current.beginPath();
+    ctxRef.current.arc(x, y, Math.max(w * 0.07, 18), 0, Math.PI * 2);
+    ctxRef.current.fill();
+
+    const imageData = ctxRef.current.getImageData(0, 0, w, h);
+    let cleared = 0;
+    for (let i = 3; i < imageData.data.length; i += 4) {
+      if (imageData.data[i] === 0) cleared++;
     }
-  }, [width, height]);
+    const pct = (cleared / (w * h)) * 100;
+    setScratchedPercent(pct);
+    if (pct >= finishPercent && !isComplete) {
+      setIsComplete(true);
+      setTimeout(() => onComplete?.(), 500);
+    }
+  };
 
   const startScratch = (e) => {
     setIsScratching(true);
-    scratch(e);
+    doScratch(e);
   };
-
-  const scratch = (e) => {
-    if (!ctx || !isScratching) return;
-
-    const rect = canvasRef.current.getBoundingClientRect();
-    const x = (e.clientX || e.touches[0].clientX) - rect.left;
-    const y = (e.clientY || e.touches[0].clientY) - rect.top;
-
-    ctx.beginPath();
-    ctx.arc(x, y, 20, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Calculate scratched percentage
-    const imageData = ctx.getImageData(0, 0, width, height);
-    let scratchedPixels = 0;
-    for (let i = 0; i < imageData.data.length; i += 4) {
-      if (imageData.data[i + 3] === 0) scratchedPixels++;
-    }
-    const percent = (scratchedPixels / (width * height)) * 100;
-    setScratchedPercent(percent);
-
-    if (percent >= finishPercent && !isComplete) {
-      setIsComplete(true);
-      setTimeout(() => onComplete && onComplete(), 500);
-    }
-  };
-
-  const stopScratch = () => {
-    setIsScratching(false);
-  };
+  const stopScratch = () => setIsScratching(false);
 
   return (
-    <div className="relative mb-4">
-      <div className="relative rounded-xl overflow-hidden shadow-lg">
+    <div className="relative mb-4 w-full">
+      {/* Outer wrapper sets aspect-ratio and fills full width */}
+      <div
+        ref={containerRef}
+        className="relative w-full rounded-xl overflow-hidden shadow-md"
+        style={{ aspectRatio: `${aspectRatio}` }}
+      >
         {/* Reward Layer (Background) */}
         <div className="absolute inset-0 z-0">{children[1]}</div>
 
         {/* Scratch Layer (Foreground) */}
-        <div className="relative z-10">{children[0]}</div>
+        <div className="absolute inset-0 z-10">{children[0]}</div>
 
-        {/* Canvas for scratching */}
+        {/* Canvas — fills container exactly, internal size matched by ResizeObserver */}
         <canvas
           ref={canvasRef}
-          width={width}
-          height={height}
-          className="absolute inset-0 z-20 cursor-pointer"
+          className="absolute inset-0 w-full h-full z-20 cursor-pointer touch-none"
           onMouseDown={startScratch}
-          onMouseMove={scratch}
+          onMouseMove={doScratch}
           onMouseUp={stopScratch}
           onMouseLeave={stopScratch}
           onTouchStart={(e) => {
             e.preventDefault();
-            startScratch(e.touches[0]);
+            setIsScratching(true);
+            doScratch(e.touches[0]);
           }}
           onTouchMove={(e) => {
             e.preventDefault();
-            scratch(e.touches[0]);
+            doScratch(e.touches[0]);
           }}
           onTouchEnd={stopScratch}
         />
 
-        {/* Scratch instruction overlay */}
-        {!isComplete && scratchedPercent < 10 && (
-          <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/20 rounded-xl">
-            <div className="text-white text-center">
-              <div className="text-2xl mb-2">👆</div>
-              <div className="text-sm font-bold">Touch & Drag to Scratch!</div>
+        {/* Instruction overlay — only before first scratch */}
+        {!isComplete && scratchedPercent < 5 && (
+          <div className="absolute inset-0 z-30 flex items-center justify-center pointer-events-none">
+            <div className="bg-black/50 backdrop-blur-[2px] rounded-xl px-4 py-2 flex items-center gap-2">
+              <span className="text-xl">👆</span>
+              <span className="text-white text-sm font-semibold tracking-wide">
+                Touch &amp; Drag to Scratch
+              </span>
             </div>
           </div>
         )}
 
-        {/* Completion effect */}
+        {/* Completion sparkle */}
         {isComplete && (
           <motion.div
             initial={{ scale: 0, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className="absolute inset-0 z-40 flex items-center justify-center bg-yellow-400/20 rounded-xl"
+            className="absolute inset-0 z-40 flex items-center justify-center bg-yellow-400/20 rounded-xl pointer-events-none"
           >
             <motion.div
               animate={{ rotate: 360 }}
@@ -349,8 +376,8 @@ const ScratchCard = ({
         )}
       </div>
 
-      {/* Progress indicator */}
-      <div className="mt-2">
+      {/* Progress bar */}
+      <div className="mt-2.5">
         <div className="w-full bg-gray-200 rounded-full h-2">
           <motion.div
             className="bg-[#e8720c] h-2 rounded-full"
@@ -359,7 +386,7 @@ const ScratchCard = ({
             transition={{ duration: 0.3 }}
           />
         </div>
-        <div className="text-center text-xs text-[#857c6e] mt-1">
+        <div className="text-center text-[11px] text-[#857c6e] mt-1.5">
           {isComplete
             ? "🎉 Reward Revealed!"
             : `Scratch Progress: ${Math.round(scratchedPercent)}%`}
@@ -401,13 +428,33 @@ export default function DemoMenu() {
   const [joinLoading, setJoinLoading] = useState(false);
   const [joinError, setJoinError] = useState("");
   const [orderStatus, setOrderStatus] = useState(0);
+  const [orderBackendStatus, setOrderBackendStatus] = useState("Pending");
   const [orderNo, setOrderNo] = useState("");
+  const [placedOrderAmount, setPlacedOrderAmount] = useState(0);
+  const [paymentMode, setPaymentMode] = useState("Online");
   const [activeOrderDbId, setActiveOrderDbId] = useState("");
   const [rating, setRating] = useState(0);
   const [selectedOffer, setSelectedOffer] = useState(0);
+  const [selectedOfferCode, setSelectedOfferCode] = useState("");
   const [couponCode, setCouponCode] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState("");
   const [couponError, setCouponError] = useState("");
+  const [offerOptions, setOfferOptions] = useState([
+    {
+      code: "SAVE5",
+      pct: 5,
+      title: "Saver 5%",
+      subtitle: "5% off",
+      minSubtotal: 500,
+    },
+    {
+      code: "FEST10",
+      pct: 10,
+      title: "Festival 10%",
+      subtitle: "10% off",
+      minSubtotal: 1000,
+    },
+  ]);
   const [visitCount, setVisitCount] = useState(0);
   const [showReward, setShowReward] = useState(false);
   const [freeItemClaimed, setFreeItemClaimed] = useState(false);
@@ -451,6 +498,7 @@ export default function DemoMenu() {
     eta: "15–20 mins",
     rating: 4.5,
     heroImage: DEFAULT_HERO_IMAGE,
+    restroUpi: "",
     tableLabel: getTableLabel(currentTableId),
     totalTables: null,
     socialLinks: DEFAULT_SOCIAL_LINKS,
@@ -586,7 +634,8 @@ export default function DemoMenu() {
         setRestaurantProfile((prev) => ({
           ...prev,
           name: payload.business?.name || restroNameFromSlug || prev.name,
-          heroImage: DEFAULT_HERO_IMAGE,
+          heroImage: payload.business?.headerImage || prev.heroImage,
+          restroUpi: payload.business?.restroUpi || prev.restroUpi,
           tableLabel: payload.table?.label || getTableLabel(currentTableId),
           totalTables:
             typeof payload.totalTables === "number"
@@ -630,6 +679,42 @@ export default function DemoMenu() {
     restroNameFromSlug,
   ]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadPublicHeaderImage() {
+      const params = new URLSearchParams();
+      if (currentRestroSlug) params.set("restro", currentRestroSlug);
+      if (resolvedBusinessId) params.set("biz", resolvedBusinessId);
+      if (!params.toString()) return;
+
+      try {
+        const response = await fetch(
+          `${API_BASE_URL}/business/public/header-image?${params.toString()}`,
+        );
+        if (!response.ok) return;
+        const payload = await response.json();
+        if (cancelled) return;
+
+        const image = String(payload?.headerImage || "").trim();
+        if (!image) return;
+
+        setRestaurantProfile((prev) => ({
+          ...prev,
+          heroImage: image,
+        }));
+      } catch {
+        // Keep fallback hero image if public header endpoint is unavailable.
+      }
+    }
+
+    loadPublicHeaderImage();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentRestroSlug, resolvedBusinessId]);
+
   // Load visit count and order history from localStorage when the guest logs in
   useEffect(() => {
     if (isJoined && guestPhone) {
@@ -652,11 +737,6 @@ export default function DemoMenu() {
       setOrderHistory(history);
     }
   }, [isJoined, guestName, guestPhone]);
-
-  const offerOptions = [
-    { pct: 5, title: "Saver 5%", subtitle: "5% off", minSubtotal: 500 },
-    { pct: 10, title: "Festival 10%", subtitle: "10% off", minSubtotal: 1000 },
-  ];
 
   const mapBackendStatusToStep = (status) => {
     if (status === "Ready" || status === "Served") return 2;
@@ -687,6 +767,7 @@ export default function DemoMenu() {
         );
         if (!activeOrder?.status) return;
 
+        setOrderBackendStatus(activeOrder.status);
         setOrderStatus(mapBackendStatusToStep(activeOrder.status));
       } catch {
         // Keep UI stable if polling fails temporarily.
@@ -749,6 +830,12 @@ export default function DemoMenu() {
   const recommendedItems = menuItems
     .filter((item) => !cart[item.id])
     .slice(0, 3);
+  const rewardItem =
+    menuItems.length > 0
+      ? menuItems.reduce((prev, current) =>
+          prev.price > current.price ? prev : current,
+        )
+      : null;
 
   // Scroll detection for sticky compact header
   useEffect(() => {
@@ -796,15 +883,55 @@ export default function DemoMenu() {
   };
 
   useEffect(() => {
+    let cancelled = false;
+
+    async function loadOffers() {
+      try {
+        const params = new URLSearchParams();
+        if (currentRestroSlug) params.set("restro", currentRestroSlug);
+        if (resolvedBusinessId) params.set("biz", resolvedBusinessId);
+
+        const res = await fetch(
+          `${API_BASE_URL}/offers/public?${params.toString()}`,
+        );
+
+        if (!res.ok) return;
+        const rows = await res.json();
+        if (cancelled || !Array.isArray(rows) || rows.length === 0) return;
+
+        setOfferOptions(
+          rows.map((row) => ({
+            code: String(row.code || ""),
+            pct: Number(row.discountPct || 0),
+            title: String(row.title || `${row.discountPct}% OFF`),
+            subtitle: String(row.description || `${row.discountPct}% off`),
+            minSubtotal: Number(row.minSubtotal || 0),
+          })),
+        );
+      } catch {
+        // Keep fallback offers for resiliency.
+      }
+    }
+
+    loadOffers();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentRestroSlug, resolvedBusinessId]);
+
+  useEffect(() => {
     if (selectedOffer) {
       const selected = offerOptions.find(
-        (offer) => offer.pct === selectedOffer,
+        (offer) =>
+          offer.pct === selectedOffer && offer.code === selectedOfferCode,
       );
       if (selected && totalPrice < selected.minSubtotal) {
         setSelectedOffer(0);
+        setSelectedOfferCode("");
       }
     }
-  }, [selectedOffer, totalPrice]);
+  }, [offerOptions, selectedOffer, selectedOfferCode, totalPrice]);
 
   useEffect(() => {
     if (totalItems === 0 && showCart) {
@@ -865,7 +992,9 @@ export default function DemoMenu() {
       : String(Math.floor(1000 + Math.random() * 9000));
 
     setOrderNo(nextOrderNo);
+    setPlacedOrderAmount(grandTotal);
     setActiveOrderDbId(backendOrderDbId);
+    setOrderBackendStatus(backendStatus);
     setOrderStatus(mapBackendStatusToStep(backendStatus));
     setOrderPlaced(true);
 
@@ -909,12 +1038,7 @@ export default function DemoMenu() {
 
   const applyCouponCode = () => {
     const normalized = couponCode.trim().toUpperCase();
-    const couponMap = {
-      SAVE5: { pct: 5, minSubtotal: 500 },
-      FEST10: { pct: 10, minSubtotal: 1000 },
-    };
-
-    const matched = couponMap[normalized];
+    const matched = offerOptions.find((offer) => offer.code === normalized);
     if (!matched) {
       setCouponError("Invalid coupon code");
       return;
@@ -926,10 +1050,38 @@ export default function DemoMenu() {
     }
 
     setSelectedOffer(matched.pct);
+    setSelectedOfferCode(matched.code);
     setAppliedCoupon(normalized);
     setCouponCode("");
     setCouponError("");
   };
+
+  const canShowPayment = orderBackendStatus === "Served";
+  const upiDeepLink = useMemo(() => {
+    const upiId = String(restaurantProfile.restroUpi || "").trim();
+    if (!upiId || !placedOrderAmount) return "";
+
+    const params = new URLSearchParams({
+      pa: upiId,
+      pn: restaurantDisplayName,
+      am: String(Number(placedOrderAmount).toFixed(2)),
+      cu: "INR",
+      tn: `Order #${orderNo}`,
+    });
+
+    return `upi://pay?${params.toString()}`;
+  }, [
+    placedOrderAmount,
+    orderNo,
+    restaurantDisplayName,
+    restaurantProfile.restroUpi,
+  ]);
+
+  const upiQrImage = upiDeepLink
+    ? `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(
+        upiDeepLink,
+      )}`
+    : "";
 
   if (!isJoined) {
     return (
@@ -1671,9 +1823,9 @@ export default function DemoMenu() {
                       animate={{ opacity: 1 }}
                       className="space-y-4"
                     >
-                      <div className="bg-white rounded-2xl p-4 shadow-sm border border-[#e0d9ce] space-y-3">
+                      <div className="bg-white/70 backdrop-blur-md rounded-2xl p-3 shadow-sm border border-white/60 space-y-2">
                         <div>
-                          <label className="block text-[11px] font-bold text-[#857c6e] uppercase tracking-wider mb-2">
+                          <label className="block text-[10px] font-bold text-[#857c6e] uppercase tracking-wide mb-1.5">
                             Your Name
                           </label>
                           <input
@@ -1681,10 +1833,10 @@ export default function DemoMenu() {
                             value={guestName}
                             onChange={(e) => setGuestName(e.target.value)}
                             placeholder="E.g. Rahul"
-                            className="w-full px-4 py-3 bg-[#faf7f2] border border-[#e0d9ce] rounded-xl focus:outline-none focus:border-[#e8720c]"
+                            className="w-full px-3 py-2.5 text-base bg-[#faf7f2] border border-[#e0d9ce] rounded-xl focus:outline-none focus:border-[#e8720c]"
                           />
                         </div>
-                        <p className="text-xs text-[#857c6e]">
+                        <p className="text-[11px] text-[#857c6e]">
                           Name will be used in order and invoice details.
                         </p>
                       </div>
@@ -1827,10 +1979,12 @@ export default function DemoMenu() {
                           <div className="space-y-2">
                             {offerOptions.map((offer) => {
                               const eligible = totalPrice >= offer.minSubtotal;
-                              const isSelected = selectedOffer === offer.pct;
+                              const isSelected =
+                                selectedOffer === offer.pct &&
+                                selectedOfferCode === offer.code;
                               return (
                                 <div
-                                  key={offer.title}
+                                  key={offer.code || offer.title}
                                   className={`rounded-xl border px-2.5 py-2 flex items-center justify-between gap-2.5 ${isSelected ? "bg-[#fef0e4] border-[#e8720c]/40" : "bg-[#faf7f2] border-[#e0d9ce]"}`}
                                 >
                                   <div className="min-w-0">
@@ -1846,8 +2000,10 @@ export default function DemoMenu() {
                                     onClick={() => {
                                       if (isSelected) {
                                         setSelectedOffer(0);
+                                        setSelectedOfferCode("");
                                       } else {
                                         setSelectedOffer(offer.pct);
+                                        setSelectedOfferCode(offer.code || "");
                                         setAppliedCoupon("");
                                         setCouponError("");
                                       }
@@ -1931,7 +2087,9 @@ export default function DemoMenu() {
                       animate={{ scale: 1, opacity: 1 }}
                       className="min-h-full flex flex-col items-center justify-start text-center p-6 pb-24 pt-10 space-y-4"
                     >
+                      {/* Dynamic icon based on order state */}
                       <motion.div
+                        key={orderStatus}
                         initial={{ scale: 0 }}
                         animate={{ scale: 1 }}
                         transition={{
@@ -1939,41 +2097,129 @@ export default function DemoMenu() {
                           damping: 15,
                           stiffness: 200,
                         }}
-                        className="w-24 h-24 bg-[#e8f2eb] text-[#3a6348] rounded-full flex items-center justify-center mb-2 shadow-[0_4px_30px_rgba(58,99,72,0.2)]"
+                        className={`w-14 h-14 rounded-full flex items-center justify-center mb-2 ${
+                          canShowPayment
+                            ? "bg-[#fff7ed] text-[#e8720c] shadow-[0_4px_30px_rgba(232,114,12,0.2)]"
+                            : orderStatus >= 2
+                              ? "bg-[#e8f2eb] text-[#3a6348] shadow-[0_4px_30px_rgba(58,99,72,0.2)]"
+                              : orderStatus === 1
+                                ? "bg-[#fff7ed] text-[#e8720c] shadow-[0_4px_30px_rgba(232,114,12,0.2)]"
+                                : "bg-[#e8f2eb] text-[#3a6348] shadow-[0_4px_30px_rgba(58,99,72,0.2)]"
+                        }`}
                       >
-                        <svg
-                          width="48"
-                          height="48"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="3"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <motion.path
-                            initial={{ pathLength: 0, opacity: 0 }}
-                            animate={{ pathLength: 1, opacity: 1 }}
-                            transition={{
-                              duration: 0.6,
-                              delay: 0.2,
-                              ease: "easeOut",
-                            }}
-                            d="M20 6L9 17l-5-5"
-                          />
-                        </svg>
+                        {canShowPayment ? (
+                          /* Served — payment due */
+                          <svg
+                            width="26"
+                            height="26"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2.5"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <rect
+                              x="1"
+                              y="4"
+                              width="22"
+                              height="16"
+                              rx="2"
+                              ry="2"
+                            />
+                            <line x1="1" y1="10" x2="23" y2="10" />
+                          </svg>
+                        ) : orderStatus === 1 ? (
+                          /* Preparing — flame/fire icon */
+                          <svg
+                            width="26"
+                            height="26"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2.5"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <path
+                              d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2z"
+                              opacity="0"
+                            />
+                            <path d="M8.5 14.5c0-2.5 2-4 2-6 1 1.5 3 3 3 5.5a5 5 0 0 1-10 0c0-1.5.5-2.5 1-3.5.5 1 1 2 1.5 2.5.5-1 1-2 1-3 .5 1 1.5 2 1.5 4.5z" />
+                          </svg>
+                        ) : orderStatus >= 2 ? (
+                          /* Ready — checkmark */
+                          <svg
+                            width="28"
+                            height="28"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="3"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <motion.path
+                              initial={{ pathLength: 0, opacity: 0 }}
+                              animate={{ pathLength: 1, opacity: 1 }}
+                              transition={{
+                                duration: 0.6,
+                                delay: 0.1,
+                                ease: "easeOut",
+                              }}
+                              d="M20 6L9 17l-5-5"
+                            />
+                          </svg>
+                        ) : (
+                          /* Pending/sent — checkmark */
+                          <svg
+                            width="28"
+                            height="28"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="3"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <motion.path
+                              initial={{ pathLength: 0, opacity: 0 }}
+                              animate={{ pathLength: 1, opacity: 1 }}
+                              transition={{
+                                duration: 0.6,
+                                delay: 0.2,
+                                ease: "easeOut",
+                              }}
+                              d="M20 6L9 17l-5-5"
+                            />
+                          </svg>
+                        )}
                       </motion.div>
-                      <h2 className="text-3xl font-display font-bold text-[#0f0e0b] mt-1">
-                        Order Placed
-                        {guestName ? `, ${guestName.split(" ")[0]}` : ""}!
-                      </h2>
+
+                      {/* Dynamic heading */}
+                      <motion.h2
+                        key={`title-${orderStatus}-${canShowPayment}`}
+                        initial={{ opacity: 0, y: 6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3 }}
+                        className="text-xl font-display font-bold text-[#0f0e0b] mt-1"
+                      >
+                        {canShowPayment
+                          ? `Time to Pay${guestName ? `, ${guestName.split(" ")[0]}` : ""}!`
+                          : orderStatus === 1
+                            ? `Hang tight${guestName ? `, ${guestName.split(" ")[0]}` : ""}!`
+                            : orderStatus >= 2
+                              ? `Almost Ready${guestName ? `, ${guestName.split(" ")[0]}` : ""}!`
+                              : `Order Placed${guestName ? `, ${guestName.split(" ")[0]}` : ""}!`}
+                      </motion.h2>
                       <p className="font-bold text-[#e8720c] bg-[#fef0e4] px-4 py-1.5 rounded-md text-sm inline-block tracking-wider">
                         ORDER #{orderNo}
                       </p>
-                      <div className="w-full bg-white rounded-3xl p-6 shadow-sm border border-[#e0d9ce] mt-2 text-left relative overflow-visible">
-                        <div className="absolute top-0 left-0 w-full h-1 rounded-full bg-[#f5f0e8]">
+                      <div className="w-full bg-white rounded-3xl shadow-sm border border-[#e0d9ce] mt-2 text-left relative overflow-hidden">
+                        {/* Top progress bar */}
+                        <div className="absolute top-0 left-0 w-full h-1 bg-[#f5f0e8]">
                           <motion.div
-                            className="h-full rounded-full bg-[#e8720c]"
+                            className="h-full bg-[#e8720c]"
                             initial={{ width: "0%" }}
                             animate={{
                               width:
@@ -1986,53 +2232,178 @@ export default function DemoMenu() {
                             transition={{ duration: 0.5 }}
                           />
                         </div>
-                        <p className="text-[10px] font-bold text-[#857c6e] uppercase tracking-wider mb-5 mt-1">
-                          Live Status
-                        </p>
 
-                        <div className="relative space-y-6 pb-5">
-                          <div className="absolute left-[7px] top-2 bottom-2 w-[2px] bg-[#f5f0e8]" />
-                          <div className="relative pl-9">
-                            <div
-                              className={`absolute left-0 top-1.5 w-3.5 h-3.5 rounded-full transition-all duration-500 ${orderStatus >= 0 ? "bg-[#e8720c] shadow-[0_0_0_8px_rgba(232,114,12,0.15)]" : "bg-[#e0d9ce]"}`}
-                            />
-                            <h4
-                              className={`font-semibold text-base ${orderStatus >= 0 ? "text-[#0f0e0b]" : "text-[#857c6e]"}`}
-                            >
-                              Sent to Kitchen
-                            </h4>
-                            <p className="text-[11px] font-medium text-[#857c6e] mt-1 leading-5">
-                              Order received by the chef.
-                            </p>
+                        {canShowPayment ? (
+                          /* Payment active — full-width served banner */
+                          <div className="pt-5 pb-4 px-5 flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-2xl bg-[#eaf4ee] flex items-center justify-center shrink-0">
+                              <svg
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                strokeWidth={2.5}
+                                stroke="#3a6348"
+                                className="w-6 h-6"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  d="M5 13l4 4L19 7"
+                                />
+                              </svg>
+                            </div>
+                            <div>
+                              <p className="font-bold text-base text-[#0f0e0b]">
+                                Order Served 🎉
+                              </p>
+                              <p className="text-xs text-[#857c6e] mt-0.5 leading-relaxed">
+                                Your food is on the table. Scroll down to pay.
+                              </p>
+                            </div>
                           </div>
-                          <div className="relative pl-9">
-                            <div
-                              className={`absolute left-0 top-1.5 w-3.5 h-3.5 rounded-full transition-all duration-500 ${orderStatus >= 1 ? "bg-[#e8720c] shadow-[0_0_0_8px_rgba(232,114,12,0.15)]" : "bg-[#e0d9ce]"}`}
-                            />
-                            <h4
-                              className={`font-semibold text-base transition-colors duration-500 ${orderStatus >= 1 ? "text-[#0f0e0b]" : "text-[#857c6e]"}`}
-                            >
-                              Preparing
-                            </h4>
-                            <p className="text-[11px] font-medium text-[#857c6e] mt-1 leading-5">
-                              Your food is being cooked.
+                        ) : (
+                          <div className="p-6">
+                            <p className="text-[10px] font-bold text-[#857c6e] uppercase tracking-wider mb-5 mt-1">
+                              Live Status
                             </p>
+
+                            {[
+                              { label: "Sent to Kitchen", step: 0 },
+                              { label: "Preparing", step: 1 },
+                              { label: "Ready to Serve", step: 2 },
+                            ].map(({ label, step }) => {
+                              const done = orderStatus > step;
+                              const active = orderStatus === step;
+                              const activeColor =
+                                step === 2 ? "#3a6348" : "#e8720c";
+                              const activeGlow =
+                                step === 2
+                                  ? "rgba(58,99,72,0.15)"
+                                  : "rgba(232,114,12,0.15)";
+                              return (
+                                <div key={step} className="relative pl-9">
+                                  {/* Connector line */}
+                                  {step < 2 && (
+                                    <div className="absolute left-[7px] top-[22px] w-[2px] h-[calc(100%+4px)] bg-[#f5f0e8]" />
+                                  )}
+                                  {/* Dot */}
+                                  {done ? (
+                                    <div className="absolute left-0 top-1 w-4 h-4 rounded-full bg-[#3a6348] flex items-center justify-center">
+                                      <svg
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        strokeWidth={3}
+                                        stroke="white"
+                                        className="w-2.5 h-2.5"
+                                      >
+                                        <path
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          d="M5 13l4 4L19 7"
+                                        />
+                                      </svg>
+                                    </div>
+                                  ) : active ? (
+                                    <motion.div
+                                      animate={{
+                                        boxShadow: [
+                                          `0 0 0 0px ${activeGlow}`,
+                                          `0 0 0 8px ${activeGlow}`,
+                                          `0 0 0 0px ${activeGlow}`,
+                                        ],
+                                      }}
+                                      transition={{
+                                        duration: 1.4,
+                                        repeat: Infinity,
+                                      }}
+                                      className="absolute left-0 top-1 w-4 h-4 rounded-full"
+                                      style={{ backgroundColor: activeColor }}
+                                    />
+                                  ) : (
+                                    <div className="absolute left-0 top-1 w-4 h-4 rounded-full bg-[#e0d9ce]" />
+                                  )}
+                                  <h4
+                                    className={`font-semibold text-base transition-colors duration-500 mb-5 ${done || active ? "text-[#0f0e0b]" : "text-[#b5afa6]"}`}
+                                  >
+                                    {label}
+                                    {active && (
+                                      <span
+                                        className="ml-2 text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full text-white"
+                                        style={{ backgroundColor: activeColor }}
+                                      >
+                                        Now
+                                      </span>
+                                    )}
+                                  </h4>
+                                </div>
+                              );
+                            })}
                           </div>
-                          <div className="relative pl-9">
-                            <div
-                              className={`absolute left-0 top-1.5 w-3.5 h-3.5 rounded-full transition-all duration-500 ${orderStatus >= 2 ? "bg-[#3a6348] shadow-[0_0_0_8px_rgba(58,99,72,0.15)]" : "bg-[#e0d9ce]"}`}
-                            />
-                            <h4
-                              className={`font-semibold text-base transition-colors duration-500 ${orderStatus >= 2 ? "text-[#0f0e0b]" : "text-[#857c6e]"}`}
-                            >
-                              Ready to Serve
-                            </h4>
-                            <p className="text-[11px] font-medium text-[#857c6e] mt-1 leading-5">
-                              Chef has completed your order.
-                            </p>
-                          </div>
-                        </div>
+                        )}
                       </div>
+
+                      {canShowPayment ? (
+                        <div className="w-full bg-white rounded-2xl p-5 shadow-[0_8px_30px_rgba(0,0,0,0.06)] border border-[#e0d9ce] mt-4 z-10 relative text-left">
+                          <p className="font-bold text-[#0f0e0b] mb-3 text-[15px]">
+                            Payment Option
+                          </p>
+
+                          <div className="flex items-center gap-2 mb-3">
+                            <button
+                              onClick={() => setPaymentMode("Online")}
+                              className={`px-3 py-1.5 rounded-lg text-xs font-bold border ${paymentMode === "Online" ? "bg-[#e8720c] text-white border-[#e8720c]" : "bg-[#faf7f2] text-[#0f0e0b] border-[#e0d9ce]"}`}
+                            >
+                              Online
+                            </button>
+                            <button
+                              onClick={() => setPaymentMode("Cash")}
+                              className={`px-3 py-1.5 rounded-lg text-xs font-bold border ${paymentMode === "Cash" ? "bg-[#e8720c] text-white border-[#e8720c]" : "bg-[#faf7f2] text-[#0f0e0b] border-[#e0d9ce]"}`}
+                            >
+                              Cash
+                            </button>
+                          </div>
+
+                          <div className="rounded-xl border border-[#e0d9ce] bg-[#faf7f2] px-3 py-2.5 mb-3">
+                            <p className="text-[11px] text-[#857c6e] font-semibold uppercase tracking-wide">
+                              Amount to Pay
+                            </p>
+                            <p className="text-xl font-black text-[#0f0e0b] mt-0.5">
+                              ₹{placedOrderAmount}
+                            </p>
+                          </div>
+
+                          {paymentMode === "Online" ? (
+                            <>
+                              {upiDeepLink ? (
+                                <div className="rounded-xl border border-[#e0d9ce] bg-white p-3 text-center">
+                                  <img
+                                    src={upiQrImage}
+                                    alt="UPI QR"
+                                    className="w-36 h-36 mx-auto object-contain"
+                                  />
+                                  <p className="text-[11px] text-[#857c6e] mt-2">
+                                    Scan QR or tap Pay button to open UPI app
+                                  </p>
+                                </div>
+                              ) : (
+                                <p className="text-xs text-[#c0392b] font-semibold">
+                                  Restaurant UPI is not configured yet.
+                                </p>
+                              )}
+
+                              <a
+                                href={upiDeepLink || undefined}
+                                className={`mt-3 w-full inline-flex items-center justify-center text-sm font-bold px-4 py-3 rounded-xl ${upiDeepLink ? "bg-[#0f0e0b] text-white hover:bg-[#25231f]" : "bg-[#e0d9ce] text-[#857c6e] pointer-events-none"}`}
+                              >
+                                Pay with UPI App
+                              </a>
+                            </>
+                          ) : (
+                            <p className="text-xs text-[#857c6e] font-semibold">
+                              Please pay this amount at the counter.
+                            </p>
+                          )}
+                        </div>
+                      ) : null}
 
                       {orderStatus === 2 && (
                         <motion.div
@@ -2080,7 +2451,9 @@ export default function DemoMenu() {
                           setCart({});
                           setOrderPlaced(false);
                           setActiveOrderDbId("");
+                          setOrderBackendStatus("Pending");
                           setOrderStatus(0);
+                          setPlacedOrderAmount(0);
                           setShowCart(false);
                           setRating(0);
                         }}
@@ -2098,7 +2471,7 @@ export default function DemoMenu() {
                     <button
                       onClick={handlePlaceOrder}
                       disabled={!guestName.trim()}
-                      className="w-full bg-[#e8720c] disabled:bg-[#e0d9ce] disabled:text-[#857c6e] text-white py-3.5 rounded-xl font-bold text-lg shadow-[0_4px_20px_rgba(232,114,12,0.3)] hover:bg-[#d4620a] transition-colors flex items-center justify-center gap-2"
+                      className="w-full bg-[#e8720c] disabled:bg-[#e0d9ce] disabled:text-[#857c6e] text-white py-3.5 rounded-xl font-bold text-sm shadow-[0_4px_20px_rgba(232,114,12,0.3)] hover:bg-[#d4620a] transition-colors flex items-center justify-center gap-2"
                     >
                       Place Order • ₹{grandTotal}{" "}
                       <ArrowLeft size={18} className="rotate-180" />
@@ -2277,16 +2650,13 @@ export default function DemoMenu() {
 
               {/* Scratch Card Component */}
               <ScratchCard
-                width={280}
-                height={120}
-                image="/api/placeholder/280/120"
+                aspectRatio={280 / 120}
                 finishPercent={50}
                 onComplete={() => {
                   // Add a free item to cart (let's give them the most expensive item as reward)
-                  const freeItem = menuItems.reduce((prev, current) =>
-                    prev.price > current.price ? prev : current,
-                  );
-                  addToCart(freeItem.id);
+                  if (rewardItem?.id) {
+                    addToCart(rewardItem.id);
+                  }
                   setFreeItemClaimed(true);
                   localStorage.setItem(`reward_claimed_${guestPhone}`, "true");
                   setTimeout(() => setShowReward(false), 2000); // Close after showing reward
@@ -2296,8 +2666,7 @@ export default function DemoMenu() {
                 <div className="w-full h-full bg-gradient-to-br from-[#e8720c] via-[#f97316] to-[#d4620a] rounded-xl flex items-center justify-center relative overflow-hidden">
                   <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse"></div>
                   <div className="text-white text-center z-10">
-                    <div className="text-2xl mb-1">🎁</div>
-                    <div className="text-sm font-bold">Scratch Here!</div>
+                    <div className="text-3xl">🎁</div>
                   </div>
                 </div>
 
@@ -2308,11 +2677,7 @@ export default function DemoMenu() {
                     <div className="text-3xl mb-2">🎉</div>
                     <div className="text-lg font-bold mb-1">FREE ITEM!</div>
                     <div className="text-sm opacity-90">
-                      {
-                        menuItems.reduce((prev, current) =>
-                          prev.price > current.price ? prev : current,
-                        ).name
-                      }
+                      {rewardItem?.name || "Chef's Surprise"}
                     </div>
                   </div>
                   <div className="absolute bottom-2 left-2 right-2 text-xs opacity-75 text-center">
@@ -2323,12 +2688,7 @@ export default function DemoMenu() {
 
               <p className="text-[#857c6e] text-xs mt-4 leading-relaxed">
                 Scratch the card above to claim your free{" "}
-                {
-                  menuItems.reduce((prev, current) =>
-                    prev.price > current.price ? prev : current,
-                  ).name
-                }
-                !
+                {rewardItem?.name || "dish"}!
               </p>
 
               <button

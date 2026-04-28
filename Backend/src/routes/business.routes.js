@@ -3,10 +3,13 @@ const authenticate = require("../middleware/auth");
 const requireRole = require("../middleware/requireRole");
 const {
   getBusinessProfile,
+  getPublicHeaderImage,
   updateBusinessProfile,
 } = require("../controllers/business.controller");
 
 const router = Router();
+
+router.get("/public/header-image", getPublicHeaderImage);
 
 router.get(
   "/profile",

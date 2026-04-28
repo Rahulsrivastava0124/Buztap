@@ -9,6 +9,7 @@ import TablesPage from "./pages/TablesPage";
 import InventoryPage from "./pages/InventoryPage";
 import StaffPage from "./pages/StaffPage";
 import ReportsPage from "./pages/ReportsPage";
+import OffersPage from "./pages/OffersPage";
 import SettingsPage from "./pages/SettingsPage";
 import MenuPage from "./pages/MenuPage";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -33,6 +34,7 @@ export default function App() {
             <Route path="menu" element={<MenuPage />} />
             <Route path="staff" element={<StaffPage />} />
             <Route path="reports" element={<ReportsPage />} />
+            <Route path="offers" element={<OffersPage />} />
           </Route>
           <Route element={<ProtectedRoute minimumRole="admin" />}>
             <Route path="inventory" element={<InventoryPage />} />

@@ -1,8 +1,20 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Bell, Building2, Globe2, Save, ShieldCheck } from "lucide-react";
+import {
+  Bell,
+  Building2,
+  Globe2,
+  ImageUp,
+  Save,
+  ShieldCheck,
+  X,
+} from "lucide-react";
 import toast from "react-hot-toast";
-import { fetchBusinessProfile, updateBusinessProfile } from "../services/api";
+import {
+  fetchBusinessProfile,
+  updateBusinessProfile,
+  uploadMenuImage,
+} from "../services/api";
 import PageShell from "../components/layout/PageShell";
 
 const MENU_BASE = import.meta.env.VITE_MENU_BASE_URL || "http://localhost:5173";
@@ -71,6 +83,7 @@ const EMPTY_FORM = {
   email: "",
   phone: "",
   address: "",
+  restroUpi: "",
   socialLinks: {
     instagram: "",
     facebook: "",
@@ -86,6 +99,12 @@ export default function SettingsPage() {
   const queryClient = useQueryClient();
   const [edited, setEdited] = useState({});
   const [saveMessage, setSaveMessage] = useState("");
+  const [headerPreview, setHeaderPreview] = useState(null);
+  const [headerFile, setHeaderFile] = useState(null);
+  const [logoPreview, setLogoPreview] = useState(null);
+  const [logoFile, setLogoFile] = useState(null);
+  const headerInputRef = useRef(null);
+  const logoInputRef = useRef(null);
 
   const {
     data: profile,
@@ -106,6 +125,7 @@ export default function SettingsPage() {
             email: profile.email || "",
             phone: profile.phone || "",
             address: profile.address || "",
+            restroUpi: profile.restroUpi || "",
             socialLinks: {
               instagram: profile.socialLinks?.instagram || "",
               facebook: profile.socialLinks?.facebook || "",
@@ -137,6 +157,38 @@ export default function SettingsPage() {
           ? "Profile update service is not available right now."
           : msg,
       );
+    },
+  });
+
+  const headerMutation = useMutation({
+    mutationFn: async (file) => {
+      const url = await uploadMenuImage(file);
+      return updateBusinessProfile({ headerImage: url });
+    },
+    onSuccess: (updated) => {
+      queryClient.setQueryData(["business-profile"], updated);
+      setHeaderFile(null);
+      setHeaderPreview(null);
+      toast.success("Header image updated.");
+    },
+    onError: (err) => {
+      toast.error(err?.message || "Failed to upload header image.");
+    },
+  });
+
+  const logoMutation = useMutation({
+    mutationFn: async (file) => {
+      const url = await uploadMenuImage(file);
+      return updateBusinessProfile({ logoImage: url });
+    },
+    onSuccess: (updated) => {
+      queryClient.setQueryData(["business-profile"], updated);
+      setLogoFile(null);
+      setLogoPreview(null);
+      toast.success("Logo updated.");
+    },
+    onError: (err) => {
+      toast.error(err?.message || "Failed to upload logo.");
     },
   });
 
@@ -184,6 +236,43 @@ export default function SettingsPage() {
     });
   }
 
+  function validateSelectedImage(file) {
+    if (!file.type?.startsWith("image/")) {
+      toast.error("Only image files are supported.");
+      return false;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image size must be under 5 MB.");
+      return false;
+    }
+    return true;
+  }
+
+  function onHeaderFileChange(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!validateSelectedImage(file)) {
+      e.target.value = "";
+      return;
+    }
+    setHeaderFile(file);
+    setHeaderPreview(URL.createObjectURL(file));
+    // Reset input so the same file can be re-selected
+    e.target.value = "";
+  }
+
+  function onLogoFileChange(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!validateSelectedImage(file)) {
+      e.target.value = "";
+      return;
+    }
+    setLogoFile(file);
+    setLogoPreview(URL.createObjectURL(file));
+    e.target.value = "";
+  }
+
   function onSubmit(e) {
     e.preventDefault();
     setSaveMessage("");
@@ -192,6 +281,7 @@ export default function SettingsPage() {
       email: form.email.trim(),
       phone: form.phone.trim(),
       address: form.address.trim(),
+      restroUpi: form.restroUpi.trim(),
       socialLinks: {
         instagram: form.socialLinks.instagram.trim(),
         facebook: form.socialLinks.facebook.trim(),
@@ -246,6 +336,117 @@ export default function SettingsPage() {
             </div>
           ) : null}
 
+          <div className="mb-5 p-4 rounded-lg border border-border bg-paper">
+            <p className="text-sm font-medium text-ink mb-3">Brand Images</p>
+            <p className="text-xs text-muted mb-3">
+              Compact upload controls for menu header and logo. Max size 5 MB
+              per image.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="rounded-lg border border-border bg-white p-3">
+                <p className="text-xs font-semibold text-ink">Header Image</p>
+                <div className="mt-2 h-20 rounded-md border border-border overflow-hidden bg-paper flex items-center justify-center">
+                  {headerPreview || profile?.headerImage ? (
+                    <img
+                      src={headerPreview || profile.headerImage}
+                      alt="Header preview"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <ImageUp size={18} className="text-muted" />
+                  )}
+                </div>
+                <input
+                  ref={headerInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={onHeaderFileChange}
+                />
+                <div className="mt-2 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => headerInputRef.current?.click()}
+                    className="text-xs px-2.5 py-1.5 rounded-md border border-border hover:bg-paper"
+                  >
+                    Choose
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!headerFile || headerMutation.isPending}
+                    onClick={() => headerMutation.mutate(headerFile)}
+                    className="text-xs px-2.5 py-1.5 rounded-md bg-saffron text-white hover:bg-saffron2 disabled:opacity-60"
+                  >
+                    {headerMutation.isPending ? "Uploading..." : "Upload"}
+                  </button>
+                  {headerFile ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setHeaderFile(null);
+                        setHeaderPreview(null);
+                      }}
+                      className="p-1.5 rounded-md border border-border text-muted hover:text-ink"
+                    >
+                      <X size={12} />
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-border bg-white p-3">
+                <p className="text-xs font-semibold text-ink">Logo</p>
+                <div className="mt-2 h-20 rounded-md border border-border overflow-hidden bg-paper flex items-center justify-center">
+                  {logoPreview || profile?.logoImage ? (
+                    <img
+                      src={logoPreview || profile.logoImage}
+                      alt="Logo preview"
+                      className="w-full h-full object-contain"
+                    />
+                  ) : (
+                    <ImageUp size={18} className="text-muted" />
+                  )}
+                </div>
+                <input
+                  ref={logoInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={onLogoFileChange}
+                />
+                <div className="mt-2 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => logoInputRef.current?.click()}
+                    className="text-xs px-2.5 py-1.5 rounded-md border border-border hover:bg-paper"
+                  >
+                    Choose
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!logoFile || logoMutation.isPending}
+                    onClick={() => logoMutation.mutate(logoFile)}
+                    className="text-xs px-2.5 py-1.5 rounded-md bg-saffron text-white hover:bg-saffron2 disabled:opacity-60"
+                  >
+                    {logoMutation.isPending ? "Uploading..." : "Upload"}
+                  </button>
+                  {logoFile ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLogoFile(null);
+                        setLogoPreview(null);
+                      }}
+                      className="p-1.5 rounded-md border border-border text-muted hover:text-ink"
+                    >
+                      <X size={12} />
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <label className="text-sm">
               <span className="text-muted">Restaurant Name</span>
@@ -280,6 +481,17 @@ export default function SettingsPage() {
                 onChange={onChange}
                 className="mt-1 w-full rounded-lg border border-border bg-white px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-saffron/30"
                 placeholder="+91 98xxxxxxx"
+              />
+            </label>
+
+            <label className="text-sm">
+              <span className="text-muted">Restaurant UPI ID</span>
+              <input
+                name="restroUpi"
+                value={form.restroUpi}
+                onChange={onChange}
+                className="mt-1 w-full rounded-lg border border-border bg-white px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-saffron/30"
+                placeholder="yourupi@bank"
               />
             </label>
 

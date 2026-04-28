@@ -87,18 +87,24 @@ export interface BusinessProfile {
   subdomain: string;
   branches: number;
   tableCount: number;
+  restroUpi: string;
+  headerImage: string;
+  logoImage: string;
   isActive: boolean;
 }
 
 export interface UpdateBusinessProfileInput {
-  name: string;
-  email: string;
+  name?: string;
+  email?: string;
   phone?: string;
   address?: string;
   socialLinks?: Partial<SocialLinks>;
   subdomain?: string;
   branches?: number;
   tableCount?: number;
+  restroUpi?: string;
+  headerImage?: string;
+  logoImage?: string;
 }
 
 export interface PosMenuItem {
@@ -153,7 +159,16 @@ export interface OrderQueueItem {
   items: number;
   amount: number;
   status: "Pending" | "Preparing" | "Ready" | "Served" | "Cancelled";
+  paymentStatus?: "Pending" | "Completed" | "Failed";
+  paymentMethod?: string;
+  transactionId?: string | null;
   eta: string;
+}
+
+export interface UpdateOrderPaymentInput {
+  paymentMethod: PaymentMethod;
+  paymentStatus: "Completed" | "Failed";
+  transactionId?: string;
 }
 
 export interface OrderDetailItem {
@@ -207,6 +222,29 @@ export interface ReportRecord {
   name: string;
   period: string;
   owner?: string;
+}
+
+export interface OfferRecord {
+  id: string;
+  title: string;
+  code: string;
+  description: string;
+  discountPct: number;
+  minSubtotal: number;
+  isVisible: boolean;
+  isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface CreateOfferInput {
+  title: string;
+  code: string;
+  description?: string;
+  discountPct: number;
+  minSubtotal?: number;
+  isVisible?: boolean;
+  isActive?: boolean;
 }
 
 export interface MenuItem {
@@ -292,8 +330,23 @@ function getFallbackBusinessProfile(): BusinessProfile {
     subdomain: "",
     branches: 1,
     tableCount: 0,
+    restroUpi: "",
+    headerImage: "",
+    logoImage: "",
     isActive: true,
   };
+}
+
+function buildApiErrorMessage(payload: any, status: number): string {
+  if (payload?.error && payload?.details?.length > 0) {
+    const first = payload.details[0];
+    const path = Array.isArray(first?.path) ? first.path.join(".") : "";
+    const detailMsg = first?.message || "Invalid input";
+    return path
+      ? `${payload.error}: ${path} - ${detailMsg}`
+      : `${payload.error}: ${detailMsg}`;
+  }
+  return payload?.error || `Request failed: ${status}`;
 }
 
 function getAuthToken() {
@@ -336,7 +389,7 @@ async function request<T>(
       // Notify the app so AuthContext can redirect to login
       window.dispatchEvent(new CustomEvent("auth:expired"));
     }
-    throw new Error(payload?.error || `Request failed: ${response.status}`);
+    throw new Error(buildApiErrorMessage(payload, response.status));
   }
 
   return payload as T;
@@ -513,6 +566,9 @@ export async function fetchOrders(): Promise<OrderQueueItem[]> {
       items,
       amount: Number(order.total || 0),
       status: order.status,
+      paymentStatus: order.paymentStatus || "Pending",
+      paymentMethod: order.paymentMethod || "Pending",
+      transactionId: order.transactionId || null,
       eta: order.status === "Served" ? "Done" : `${minutes}m`,
     };
   });
@@ -530,6 +586,19 @@ export async function updateOrderStatus(
     method: "PATCH",
     body: JSON.stringify({ status }),
   });
+}
+
+export async function updateOrderPayment(
+  orderId: string,
+  payload: UpdateOrderPaymentInput,
+): Promise<OrderDetail> {
+  return request<OrderDetail>(
+    `/orders/${encodeURIComponent(orderId)}/payment`,
+    {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    },
+  );
 }
 
 export async function fetchRecentOrders(): Promise<
@@ -584,6 +653,38 @@ export async function fetchReports(): Promise<ReportRecord[]> {
     period: report.period || "N/A",
     owner: report.owner || "System",
   }));
+}
+
+export async function fetchOffers(): Promise<OfferRecord[]> {
+  return request<OfferRecord[]>("/offers");
+}
+
+export async function createOffer(
+  payload: CreateOfferInput,
+): Promise<OfferRecord> {
+  return request<OfferRecord>("/offers", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateOffer(
+  id: string,
+  payload: Partial<CreateOfferInput> & {
+    isVisible?: boolean;
+    isActive?: boolean;
+  },
+): Promise<OfferRecord> {
+  return request<OfferRecord>(`/offers/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteOffer(id: string): Promise<void> {
+  await request(`/offers/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
 }
 
 export async function createPosOrder(
@@ -671,7 +772,7 @@ export async function uploadMenuImage(file: File): Promise<string> {
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
     if (response.status === 401) clearAuthSession();
-    throw new Error(payload?.error || `Upload failed: ${response.status}`);
+    throw new Error(buildApiErrorMessage(payload, response.status));
   }
 
   // R2 returns an absolute URL directly
