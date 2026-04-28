@@ -7,6 +7,7 @@ const {
   getAreaLoad,
   getTodayStats,
   getRevenueTrend,
+  getVisitorTrend,
 } = require("../controllers/dashboard.controller");
 
 const router = Router();
@@ -18,5 +19,6 @@ router.get("/kitchen-queue", getKitchenQueue);
 router.get("/area-load", getAreaLoad);
 router.get("/today-stats", getTodayStats);
 router.get("/revenue-trend", getRevenueTrend);
+router.get("/visitor-trend", getVisitorTrend);
 
 module.exports = router;

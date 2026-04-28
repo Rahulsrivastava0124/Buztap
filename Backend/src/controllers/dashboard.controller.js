@@ -349,12 +349,121 @@ async function getAreaLoad(req, res, next) {
   }
 }
 
+async function getVisitorTrend(req, res, next) {
+  try {
+    const { businessId } = req.user;
+    const { range = "1D" } = req.query;
+    const now = new Date();
+
+    let labels = [];
+    const buckets = [];
+
+    if (range === "1D") {
+      const since = new Date(now);
+      since.setHours(0, 0, 0, 0);
+      // 3-hour buckets covering all 24 hours so no visit is missed regardless of timezone
+      const SLOTS = [0, 3, 6, 9, 12, 15, 18, 21];
+      labels = [
+        "12 AM",
+        "3 AM",
+        "6 AM",
+        "9 AM",
+        "12 PM",
+        "3 PM",
+        "6 PM",
+        "9 PM",
+      ];
+      const guests = await Guest.find({
+        businessId,
+        lastSeenAt: { $gte: since },
+      }).lean();
+      for (const slot of SLOTS) {
+        const count = guests.filter((g) => {
+          const h = new Date(g.lastSeenAt).getHours();
+          return h >= slot && h < slot + 3;
+        }).length;
+        buckets.push(count);
+      }
+    } else if (range === "7D") {
+      const since = new Date(now.getTime() - 6 * 24 * 60 * 60 * 1000);
+      since.setHours(0, 0, 0, 0);
+      const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+      const guests = await Guest.find({
+        businessId,
+        lastSeenAt: { $gte: since },
+      }).lean();
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date(now);
+        d.setDate(d.getDate() - i);
+        d.setHours(0, 0, 0, 0);
+        const next = new Date(d.getTime() + 24 * 60 * 60 * 1000);
+        labels.push(DAYS[d.getDay()]);
+        const count = guests.filter(
+          (g) => new Date(g.lastSeenAt) >= d && new Date(g.lastSeenAt) < next,
+        ).length;
+        buckets.push(count);
+      }
+    } else if (range === "1M") {
+      const since = new Date(now.getTime() - 27 * 24 * 60 * 60 * 1000);
+      since.setHours(0, 0, 0, 0);
+      const guests = await Guest.find({
+        businessId,
+        lastSeenAt: { $gte: since },
+      }).lean();
+      for (let w = 0; w < 4; w++) {
+        const start = new Date(since.getTime() + w * 7 * 24 * 60 * 60 * 1000);
+        const end = new Date(start.getTime() + 7 * 24 * 60 * 60 * 1000);
+        labels.push(`Week ${w + 1}`);
+        const count = guests.filter(
+          (g) =>
+            new Date(g.lastSeenAt) >= start && new Date(g.lastSeenAt) < end,
+        ).length;
+        buckets.push(count);
+      }
+    } else if (range === "6M") {
+      const MONTHS = [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
+      ];
+      const since = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+      const guests = await Guest.find({
+        businessId,
+        lastSeenAt: { $gte: since },
+      }).lean();
+      for (let m = 5; m >= 0; m--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - m, 1);
+        const end = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+        labels.push(MONTHS[d.getMonth()]);
+        const count = guests.filter(
+          (g) => new Date(g.lastSeenAt) >= d && new Date(g.lastSeenAt) < end,
+        ).length;
+        buckets.push(count);
+      }
+    }
+
+    res.json({ labels, data: buckets });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   getSnapshot,
   getKitchenQueue,
   getAreaLoad,
   getTodayStats,
   getRevenueTrend,
+  getVisitorTrend,
 };
 
 async function getTodayStats(req, res, next) {

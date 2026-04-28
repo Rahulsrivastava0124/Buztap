@@ -376,6 +376,12 @@ export async function fetchRevenueTrend(
   return request(`/dashboard/revenue-trend?range=${range}`);
 }
 
+export async function fetchVisitorTrend(
+  range: "1D" | "7D" | "1M" | "6M",
+): Promise<RevenueTrend> {
+  return request(`/dashboard/visitor-trend?range=${range}`);
+}
+
 export async function fetchPosCatalog(): Promise<PosMenuItem[]> {
   const rows = await request<Array<any>>("/menu");
   return rows.map((item) => ({

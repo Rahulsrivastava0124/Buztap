@@ -38,6 +38,7 @@ import {
   fetchDashboardSnapshot,
   fetchRecentOrders,
   fetchRevenueTrend,
+  fetchVisitorTrend,
   fetchTodayStats,
 } from "../services/api";
 import ProtectedRoute from "../components/ProtectedRoute";
@@ -181,8 +182,79 @@ export default function Dashboard() {
 
 // ── TAB COMPONENTS EXPORTS ──
 
+const visitorChartOptions = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: { display: false },
+    tooltip: {
+      backgroundColor: "#0f0e0b",
+      titleColor: "#e8e0d4",
+      bodyColor: "#fff",
+      padding: 12,
+      displayColors: false,
+      callbacks: { label: (c) => c.parsed.y + " visitors" },
+    },
+  },
+  scales: {
+    y: {
+      min: 0,
+      suggestedMax: 5,
+      beginAtZero: true,
+      grid: { color: "#e0d9ce", drawBorder: false },
+      ticks: {
+        color: "#857c6e",
+        font: { size: 10, weight: "600", family: "Inter" },
+        callback: (v) => (Number.isInteger(v) ? v : ""),
+        stepSize: 1,
+        precision: 0,
+      },
+      border: { display: false },
+    },
+    x: {
+      grid: { display: false },
+      ticks: {
+        color: "#857c6e",
+        font: { size: 10, weight: "600", family: "Inter" },
+      },
+      border: { display: false },
+    },
+  },
+  interaction: { intersect: false, mode: "index" },
+};
+
+const buildVisitorChartData = (trend) => {
+  const labels = trend?.labels ?? [];
+  const data = trend?.data ?? [];
+  return {
+    labels,
+    datasets: [
+      {
+        fill: true,
+        data,
+        borderColor: "#6366f1",
+        backgroundColor: (context) => {
+          const ctx = context.chart.ctx;
+          const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+          gradient.addColorStop(0, "rgba(99,102,241,0.30)");
+          gradient.addColorStop(1, "rgba(99,102,241,0.00)");
+          return gradient;
+        },
+        borderWidth: 2.5,
+        tension: 0.4,
+        pointRadius: 0,
+        pointHoverRadius: 6,
+        pointHoverBackgroundColor: "#fff",
+        pointHoverBorderColor: "#6366f1",
+        pointHoverBorderWidth: 2,
+      },
+    ],
+  };
+};
+
 export function OverviewTab() {
   const [timeRange, setTimeRange] = useState("1D");
+  const [visitorTimeRange, setVisitorTimeRange] = useState("1D");
   const {
     data: recentOrders = [],
     isLoading,
@@ -204,6 +276,12 @@ export function OverviewTab() {
   const { data: revenueTrend } = useQuery({
     queryKey: ["dashboard-revenue-trend", timeRange],
     queryFn: () => fetchRevenueTrend(timeRange),
+    staleTime: 2 * 60 * 1000,
+  });
+
+  const { data: visitorTrend } = useQuery({
+    queryKey: ["dashboard-visitor-trend", visitorTimeRange],
+    queryFn: () => fetchVisitorTrend(visitorTimeRange),
     staleTime: 2 * 60 * 1000,
   });
 
@@ -494,9 +572,9 @@ export function OverviewTab() {
         </div>
       </div>
 
-      {/* Revenue chart + Live feed */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        <div className="xl:col-span-2 self-start bg-white border border-border rounded-xl shadow-sm p-5 sm:p-6 flex flex-col">
+      {/* Revenue + Visitor Trend charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-white border border-border rounded-xl shadow-sm p-5 sm:p-6 flex flex-col">
           <div className="flex items-center justify-between mb-6">
             <h2 className="font-bold text-ink flex items-center gap-2">
               Revenue Trend
@@ -506,74 +584,109 @@ export function OverviewTab() {
                 <button
                   key={range}
                   onClick={() => setTimeRange(range)}
-                  className={`px-3 py-1 text-xs font-bold rounded-md transition-colors ${timeRange === range ? "bg-white text-saffron shadow-sm" : "text-muted hover:text-ink"}`}
+                  className={`px-3 py-1 text-xs font-bold rounded-md transition-colors ${
+                    timeRange === range
+                      ? "bg-white text-saffron shadow-sm"
+                      : "text-muted hover:text-ink"
+                  }`}
                 >
                   {range}
                 </button>
               ))}
             </div>
           </div>
-          <div className="w-full h-72 sm:h-80 relative">
+          <div className="w-full h-64 relative">
             <Line data={buildChartData(revenueTrend)} options={chartOptions} />
           </div>
         </div>
-        <div className="bg-white border border-border rounded-xl shadow-sm p-4 sm:p-6 flex flex-col">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-bold text-ink">Live Order Feed</h2>
-            <div className="flex items-center gap-1.5">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#27c93f] opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-[#27c93f]"></span>
-              </span>
-              <span className="text-xs font-semibold text-[#27c93f] uppercase">
-                Live
-              </span>
+
+        <div className="bg-white border border-border rounded-xl shadow-sm p-5 sm:p-6 flex flex-col">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="font-bold text-ink flex items-center gap-2">
+              Visitor Trend
+            </h2>
+            <div className="flex bg-paper p-1 rounded-lg border border-border">
+              {["1D", "7D", "1M", "6M"].map((range) => (
+                <button
+                  key={range}
+                  onClick={() => setVisitorTimeRange(range)}
+                  className={`px-3 py-1 text-xs font-bold rounded-md transition-colors ${
+                    visitorTimeRange === range
+                      ? "bg-white text-indigo-500 shadow-sm"
+                      : "text-muted hover:text-ink"
+                  }`}
+                >
+                  {range}
+                </button>
+              ))}
             </div>
           </div>
-          <div className="flex-1 overflow-y-auto space-y-3 custom-scrollbar pr-1">
-            {isLoading ? (
-              <div className="text-xs text-muted">Loading recent orders...</div>
-            ) : null}
-            {isError ? (
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-xs text-red-600">
-                  {error?.message || "Failed to load live orders."}
-                </span>
-                <button
-                  onClick={() => refetch()}
-                  className="text-xs px-2 py-1 rounded border border-border hover:bg-white"
-                >
-                  Retry
-                </button>
-              </div>
-            ) : null}
-            {!isLoading && !isError && recentOrders.length === 0 ? (
-              <div className="text-xs text-muted">No recent orders yet.</div>
-            ) : null}
-            {recentOrders.map((o) => (
-              <div
-                key={o.id}
-                className="p-3 border border-[#f0ebe0] rounded-lg bg-paper hover:border-border"
-              >
-                <div className="flex justify-between mb-1">
-                  <div className="flex items-center gap-2">
-                    <span className="bg-white text-xs font-bold px-2 py-0.5 rounded shadow-sm">
-                      {o.table}
-                    </span>
-                    <span className="text-xs text-muted">{o.id}</span>
-                  </div>
-                  <span className="text-xs font-bold">{o.total}</span>
-                </div>
-                <p className="text-xs text-ink2 mb-2 truncate">{o.items}</p>
-                <div className="flex justify-between mt-auto">
-                  <span className="flex items-center gap-1 text-xs text-muted">
-                    <Clock size={12} /> {o.time}
-                  </span>
-                  <OrderStatusBadge status={o.status} />
-                </div>
-              </div>
-            ))}
+          <div className="w-full h-64 relative">
+            <Line
+              data={buildVisitorChartData(visitorTrend)}
+              options={visitorChartOptions}
+            />
           </div>
+        </div>
+      </div>
+
+      {/* Live feed */}
+      <div className="bg-white border border-border rounded-xl shadow-sm p-4 sm:p-6 flex flex-col">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-bold text-ink">Live Order Feed</h2>
+          <div className="flex items-center gap-1.5">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#27c93f] opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-[#27c93f]"></span>
+            </span>
+            <span className="text-xs font-semibold text-[#27c93f] uppercase">
+              Live
+            </span>
+          </div>
+        </div>
+        <div className="flex-1 overflow-y-auto space-y-3 custom-scrollbar pr-1">
+          {isLoading ? (
+            <div className="text-xs text-muted">Loading recent orders...</div>
+          ) : null}
+          {isError ? (
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs text-red-600">
+                {error?.message || "Failed to load live orders."}
+              </span>
+              <button
+                onClick={() => refetch()}
+                className="text-xs px-2 py-1 rounded border border-border hover:bg-white"
+              >
+                Retry
+              </button>
+            </div>
+          ) : null}
+          {!isLoading && !isError && recentOrders.length === 0 ? (
+            <div className="text-xs text-muted">No recent orders yet.</div>
+          ) : null}
+          {recentOrders.map((o) => (
+            <div
+              key={o.id}
+              className="p-3 border border-[#f0ebe0] rounded-lg bg-paper hover:border-border"
+            >
+              <div className="flex justify-between mb-1">
+                <div className="flex items-center gap-2">
+                  <span className="bg-white text-xs font-bold px-2 py-0.5 rounded shadow-sm">
+                    {o.table}
+                  </span>
+                  <span className="text-xs text-muted">{o.id}</span>
+                </div>
+                <span className="text-xs font-bold">{o.total}</span>
+              </div>
+              <p className="text-xs text-ink2 mb-2 truncate">{o.items}</p>
+              <div className="flex justify-between mt-auto">
+                <span className="flex items-center gap-1 text-xs text-muted">
+                  <Clock size={12} /> {o.time}
+                </span>
+                <OrderStatusBadge status={o.status} />
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </div>
