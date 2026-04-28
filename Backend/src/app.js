@@ -23,6 +23,11 @@ const mongoose = require("mongoose");
 
 const app = express();
 
+// Respect reverse proxy headers when deployed behind Render/Nginx/Cloudflare.
+if (process.env.TRUST_PROXY === "true") {
+  app.set("trust proxy", 1);
+}
+
 // ── Info route ────────────────────────────────────────────────────────────────
 app.get("/", (_req, res) => {
   const dbState = ["disconnected", "connected", "connecting", "disconnecting"];
@@ -85,6 +90,18 @@ const authLimiter = rateLimit({
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
+  skipSuccessfulRequests: true,
+  keyGenerator: (req) => {
+    const ip = req.ip || "unknown-ip";
+    const identifier = String(
+      req.body?.identifier || req.body?.email || req.body?.phone || "",
+    )
+      .trim()
+      .toLowerCase();
+
+    // Isolate attempts per account identifier on the same IP.
+    return identifier ? `${ip}:${identifier}` : ip;
+  },
   message: { error: "Too many login attempts, please try again in 15 minutes" },
 });
 
