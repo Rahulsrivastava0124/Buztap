@@ -2,6 +2,7 @@ const { z } = require("zod");
 const Guest = require("../models/Guest");
 const Order = require("../models/Order");
 const Table = require("../models/Table");
+const Business = require("../models/Business");
 
 const GST_RATE = 0.05;
 
@@ -54,9 +55,29 @@ const guestOrderSchema = z.object({
   paymentMethod: z.enum(["Cash", "Card/UPI", "Pending"]).optional(),
 });
 
+async function resolveScopedBusinessId(req, fallbackBusinessId = "") {
+  const bizParam = String(
+    req.query.biz || req.query.businessId || fallbackBusinessId || "",
+  ).trim();
+  if (bizParam) return bizParam;
+
+  const restroParam = String(req.query.restro || req.query.slug || "").trim();
+  if (!restroParam) return "";
+
+  const business = await Business.findOne({ subdomain: restroParam })
+    .select("_id")
+    .lean();
+
+  return business?._id ? String(business._id) : "";
+}
+
 async function register(req, res, next) {
   try {
     const data = registerSchema.parse(req.body);
+    const scopedBusinessId = await resolveScopedBusinessId(
+      req,
+      data.businessId || "",
+    );
     const now = new Date();
     const guest = await Guest.findOneAndUpdate(
       { phone: data.phone },
@@ -69,7 +90,7 @@ async function register(req, res, next) {
         $set: {
           name: data.name,
           ...(data.email ? { email: data.email } : {}),
-          ...(data.businessId ? { businessId: data.businessId } : {}),
+          ...(scopedBusinessId ? { businessId: scopedBusinessId } : {}),
           ...(data.tableId ? { lastTableId: data.tableId } : {}),
           lastSource: data.source || "QR",
           lastSeenAt: now,
@@ -88,10 +109,20 @@ async function register(req, res, next) {
 
 async function getOrders(req, res, next) {
   try {
+    const scopedBusinessId = await resolveScopedBusinessId(req);
+    if (!scopedBusinessId) {
+      return res
+        .status(400)
+        .json({ error: "biz or restro query parameter is required" });
+    }
+
     const guest = await Guest.findOne({ phone: req.params.phone }).lean();
     if (!guest) return res.status(404).json({ error: "Guest not found" });
 
-    const orders = await Order.find({ guestPhone: req.params.phone })
+    const orders = await Order.find({
+      guestPhone: req.params.phone,
+      businessId: scopedBusinessId,
+    })
       .sort({ createdAt: -1 })
       .limit(50)
       .lean();
@@ -105,6 +136,21 @@ async function getOrders(req, res, next) {
 async function placeOrder(req, res, next) {
   try {
     const data = guestOrderSchema.parse(req.body);
+    const scopedBusinessId = await resolveScopedBusinessId(
+      req,
+      data.businessId,
+    );
+    if (!scopedBusinessId) {
+      return res
+        .status(400)
+        .json({ error: "biz or restro query parameter is required" });
+    }
+    if (String(scopedBusinessId) !== String(data.businessId)) {
+      return res
+        .status(400)
+        .json({ error: "business mismatch between URL and payload" });
+    }
+
     const requestedGuestName = String(data.guestName || "").trim();
 
     let resolvedGuestName = requestedGuestName;
@@ -126,7 +172,7 @@ async function placeOrder(req, res, next) {
     const total = subtotal + tax;
 
     const order = await Order.create({
-      businessId: data.businessId,
+      businessId: scopedBusinessId,
       tableId: data.tableId || null,
       guestName: resolvedGuestName,
       guestPhone: req.params.phone,
@@ -147,7 +193,7 @@ async function placeOrder(req, res, next) {
       const tableIdCandidates = buildTableIdCandidates(data.tableId);
       await Table.findOneAndUpdate(
         {
-          businessId: data.businessId,
+          businessId: scopedBusinessId,
           tableId: { $in: tableIdCandidates },
         },
         {

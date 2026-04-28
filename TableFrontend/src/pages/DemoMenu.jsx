@@ -36,8 +36,18 @@ function getTableLabel(tableId) {
   return /^table\b/i.test(tableId) ? tableId : `Table ${tableId}`;
 }
 
-function getGuestSessionKey(tableId) {
-  return `demo_guest_session_${tableId || "04"}`;
+function getRestaurantScopeKey(restroSlug, businessId) {
+  const restro = String(restroSlug || "")
+    .trim()
+    .toLowerCase();
+  const biz = String(businessId || "").trim();
+  if (restro) return `restro_${restro}`;
+  if (biz) return `biz_${biz}`;
+  return "restro_unknown";
+}
+
+function getGuestSessionKey(tableId, restaurantScopeKey) {
+  return `demo_guest_session_${restaurantScopeKey}_${tableId || "04"}`;
 }
 
 function normalizeGuestPhone(value) {
@@ -418,7 +428,14 @@ export default function DemoMenu() {
   const restroNameFromSlug = getRestaurantNameFromSlug(currentRestroSlug);
   const [resolvedBusinessId, setResolvedBusinessId] =
     useState(currentBusinessId);
-  const guestSessionKey = getGuestSessionKey(currentTableId);
+  const restaurantScopeKey = getRestaurantScopeKey(
+    currentRestroSlug,
+    resolvedBusinessId || currentBusinessId,
+  );
+  const guestSessionKey = getGuestSessionKey(
+    currentTableId,
+    restaurantScopeKey,
+  );
   const [cart, setCart] = useState({});
   const [showCart, setShowCart] = useState(false);
   const [orderPlaced, setOrderPlaced] = useState(false);
@@ -523,17 +540,22 @@ export default function DemoMenu() {
     setCart({});
     setOrderHistory([]);
     localStorage.removeItem(guestSessionKey);
-    localStorage.removeItem("current_guest_phone");
-    localStorage.removeItem("current_guest_name");
+    localStorage.removeItem(`current_guest_phone_${restaurantScopeKey}`);
+    localStorage.removeItem(`current_guest_name_${restaurantScopeKey}`);
   };
 
   const loadOrderHistory = (phone) => {
-    const savedHistory = localStorage.getItem(`order_history_${phone}`);
+    const savedHistory = localStorage.getItem(
+      `order_history_${restaurantScopeKey}_${phone}`,
+    );
     return savedHistory ? JSON.parse(savedHistory) : [];
   };
 
   const saveOrderHistory = (phone, history) => {
-    localStorage.setItem(`order_history_${phone}`, JSON.stringify(history));
+    localStorage.setItem(
+      `order_history_${restaurantScopeKey}_${phone}`,
+      JSON.stringify(history),
+    );
   };
 
   const registerGuestVisit = async (phoneValue, nameValue) => {
@@ -541,17 +563,24 @@ export default function DemoMenu() {
     if (normalizedPhone.length !== 10) return;
 
     try {
-      await fetch(`${API_BASE_URL}/guests/register`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          phone: `+91${normalizedPhone}`,
-          name: String(nameValue || "Guest").trim() || "Guest",
-          ...(resolvedBusinessId ? { businessId: resolvedBusinessId } : {}),
-          tableId: currentTableId,
-          source: "QR",
-        }),
-      });
+      const params = new URLSearchParams();
+      if (resolvedBusinessId) params.set("biz", resolvedBusinessId);
+      if (currentRestroSlug) params.set("restro", currentRestroSlug);
+
+      await fetch(
+        `${API_BASE_URL}/guests/register${params.toString() ? `?${params.toString()}` : ""}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            phone: `+91${normalizedPhone}`,
+            name: String(nameValue || "Guest").trim() || "Guest",
+            ...(resolvedBusinessId ? { businessId: resolvedBusinessId } : {}),
+            tableId: currentTableId,
+            source: "QR",
+          }),
+        },
+      );
     } catch {
       // Keep menu access non-blocking even if analytics tracking fails.
     }
@@ -718,16 +747,26 @@ export default function DemoMenu() {
   // Load visit count and order history from localStorage when the guest logs in
   useEffect(() => {
     if (isJoined && guestPhone) {
-      localStorage.setItem("current_guest_phone", guestPhone);
-      localStorage.setItem("current_guest_name", guestName || "Guest");
+      localStorage.setItem(
+        `current_guest_phone_${restaurantScopeKey}`,
+        guestPhone,
+      );
+      localStorage.setItem(
+        `current_guest_name_${restaurantScopeKey}`,
+        guestName || "Guest",
+      );
 
-      const storedVisits = localStorage.getItem(`visits_${guestPhone}`);
+      const storedVisits = localStorage.getItem(
+        `visits_${restaurantScopeKey}_${guestPhone}`,
+      );
       if (storedVisits) {
         const visits = parseInt(storedVisits, 10);
         setVisitCount(visits);
         if (
           visits >= 5 &&
-          !localStorage.getItem(`reward_claimed_${guestPhone}`)
+          !localStorage.getItem(
+            `reward_claimed_${restaurantScopeKey}_${guestPhone}`,
+          )
         ) {
           setShowReward(true);
         }
@@ -755,7 +794,12 @@ export default function DemoMenu() {
     const pollOrderStatus = async () => {
       try {
         const response = await fetch(
-          `${API_BASE_URL}/guests/${encodeURIComponent(phone)}/orders`,
+          `${API_BASE_URL}/guests/${encodeURIComponent(phone)}/orders?${new URLSearchParams(
+            {
+              ...(resolvedBusinessId ? { biz: resolvedBusinessId } : {}),
+              ...(currentRestroSlug ? { restro: currentRestroSlug } : {}),
+            },
+          ).toString()}`,
         );
         if (!response.ok) return;
 
@@ -781,7 +825,13 @@ export default function DemoMenu() {
       cancelled = true;
       clearInterval(poller);
     };
-  }, [orderPlaced, guestPhone, activeOrderDbId]);
+  }, [
+    orderPlaced,
+    guestPhone,
+    activeOrderDbId,
+    resolvedBusinessId,
+    currentRestroSlug,
+  ]);
 
   const addToCart = (id) => {
     setCart((prev) => ({ ...prev, [id]: (prev[id] || 0) + 1 }));
@@ -957,7 +1007,12 @@ export default function DemoMenu() {
     ) {
       try {
         const res = await fetch(
-          `${API_BASE_URL}/guests/${encodeURIComponent(phone)}/orders`,
+          `${API_BASE_URL}/guests/${encodeURIComponent(phone)}/orders?${new URLSearchParams(
+            {
+              ...(resolvedBusinessId ? { biz: resolvedBusinessId } : {}),
+              ...(currentRestroSlug ? { restro: currentRestroSlug } : {}),
+            },
+          ).toString()}`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -1025,11 +1080,16 @@ export default function DemoMenu() {
 
       const newVisitCount = visitCount + 1;
       setVisitCount(newVisitCount);
-      localStorage.setItem("visits_" + guestPhone, newVisitCount.toString());
+      localStorage.setItem(
+        `visits_${restaurantScopeKey}_${guestPhone}`,
+        newVisitCount.toString(),
+      );
 
       if (
         newVisitCount >= 5 &&
-        !localStorage.getItem("reward_claimed_" + guestPhone)
+        !localStorage.getItem(
+          `reward_claimed_${restaurantScopeKey}_${guestPhone}`,
+        )
       ) {
         setTimeout(() => setShowReward(true), 3000);
       }
@@ -1429,7 +1489,9 @@ export default function DemoMenu() {
                 />
               </div>
             </div>
-          ) : !localStorage.getItem(`reward_claimed_${guestPhone}`) ? (
+          ) : !localStorage.getItem(
+              `reward_claimed_${restaurantScopeKey}_${guestPhone}`,
+            ) ? (
             <div className="mt-3 bg-orange-50 rounded-xl px-3 py-2 flex items-center gap-2">
               <Star size={14} className="text-[#e8720c] fill-[#e8720c]" />
               <span className="text-xs text-orange-600 font-semibold">
@@ -2658,7 +2720,10 @@ export default function DemoMenu() {
                     addToCart(rewardItem.id);
                   }
                   setFreeItemClaimed(true);
-                  localStorage.setItem(`reward_claimed_${guestPhone}`, "true");
+                  localStorage.setItem(
+                    `reward_claimed_${restaurantScopeKey}_${guestPhone}`,
+                    "true",
+                  );
                   setTimeout(() => setShowReward(false), 2000); // Close after showing reward
                 }}
               >
