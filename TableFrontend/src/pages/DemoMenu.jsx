@@ -517,9 +517,6 @@ export default function DemoMenu() {
 
         if (payload.business?.id) {
           setResolvedBusinessId(String(payload.business.id));
-          if (!currentBusinessId && isJoined && guestPhone) {
-            registerGuestVisit(guestPhone, guestName || "Guest");
-          }
         }
       } catch {
         setLiveMenuItems([]);
@@ -531,7 +528,7 @@ export default function DemoMenu() {
     return () => {
       cancelled = true;
     };
-  }, [currentBusinessId, currentTableId, guestName, guestPhone, isJoined]);
+  }, [currentBusinessId, currentTableId]);
 
   // Load visit count and order history from localStorage when the guest logs in
   useEffect(() => {

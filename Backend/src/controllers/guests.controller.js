@@ -40,8 +40,6 @@ async function register(req, res, next) {
       {
         $setOnInsert: {
           phone: data.phone,
-          name: data.name,
-          email: data.email || "",
           firstSeenAt: now,
           visitCount: 1,
         },
