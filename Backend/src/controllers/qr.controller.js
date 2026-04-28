@@ -100,14 +100,59 @@ function buildMenuUrl({ req, tableId, businessId, subdomain, slug }) {
   return makeUrl("https://restro.buzingbee.com");
 }
 
+function buildTableIdCandidates(rawTableId) {
+  const value = String(rawTableId || "").trim();
+  if (!value) return [];
+
+  const set = new Set([value]);
+  const digits = value.replace(/\D/g, "");
+
+  if (digits) {
+    const n = Number(digits);
+    if (Number.isFinite(n) && n > 0) {
+      const plain = String(n);
+      const padded = String(n).padStart(2, "0");
+      set.add(plain);
+      set.add(padded);
+      set.add(`T-${plain}`);
+      set.add(`T-${padded}`);
+    }
+  }
+
+  return Array.from(set);
+}
+
 async function getQr(req, res, next) {
   try {
-    const table = await Table.findOne({ tableId: req.params.tableId })
+    const tableId = String(req.params.tableId || "").trim();
+    const bizParam = String(req.query.biz || req.query.businessId || "").trim();
+    const restroParam = String(req.query.restro || req.query.slug || "").trim();
+
+    let scopedBusinessId = null;
+
+    if (bizParam) {
+      scopedBusinessId = bizParam;
+    } else if (restroParam) {
+      const businessFromSlug = await Business.findOne({
+        subdomain: restroParam,
+      })
+        .select("_id")
+        .lean();
+      scopedBusinessId = businessFromSlug?._id || null;
+    }
+
+    const tableIdCandidates = buildTableIdCandidates(tableId);
+
+    const tableQuery = scopedBusinessId
+      ? { tableId: { $in: tableIdCandidates }, businessId: scopedBusinessId }
+      : { tableId: { $in: tableIdCandidates } };
+
+    const table = await Table.findOne(tableQuery)
       .select("tableId seats area businessId")
       .lean();
     if (!table) return res.status(404).json({ error: "Table not found" });
 
-    const [business, totalTables, menuItems] = await Promise.all([
+    const [business, totalTables, availableMenuItems] = await Promise.all([
       Business.findById(table.businessId)
         .select("name phone address socialLinks subdomain")
         .lean(),
@@ -117,6 +162,16 @@ async function getQr(req, res, next) {
         .sort({ category: 1, name: 1 })
         .lean(),
     ]);
+
+    // Fallback: if all items are marked unavailable, still expose the catalog
+    // so customer menu does not appear blank.
+    const menuItems =
+      availableMenuItems.length > 0
+        ? availableMenuItems
+        : await MenuItem.find({ businessId: table.businessId })
+            .select("name price isVeg description image category")
+            .sort({ category: 1, name: 1 })
+            .lean();
     const menuUrl = buildMenuUrl({
       req,
       tableId: table.tableId,

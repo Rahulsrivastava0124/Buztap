@@ -58,7 +58,7 @@ const orderSchema = new Schema(
     transactionId: { type: String, default: null },
     status: {
       type: String,
-      enum: ["Preparing", "Ready", "Served", "Cancelled"],
+      enum: ["Pending", "Preparing", "Ready", "Served", "Cancelled"],
       default: "Preparing",
     },
     kitchenTicketId: { type: String, default: null },

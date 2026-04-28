@@ -1,8 +1,30 @@
 const { z } = require("zod");
 const Guest = require("../models/Guest");
 const Order = require("../models/Order");
+const Table = require("../models/Table");
 
 const GST_RATE = 0.05;
+
+function buildTableIdCandidates(rawTableId) {
+  const value = String(rawTableId || "").trim();
+  if (!value) return [];
+
+  const set = new Set([value]);
+  const digits = value.replace(/\D/g, "");
+  if (digits) {
+    const n = Number(digits);
+    if (Number.isFinite(n) && n > 0) {
+      const plain = String(n);
+      const padded = String(n).padStart(2, "0");
+      set.add(plain);
+      set.add(padded);
+      set.add(`T-${plain}`);
+      set.add(`T-${padded}`);
+    }
+  }
+
+  return Array.from(set);
+}
 
 const registerSchema = z.object({
   phone: z.string().min(10),
@@ -16,6 +38,7 @@ const registerSchema = z.object({
 const guestOrderSchema = z.object({
   businessId: z.string().min(1),
   tableId: z.string().optional(),
+  guestName: z.string().min(1).optional(),
   items: z
     .array(
       z.object({
@@ -82,6 +105,17 @@ async function getOrders(req, res, next) {
 async function placeOrder(req, res, next) {
   try {
     const data = guestOrderSchema.parse(req.body);
+    const requestedGuestName = String(data.guestName || "").trim();
+
+    let resolvedGuestName = requestedGuestName;
+    if (!resolvedGuestName) {
+      const guestProfile = await Guest.findOne({ phone: req.params.phone })
+        .select("name")
+        .lean();
+      resolvedGuestName =
+        String(guestProfile?.name || "Guest").trim() || "Guest";
+    }
+
     const items = data.items.map((i) => ({
       ...i,
       total: i.price * i.quantity,
@@ -94,9 +128,11 @@ async function placeOrder(req, res, next) {
     const order = await Order.create({
       businessId: data.businessId,
       tableId: data.tableId || null,
+      guestName: resolvedGuestName,
       guestPhone: req.params.phone,
       orderType: data.orderType || "Dine-in",
       source: "QR",
+      status: "Pending",
       items,
       subtotal,
       discount: 0,
@@ -106,6 +142,23 @@ async function placeOrder(req, res, next) {
       paymentMethod: data.paymentMethod || "Pending",
       kitchenTicketId: `#K-${String(Date.now()).slice(-4)}`,
     });
+
+    if (data.tableId) {
+      const tableIdCandidates = buildTableIdCandidates(data.tableId);
+      await Table.findOneAndUpdate(
+        {
+          businessId: data.businessId,
+          tableId: { $in: tableIdCandidates },
+        },
+        {
+          $set: {
+            status: "Occupied",
+            guestName: resolvedGuestName,
+            guestPhone: req.params.phone,
+          },
+        },
+      );
+    }
 
     // Update guest stats
     await Guest.findOneAndUpdate(

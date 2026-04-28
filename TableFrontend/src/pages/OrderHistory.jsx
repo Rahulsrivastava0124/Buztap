@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, Download, History, Search } from "lucide-react";
 
 const formatCurrency = (value = 0) => `₹${Number(value || 0)}`;
@@ -102,6 +102,7 @@ const buildInvoiceDocument = (order) => {
 };
 
 export default function OrderHistory() {
+  const navigate = useNavigate();
   const [orders, setOrders] = useState([]);
   const [guestName, setGuestName] = useState("Guest");
   const [selectedOrderId, setSelectedOrderId] = useState(null);
@@ -149,12 +150,13 @@ export default function OrderHistory() {
     <div className="min-h-screen bg-[#faf7f2] font-body">
       <div className="max-w-md mx-auto min-h-screen px-4 py-6">
         <div className="flex items-center justify-between mb-6">
-          <Link
-            to="/demo"
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
             className="w-11 h-11 rounded-full bg-white shadow-md flex items-center justify-center border border-[#e0d9ce] text-[#0f0e0b]"
           >
             <ArrowLeft size={20} />
-          </Link>
+          </button>
           <div className="text-center">
             <p className="text-[11px] uppercase tracking-[0.2em] text-[#857c6e] font-bold">
               Order History
@@ -236,12 +238,13 @@ export default function OrderHistory() {
             <p className="text-sm text-[#857c6e] mb-5">
               Place your first order from the menu and it will appear here.
             </p>
-            <Link
-              to="/demo"
+            <button
+              type="button"
+              onClick={() => navigate(-1)}
               className="inline-flex items-center justify-center px-5 py-3 rounded-2xl bg-[#e8720c] text-white font-bold"
             >
               Go to Menu
-            </Link>
+            </button>
           </div>
         )}
 

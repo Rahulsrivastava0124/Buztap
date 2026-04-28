@@ -6,12 +6,11 @@ import {
   Trash2,
   Utensils,
   ReceiptText,
-  Bell,
 } from "lucide-react";
 import { motion as Motion, AnimatePresence } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { fetchIncomingQrOrders, fetchPosCatalog } from "../services/api";
+import { fetchPosCatalog } from "../services/api";
 import { usePosStore } from "../features/pos/store/usePosStore";
 import usePOSHotkeys from "../hooks/usePOSHotkeys";
 import { useAuth } from "../context/AuthContext";
@@ -48,17 +47,6 @@ export default function PosSystem() {
     queryKey: ["pos-catalog"],
     queryFn: fetchPosCatalog,
   });
-  const {
-    data: incomingOrders = [],
-    isLoading: incomingLoading,
-    isError: incomingError,
-    error: incomingErrorMessage,
-    refetch: refetchIncoming,
-  } = useQuery({
-    queryKey: ["incoming-qr-orders"],
-    queryFn: fetchIncomingQrOrders,
-    refetchInterval: 12_000,
-  });
 
   const categories = useMemo(
     () => ["All", ...new Set(menuItems.map((item) => item.cat))],
@@ -90,11 +78,6 @@ export default function PosSystem() {
   }, [activeCat, menuItems, searchTerm]);
 
   const { subtotal, tax, total, itemCount } = getTotals();
-  const visibleIncomingOrders = incomingOrders.filter((order) =>
-    isHotelMode
-      ? order.source.toLowerCase().includes("room")
-      : !order.source.toLowerCase().includes("room"),
-  );
 
   const goToCheckout = () => {
     if (!cart.length) return;
@@ -150,47 +133,6 @@ export default function PosSystem() {
 
         {/* Grid */}
         <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
-          <div className="mb-3 p-3 rounded-lg bg-saffron-lt border border-border">
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-bold text-saffron uppercase tracking-wide flex items-center gap-1">
-                <Bell size={12} /> Incoming QR Orders
-              </p>
-              <span className="text-xs text-muted">Auto-refresh 12s</span>
-            </div>
-            <div className="mt-2 space-y-1">
-              {incomingLoading ? (
-                <div className="text-xs text-muted">Loading QR orders...</div>
-              ) : null}
-              {incomingError ? (
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs text-error">
-                    {incomingErrorMessage?.message ||
-                      "Failed to load incoming orders."}
-                  </span>
-                  <button
-                    onClick={() => refetchIncoming()}
-                    className="text-xs px-2 py-1 rounded border border-border hover:bg-white"
-                  >
-                    Retry
-                  </button>
-                </div>
-              ) : null}
-              {visibleIncomingOrders.map((order) => (
-                <div
-                  key={order.id}
-                  className="text-xs flex items-center justify-between"
-                >
-                  <span className="text-ink">
-                    {order.id} • {order.source}
-                  </span>
-                  <span className="font-bold text-saffron">
-                    ₹{order.amount}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-
           <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4">
             {menuLoading ? (
               <p className="col-span-full text-sm text-muted">

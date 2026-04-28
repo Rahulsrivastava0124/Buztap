@@ -32,10 +32,11 @@ import {
   Filler,
 } from "chart.js";
 import { Line } from "react-chartjs-2";
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
   fetchDashboardSnapshot,
+  fetchOrders,
   fetchRecentOrders,
   fetchRevenueTrend,
   fetchVisitorTrend,
@@ -176,6 +177,17 @@ export default function Dashboard() {
           </PageShell>
         }
       />
+
+      <Route
+        path="visitors"
+        element={
+          <PageShell>
+            <ErrorBoundary label="Visitors">
+              <VisitorsTab />
+            </ErrorBoundary>
+          </PageShell>
+        }
+      />
     </Routes>
   );
 }
@@ -253,8 +265,10 @@ const buildVisitorChartData = (trend) => {
 };
 
 export function OverviewTab() {
+  const navigate = useNavigate();
   const [timeRange, setTimeRange] = useState("1D");
   const [visitorTimeRange, setVisitorTimeRange] = useState("1D");
+  const [detailsView, setDetailsView] = useState(null);
   const {
     data: recentOrders = [],
     isLoading,
@@ -284,6 +298,32 @@ export function OverviewTab() {
     queryFn: () => fetchVisitorTrend(visitorTimeRange),
     staleTime: 2 * 60 * 1000,
   });
+
+  const {
+    data: detailOrders = [],
+    isLoading: detailsLoading,
+    isError: detailsError,
+    error: detailsErrorMessage,
+    refetch: refetchDetails,
+  } = useQuery({
+    queryKey: ["dashboard-card-details", detailsView],
+    queryFn: fetchOrders,
+    enabled: Boolean(detailsView),
+    refetchInterval: detailsView ? 12_000 : false,
+    staleTime: 10_000,
+  });
+
+  const filteredDetailOrders = useMemo(() => {
+    if (detailsView === "qr") {
+      return detailOrders.filter((order) => order.channel === "QR");
+    }
+    if (detailsView === "active") {
+      return detailOrders.filter((order) =>
+        ["Pending", "Preparing", "Ready"].includes(order.status),
+      );
+    }
+    return [];
+  }, [detailOrders, detailsView]);
 
   // Bar chart max for scaling
   const maxHourly = stats
@@ -368,7 +408,11 @@ export function OverviewTab() {
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
           {/* Total Visitors */}
-          <div className="col-span-1 bg-gradient-to-br from-saffron to-orange-500 rounded-xl p-4 text-white">
+          <button
+            type="button"
+            onClick={() => navigate("../visitors")}
+            className="col-span-1 bg-linear-to-br from-saffron to-orange-500 rounded-xl p-4 text-white text-left hover:brightness-105 transition cursor-pointer"
+          >
             <div className="flex items-center justify-between mb-2">
               <Users size={16} className="opacity-80" />
               <span className="text-[10px] font-bold uppercase opacity-80 tracking-wider">
@@ -382,7 +426,7 @@ export function OverviewTab() {
             <p className="text-[10px] mt-0.5 opacity-75 truncate">
               {stats?.restaurantName || "Restaurant"}
             </p>
-          </div>
+          </button>
 
           {/* New Guests */}
           <div className="bg-paper rounded-xl p-4 border border-border">
@@ -424,7 +468,11 @@ export function OverviewTab() {
             <p className="text-[11px] text-muted mt-1">Walk-in orders</p>
           </div>
 
-          <div className="bg-paper rounded-xl p-4 border border-border">
+          <button
+            type="button"
+            onClick={() => setDetailsView("qr")}
+            className="bg-paper rounded-xl p-4 border border-border text-left hover:border-saffron/60 hover:shadow-sm transition cursor-pointer"
+          >
             <div className="flex items-center justify-between mb-2">
               <QrCode size={15} className="text-emerald-500" />
               <span className="text-[10px] font-bold text-emerald-600">QR</span>
@@ -436,10 +484,14 @@ export function OverviewTab() {
             <p className="text-[10px] text-muted/80 mt-0.5 truncate">
               {stats?.restaurantName || "Restaurant"}
             </p>
-          </div>
+          </button>
 
           {/* Active right now */}
-          <div className="bg-paper rounded-xl p-4 border border-border">
+          <button
+            type="button"
+            onClick={() => setDetailsView("active")}
+            className="bg-paper rounded-xl p-4 border border-border text-left hover:border-saffron/60 hover:shadow-sm transition cursor-pointer"
+          >
             <div className="flex items-center justify-between mb-2">
               <Armchair size={15} className="text-rose-500" />
               <span className="relative flex h-2 w-2">
@@ -451,7 +503,7 @@ export function OverviewTab() {
               {stats?.activeOrders ?? "—"}
             </p>
             <p className="text-[11px] text-muted mt-1">Active orders</p>
-          </div>
+          </button>
         </div>
 
         {/* Hourly visit bar chart */}
@@ -688,6 +740,310 @@ export function OverviewTab() {
             </div>
           ))}
         </div>
+      </div>
+
+      {detailsView ? (
+        <>
+          <button
+            type="button"
+            className="fixed inset-0 bg-black/30 z-40"
+            onClick={() => setDetailsView(null)}
+            aria-label="Close details"
+          />
+          <div className="fixed right-0 top-0 h-full w-full max-w-md bg-white z-50 shadow-2xl border-l border-border flex flex-col">
+            <div className="px-5 py-4 border-b border-border flex items-center justify-between">
+              <h3 className="font-bold text-ink text-base">
+                {detailsView === "qr"
+                  ? "QR Order Details"
+                  : "Active Order Details"}
+              </h3>
+              <button
+                type="button"
+                className="text-sm font-semibold text-muted hover:text-ink"
+                onClick={() => setDetailsView(null)}
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              {detailsLoading ? (
+                <p className="text-sm text-muted">Loading order details...</p>
+              ) : null}
+              {detailsError ? (
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm text-red-600">
+                    {detailsErrorMessage?.message ||
+                      "Failed to load order details."}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => refetchDetails()}
+                    className="text-xs px-2 py-1 rounded border border-border hover:bg-paper"
+                  >
+                    Retry
+                  </button>
+                </div>
+              ) : null}
+              {!detailsLoading &&
+              !detailsError &&
+              filteredDetailOrders.length === 0 ? (
+                <p className="text-sm text-muted">
+                  No orders found for this card.
+                </p>
+              ) : null}
+
+              {filteredDetailOrders.map((order) => (
+                <div
+                  key={order._id}
+                  className="border border-border rounded-xl p-3 bg-paper"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-bold text-ink">{order.id}</p>
+                      <p className="text-xs text-muted mt-0.5">
+                        {order.channel} • {order.source}
+                      </p>
+                    </div>
+                    <p className="text-sm font-bold text-ink">
+                      ₹{order.amount.toLocaleString("en-IN")}
+                    </p>
+                  </div>
+                  <div className="mt-2 flex items-center justify-between">
+                    <p className="text-xs text-muted">
+                      {order.items} item{order.items === 1 ? "" : "s"} •{" "}
+                      {order.eta}
+                    </p>
+                    <OrderStatusBadge status={order.status} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+function VisitorsTab() {
+  const [visitorTimeRange, setVisitorTimeRange] = useState("1D");
+
+  const {
+    data: stats,
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useQuery({
+    queryKey: ["dashboard-today-stats"],
+    queryFn: fetchTodayStats,
+    refetchInterval: 30_000,
+  });
+
+  const { data: visitorTrend } = useQuery({
+    queryKey: ["dashboard-visitor-trend", visitorTimeRange],
+    queryFn: () => fetchVisitorTrend(visitorTimeRange),
+    staleTime: 2 * 60 * 1000,
+  });
+
+  const { data: visitorOrders = [] } = useQuery({
+    queryKey: ["visitors-orders"],
+    queryFn: fetchOrders,
+    refetchInterval: 30_000,
+    staleTime: 10_000,
+  });
+
+  const visitorUsers = useMemo(() => {
+    const usersByKey = new Map();
+
+    for (const order of visitorOrders) {
+      const hasUsefulGuest = order.guestPhone || order.guestName;
+      if (!hasUsefulGuest) continue;
+
+      const guestName = order.guestName || "Guest";
+      const guestPhone = order.guestPhone || "—";
+      const key = order.guestPhone || `${guestName}-${order.channel}`;
+
+      if (!usersByKey.has(key)) {
+        usersByKey.set(key, {
+          name: guestName,
+          phone: guestPhone,
+          channel: order.channel,
+          source: order.source,
+          lastSeen: order.createdAt,
+          orders: 1,
+          status: order.status,
+        });
+      } else {
+        const prev = usersByKey.get(key);
+        usersByKey.set(key, {
+          ...prev,
+          orders: prev.orders + 1,
+          status: order.status,
+        });
+      }
+    }
+
+    return Array.from(usersByKey.values()).slice(0, 12);
+  }, [visitorOrders]);
+
+  const returningRate =
+    stats && stats.totalVisitors > 0
+      ? Math.round((stats.returningGuests / stats.totalVisitors) * 100)
+      : 0;
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-white border border-border rounded-xl shadow-sm p-5 sm:p-6">
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <div>
+            <h2 className="font-bold text-ink text-lg">Visitors Details</h2>
+            <p className="text-xs text-muted mt-1">
+              Live visitor metrics with hourly pattern and trend.
+            </p>
+          </div>
+          <div className="flex bg-paper p-1 rounded-lg border border-border">
+            {["1D", "7D", "1M", "6M"].map((range) => (
+              <button
+                key={range}
+                onClick={() => setVisitorTimeRange(range)}
+                className={`px-3 py-1 text-xs font-bold rounded-md transition-colors ${
+                  visitorTimeRange === range
+                    ? "bg-white text-indigo-500 shadow-sm"
+                    : "text-muted hover:text-ink"
+                }`}
+              >
+                {range}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {isLoading ? (
+          <p className="text-sm text-muted">Loading visitors data...</p>
+        ) : null}
+        {isError ? (
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm text-red-600">
+              {error?.message || "Failed to load visitor details."}
+            </p>
+            <button
+              onClick={() => refetch()}
+              className="text-xs px-3 py-1.5 rounded-md border border-border hover:bg-paper"
+            >
+              Retry
+            </button>
+          </div>
+        ) : null}
+
+        {!isLoading && !isError ? (
+          <>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+              <div className="bg-paper border border-border rounded-xl p-4">
+                <p className="text-xs text-muted">Total Visitors</p>
+                <p className="text-2xl font-black text-ink mt-1">
+                  {stats?.totalVisitors ?? 0}
+                </p>
+              </div>
+              <div className="bg-paper border border-border rounded-xl p-4">
+                <p className="text-xs text-muted">New Guests</p>
+                <p className="text-2xl font-black text-ink mt-1">
+                  {stats?.newGuests ?? 0}
+                </p>
+              </div>
+              <div className="bg-paper border border-border rounded-xl p-4">
+                <p className="text-xs text-muted">Returning Guests</p>
+                <p className="text-2xl font-black text-ink mt-1">
+                  {stats?.returningGuests ?? 0}
+                </p>
+              </div>
+              <div className="bg-paper border border-border rounded-xl p-4">
+                <p className="text-xs text-muted">Returning Rate</p>
+                <p className="text-2xl font-black text-ink mt-1">
+                  {returningRate}%
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="bg-white border border-border rounded-xl p-4">
+                <p className="text-sm font-bold text-ink mb-3">Visitor Trend</p>
+                <div className="h-64">
+                  <Line
+                    data={buildVisitorChartData(visitorTrend)}
+                    options={visitorChartOptions}
+                  />
+                </div>
+              </div>
+
+              <div className="bg-white border border-border rounded-xl p-4">
+                <p className="text-sm font-bold text-ink mb-3">Hourly Visits</p>
+                <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                  {(stats?.hourlyVisits || []).map((entry) => (
+                    <div
+                      key={entry.label}
+                      className="flex items-center justify-between text-sm border border-border rounded-lg px-3 py-2"
+                    >
+                      <span className="text-muted">{entry.label}</span>
+                      <span className="font-semibold text-ink">
+                        {entry.count}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 bg-white border border-border rounded-xl p-4">
+              <p className="text-sm font-bold text-ink mb-3">
+                Visitor User Details
+              </p>
+
+              {visitorUsers.length === 0 ? (
+                <p className="text-sm text-muted">
+                  No visitor user details available yet.
+                </p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border text-xs uppercase text-muted">
+                        <th className="text-left py-2 pr-3">Name</th>
+                        <th className="text-left py-2 pr-3">Phone</th>
+                        <th className="text-left py-2 pr-3">Source</th>
+                        <th className="text-right py-2 pr-3">Orders</th>
+                        <th className="text-left py-2">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {visitorUsers.map((user, index) => (
+                        <tr
+                          key={`${user.phone}-${index}`}
+                          className="border-b border-cream"
+                        >
+                          <td className="py-2 pr-3 font-medium text-ink">
+                            {user.name}
+                          </td>
+                          <td className="py-2 pr-3 text-muted">{user.phone}</td>
+                          <td className="py-2 pr-3 text-muted">
+                            {user.channel} • {user.source}
+                          </td>
+                          <td className="py-2 pr-3 text-right font-semibold text-ink">
+                            {user.orders}
+                          </td>
+                          <td className="py-2">
+                            <OrderStatusBadge status={user.status} />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </>
+        ) : null}
       </div>
     </div>
   );

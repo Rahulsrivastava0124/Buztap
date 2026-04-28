@@ -1,7 +1,80 @@
 const { z } = require("zod");
 const Order = require("../models/Order");
+const Table = require("../models/Table");
 
 const GST_RATE = 0.05;
+
+function buildTableIdCandidates(rawTableId) {
+  const value = String(rawTableId || "").trim();
+  if (!value) return [];
+
+  const set = new Set([value]);
+  const digits = value.replace(/\D/g, "");
+  if (digits) {
+    const n = Number(digits);
+    if (Number.isFinite(n) && n > 0) {
+      const plain = String(n);
+      const padded = String(n).padStart(2, "0");
+      set.add(plain);
+      set.add(padded);
+      set.add(`T-${plain}`);
+      set.add(`T-${padded}`);
+    }
+  }
+
+  return Array.from(set);
+}
+
+/**
+ * Sync table status after an order status change.
+ * Called after Order.findOneAndUpdate completes.
+ */
+async function syncTableStatus(order, newStatus) {
+  if (!order?.tableId || !order?.businessId) return;
+
+  const { tableId, businessId, guestName, guestPhone } = order;
+  const tableIdCandidates = buildTableIdCandidates(tableId);
+  if (tableIdCandidates.length === 0) return;
+
+  // If any active order exists on this table, table must stay occupied.
+  const activeOrders = await Order.find({
+    businessId,
+    tableId: { $in: tableIdCandidates },
+    status: { $in: ["Pending", "Preparing", "Ready"] },
+  })
+    .sort({ createdAt: -1 })
+    .select("guestName guestPhone")
+    .lean();
+
+  if (activeOrders.length > 0) {
+    const latestWithGuest =
+      activeOrders.find((o) => o.guestName || o.guestPhone) || activeOrders[0];
+    await Table.findOneAndUpdate(
+      { tableId: { $in: tableIdCandidates }, businessId },
+      {
+        $set: {
+          status: "Occupied",
+          guestName: latestWithGuest?.guestName || guestName || null,
+          guestPhone: latestWithGuest?.guestPhone || guestPhone || null,
+        },
+      },
+    );
+    return;
+  }
+
+  if (newStatus === "Served") {
+    await Table.findOneAndUpdate(
+      { tableId: { $in: tableIdCandidates }, businessId },
+      { $set: { status: "Cleaning", guestName: null, guestPhone: null } },
+    );
+    return;
+  }
+
+  await Table.findOneAndUpdate(
+    { tableId: { $in: tableIdCandidates }, businessId },
+    { $set: { status: "Free", guestName: null, guestPhone: null } },
+  );
+}
 
 const orderItemSchema = z.object({
   menuItemId: z.string().optional(),
@@ -107,6 +180,9 @@ async function create(req, res, next) {
       kitchenTicketId: `#K-${String(Date.now()).slice(-4)}`,
     });
 
+    // Ensure table status reflects this new order immediately.
+    syncTableStatus(order, order.status).catch(() => {});
+
     res.status(201).json(order);
   } catch (err) {
     next(err);
@@ -116,7 +192,15 @@ async function create(req, res, next) {
 async function updateStatus(req, res, next) {
   try {
     const { status } = z
-      .object({ status: z.enum(["Preparing", "Ready", "Served", "Cancelled"]) })
+      .object({
+        status: z.enum([
+          "Preparing",
+          "Ready",
+          "Served",
+          "Cancelled",
+          "Pending",
+        ]),
+      })
       .parse(req.body);
 
     const update = { status };
@@ -132,6 +216,10 @@ async function updateStatus(req, res, next) {
       { new: true },
     );
     if (!order) return res.status(404).json({ error: "Order not found" });
+
+    // Sync table status — fire-and-forget (non-blocking)
+    syncTableStatus(order, status).catch(() => {});
+
     res.json(order);
   } catch (err) {
     next(err);
@@ -164,7 +252,7 @@ async function getIncomingQr(req, res, next) {
     const orders = await Order.find({
       businessId: req.user.businessId,
       source: "QR",
-      status: "Preparing",
+      status: "Pending",
       paymentStatus: "Pending",
     })
       .sort({ createdAt: -1 })
@@ -172,6 +260,7 @@ async function getIncomingQr(req, res, next) {
       .lean();
 
     const result = orders.map((o) => ({
+      _id: o._id.toString(),
       id: o.orderId,
       source: o.tableId ? `Table ${o.tableId}` : `Room ${o.roomId}`,
       amount: o.total,

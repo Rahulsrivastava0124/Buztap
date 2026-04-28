@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import {
   Link,
   Outlet,
@@ -29,7 +29,12 @@ import { motion as Motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 import { useAuth } from "../context/AuthContext";
 import { hasRoleAccess } from "../utils/access";
-import { fetchIncomingQrOrders } from "../services/api";
+import {
+  fetchIncomingQrOrders,
+  approveQrOrder,
+  declineQrOrder,
+} from "../services/api";
+import { useQueryClient } from "@tanstack/react-query";
 
 const SIDEBAR_ITEMS = [
   {
@@ -170,10 +175,12 @@ export default function AdminLayout() {
   const location = useLocation();
   const { slug } = useParams();
   const { logout, role, businessType, businessName } = useAuth();
+  const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [incomingQrOrders, setIncomingQrOrders] = useState([]);
   const [loadingIncomingOrders, setLoadingIncomingOrders] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [approvingId, setApprovingId] = useState(null);
   const notifiedOrderIdsRef = useRef(new Set());
   const firstLoadRef = useRef(true);
   const notificationRef = useRef(null);
@@ -196,6 +203,46 @@ export default function AdminLayout() {
     localStorage.setItem("sidebarCompact", String(compactSidebar));
   }, [compactSidebar]);
 
+  const handleApprove = useCallback(
+    async (order, toastId) => {
+      if (approvingId) return;
+      setApprovingId(order._id);
+      try {
+        await approveQrOrder(order._id);
+        setIncomingQrOrders((prev) => prev.filter((o) => o._id !== order._id));
+        notifiedOrderIdsRef.current.delete(order.id);
+        queryClient.invalidateQueries({ queryKey: ["orders"] });
+        if (toastId) toast.dismiss(toastId);
+        toast.success(`Order ${order.id} accepted — sent to kitchen`);
+      } catch {
+        toast.error("Failed to approve order");
+      } finally {
+        setApprovingId(null);
+      }
+    },
+    [approvingId, queryClient],
+  );
+
+  const handleDecline = useCallback(
+    async (order, toastId) => {
+      if (approvingId) return;
+      setApprovingId(order._id);
+      try {
+        await declineQrOrder(order._id);
+        setIncomingQrOrders((prev) => prev.filter((o) => o._id !== order._id));
+        notifiedOrderIdsRef.current.delete(order.id);
+        queryClient.invalidateQueries({ queryKey: ["orders"] });
+        if (toastId) toast.dismiss(toastId);
+        toast.error(`Order ${order.id} declined`);
+      } catch {
+        toast.error("Failed to decline order");
+      } finally {
+        setApprovingId(null);
+      }
+    },
+    [approvingId, queryClient],
+  );
+
   useEffect(() => {
     if (!canViewIncomingOrders) return;
 
@@ -213,8 +260,9 @@ export default function AdminLayout() {
           (order) => !notifiedOrderIdsRef.current.has(order.id),
         );
 
+        // Auto-open bell panel when new orders arrive (after first load)
         if (!firstLoadRef.current && newOrders.length > 0) {
-          toast.success(`Incoming QR orders: ${newOrders.length}`);
+          setShowNotifications(true);
         }
 
         newOrders.forEach((order) => notifiedOrderIdsRef.current.add(order.id));
@@ -392,24 +440,40 @@ export default function AdminLayout() {
                       </p>
                     ) : (
                       formattedIncomingOrders.map((order) => (
-                        <button
+                        <div
                           key={order.id}
-                          onClick={() => {
-                            setShowNotifications(false);
-                            navigate(`/${slug}/orders`);
-                          }}
-                          className="w-full text-left px-4 py-3 border-b border-border/70 last:border-b-0 hover:bg-paper transition-colors"
+                          className="px-4 py-3 border-b border-border/70 last:border-b-0"
                         >
-                          <p className="text-sm font-semibold text-ink">
-                            {order.id}
-                          </p>
-                          <p className="text-xs text-muted mt-0.5">
-                            {order.source}
-                          </p>
-                          <p className="text-xs font-semibold text-saffron mt-1">
-                            {order.amountLabel}
-                          </p>
-                        </button>
+                          <div className="flex items-start justify-between gap-2 mb-2">
+                            <div>
+                              <p className="text-sm font-semibold text-ink">
+                                {order.id}
+                              </p>
+                              <p className="text-xs text-muted mt-0.5">
+                                {order.source}
+                              </p>
+                              <p className="text-xs font-semibold text-saffron mt-1">
+                                {order.amountLabel}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleApprove(order, null)}
+                              disabled={approvingId === order._id}
+                              className="flex-1 text-xs font-semibold px-3 py-1.5 rounded-lg bg-green-50 text-green-700 hover:bg-green-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            >
+                              {approvingId === order._id ? "..." : "Approve"}
+                            </button>
+                            <button
+                              onClick={() => handleDecline(order, null)}
+                              disabled={approvingId === order._id}
+                              className="flex-1 text-xs font-semibold px-3 py-1.5 rounded-lg bg-red-50 text-red-700 hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            >
+                              {approvingId === order._id ? "..." : "Decline"}
+                            </button>
+                          </div>
+                        </div>
                       ))
                     )}
                   </div>

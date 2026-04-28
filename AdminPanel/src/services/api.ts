@@ -141,12 +141,48 @@ export interface AdminLoginResponse {
 }
 
 export interface OrderQueueItem {
+  _id: string;
   id: string;
+  channel: "POS" | "QR";
+  tableId?: string | null;
+  roomId?: string | null;
   source: string;
+  guestName?: string;
+  guestPhone?: string | null;
+  createdAt?: string;
   items: number;
   amount: number;
-  status: "Preparing" | "Ready" | "Served" | "Cancelled";
+  status: "Pending" | "Preparing" | "Ready" | "Served" | "Cancelled";
   eta: string;
+}
+
+export interface OrderDetailItem {
+  name: string;
+  quantity: number;
+  price: number;
+  total: number;
+  notes?: string;
+}
+
+export interface OrderDetail {
+  _id: string;
+  orderId: string;
+  tableId: string | null;
+  roomId: string | null;
+  guestName: string;
+  guestPhone: string | null;
+  orderType: string;
+  source: "POS" | "QR";
+  items: OrderDetailItem[];
+  subtotal: number;
+  discount: number;
+  tax: number;
+  total: number;
+  paymentMethod: string;
+  paymentStatus: string;
+  status: string;
+  cancelReason?: string | null;
+  createdAt: string;
 }
 
 export interface InventoryItem {
@@ -420,9 +456,25 @@ export async function updateTableStatus(
 }
 
 export async function fetchIncomingQrOrders(): Promise<
-  Array<{ id: string; source: string; amount: number }>
+  Array<{ _id: string; id: string; source: string; amount: number }>
 > {
   return request("/orders/incoming/qr");
+}
+export async function approveQrOrder(orderId: string): Promise<void> {
+  await request(`/orders/${encodeURIComponent(orderId)}/status`, {
+    method: "PATCH",
+    body: JSON.stringify({ status: "Preparing" }),
+  });
+}
+
+export async function declineQrOrder(orderId: string): Promise<void> {
+  await request(`/orders/${encodeURIComponent(orderId)}/status`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      status: "Cancelled",
+      cancelReason: "Declined by kitchen",
+    }),
+  });
 }
 
 export async function fetchTableQr(tableId: string): Promise<TableQrPayload> {
@@ -449,13 +501,34 @@ export async function fetchOrders(): Promise<OrderQueueItem[]> {
         )
       : 0;
     return {
+      _id: String(order._id),
       id: order.orderId,
+      channel: order.source === "QR" ? "QR" : "POS",
+      tableId: order.tableId || null,
+      roomId: order.roomId || null,
       source: sourceLabel,
+      guestName: order.guestName || "Guest",
+      guestPhone: order.guestPhone || null,
+      createdAt: order.createdAt || null,
       items,
       amount: Number(order.total || 0),
       status: order.status,
       eta: order.status === "Served" ? "Done" : `${minutes}m`,
     };
+  });
+}
+
+export async function fetchOrderById(id: string): Promise<OrderDetail> {
+  return request<OrderDetail>(`/orders/${encodeURIComponent(id)}`);
+}
+
+export async function updateOrderStatus(
+  orderId: string,
+  status: OrderQueueItem["status"],
+): Promise<OrderDetail> {
+  return request<OrderDetail>(`/orders/${encodeURIComponent(orderId)}/status`, {
+    method: "PATCH",
+    body: JSON.stringify({ status }),
   });
 }
 

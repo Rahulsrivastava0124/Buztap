@@ -1,6 +1,80 @@
 const { z } = require("zod");
 const Table = require("../models/Table");
 const Business = require("../models/Business");
+const Order = require("../models/Order");
+
+function buildTableIdCandidates(rawTableId) {
+  const value = String(rawTableId || "").trim();
+  if (!value) return [];
+
+  const set = new Set([value]);
+  const digits = value.replace(/\D/g, "");
+  if (digits) {
+    const n = Number(digits);
+    if (Number.isFinite(n) && n > 0) {
+      const plain = String(n);
+      const padded = String(n).padStart(2, "0");
+      set.add(plain);
+      set.add(padded);
+      set.add(`T-${plain}`);
+      set.add(`T-${padded}`);
+    }
+  }
+
+  return Array.from(set);
+}
+
+async function reconcileTableOccupancy(businessId) {
+  const activeOrders = await Order.find({
+    businessId,
+    tableId: { $ne: null },
+    status: { $in: ["Pending", "Preparing", "Ready"] },
+  })
+    .sort({ createdAt: -1 })
+    .select("tableId guestName guestPhone")
+    .lean();
+
+  if (activeOrders.length === 0) return;
+
+  const latestByTableId = new Map();
+  activeOrders.forEach((order) => {
+    const key = String(order.tableId || "").trim();
+    if (key && !latestByTableId.has(key)) {
+      latestByTableId.set(key, order);
+    }
+  });
+
+  const tables = await Table.find({ businessId, isActive: true })
+    .select("tableId")
+    .lean();
+
+  const updates = [];
+  for (const table of tables) {
+    const candidates = buildTableIdCandidates(table.tableId);
+    const matchedOrder = candidates
+      .map((candidate) => latestByTableId.get(candidate))
+      .find(Boolean);
+
+    if (!matchedOrder) continue;
+
+    updates.push({
+      updateOne: {
+        filter: { businessId, tableId: table.tableId },
+        update: {
+          $set: {
+            status: "Occupied",
+            guestName: matchedOrder.guestName || null,
+            guestPhone: matchedOrder.guestPhone || null,
+          },
+        },
+      },
+    });
+  }
+
+  if (updates.length > 0) {
+    await Table.bulkWrite(updates, { ordered: false });
+  }
+}
 
 async function syncTablesWithBusinessCount(businessId) {
   const business = await Business.findById(businessId)
@@ -110,6 +184,7 @@ const guestSchema = z.object({
 async function getAll(req, res, next) {
   try {
     await syncTablesWithBusinessCount(req.user.businessId);
+    await reconcileTableOccupancy(req.user.businessId);
     const tables = await Table.find({
       businessId: req.user.businessId,
       isActive: true,

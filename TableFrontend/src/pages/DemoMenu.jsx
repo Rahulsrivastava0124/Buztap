@@ -46,6 +46,37 @@ function normalizeGuestPhone(value) {
     .slice(-10);
 }
 
+function getRestaurantNameFromSlug(slug) {
+  const value = String(slug || "").trim();
+  if (!value) return "";
+  return value
+    .replace(/[-_]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function buildTableIdCandidates(tableId) {
+  const value = String(tableId || "").trim();
+  if (!value) return [];
+
+  const set = new Set([value]);
+  const digits = value.replace(/\D/g, "");
+  if (digits) {
+    const n = Number(digits);
+    if (Number.isFinite(n) && n > 0) {
+      const plain = String(n);
+      const padded = String(n).padStart(2, "0");
+      set.add(plain);
+      set.add(padded);
+      set.add(`T-${plain}`);
+      set.add(`T-${padded}`);
+    }
+  }
+
+  return Array.from(set);
+}
+
 // ── Veg / Non-veg indicator icons ─────────────────────────────────────────────
 const VegIcon = ({ size = 14 }) => (
   <span
@@ -341,8 +372,23 @@ const ScratchCard = ({
 export default function DemoMenu() {
   const navigate = useNavigate();
   const queryParams = new URLSearchParams(window.location.search);
+  const rawTableParam = queryParams.get("table");
+  const rawBusinessParam = queryParams.get("biz");
+  const rawRestroParam = queryParams.get("restro");
+  const preservedSearch = window.location.search || "";
+  const goBackPreservingOrderUrl = () => {
+    // Keep QR context params (restro/table/biz) even when browser history is shallow.
+    if (window.history.length > 1) {
+      navigate(-1);
+      return;
+    }
+    navigate(`/order${preservedSearch}`, { replace: true });
+  };
   const currentTableId = queryParams.get("table") || "04";
   const currentBusinessId = queryParams.get("biz") || "";
+  const currentRestroSlug = queryParams.get("restro") || "";
+  const ORDER_QUERY_CACHE_KEY = "order_query_context";
+  const restroNameFromSlug = getRestaurantNameFromSlug(currentRestroSlug);
   const [resolvedBusinessId, setResolvedBusinessId] =
     useState(currentBusinessId);
   const guestSessionKey = getGuestSessionKey(currentTableId);
@@ -356,6 +402,7 @@ export default function DemoMenu() {
   const [joinError, setJoinError] = useState("");
   const [orderStatus, setOrderStatus] = useState(0);
   const [orderNo, setOrderNo] = useState("");
+  const [activeOrderDbId, setActiveOrderDbId] = useState("");
   const [rating, setRating] = useState(0);
   const [selectedOffer, setSelectedOffer] = useState(0);
   const [couponCode, setCouponCode] = useState("");
@@ -368,6 +415,29 @@ export default function DemoMenu() {
   const [selectedItem, setSelectedItem] = useState(null);
   const [showProfile, setShowProfile] = useState(false);
 
+  useEffect(() => {
+    const hasQueryContext =
+      Boolean(rawTableParam) ||
+      Boolean(rawBusinessParam) ||
+      Boolean(rawRestroParam);
+
+    if (hasQueryContext) {
+      sessionStorage.setItem(ORDER_QUERY_CACHE_KEY, preservedSearch);
+      return;
+    }
+
+    const cachedSearch = sessionStorage.getItem(ORDER_QUERY_CACHE_KEY) || "";
+    if (cachedSearch && cachedSearch !== preservedSearch) {
+      navigate(`/order${cachedSearch}`, { replace: true });
+    }
+  }, [
+    navigate,
+    preservedSearch,
+    rawBusinessParam,
+    rawRestroParam,
+    rawTableParam,
+  ]);
+
   // Menu UI state
   const [searchQuery, setSearchQuery] = useState("");
   const [filterVeg, setFilterVeg] = useState(false);
@@ -377,7 +447,7 @@ export default function DemoMenu() {
   const [collapsedSections, setCollapsedSections] = useState({});
   const [scrolled, setScrolled] = useState(false);
   const [restaurantProfile, setRestaurantProfile] = useState({
-    name: "Spice Garden",
+    name: restroNameFromSlug || "Restaurant",
     eta: "15–20 mins",
     rating: 4.5,
     heroImage: DEFAULT_HERO_IMAGE,
@@ -477,20 +547,45 @@ export default function DemoMenu() {
       if (!currentTableId) return;
 
       try {
-        const response = await fetch(
-          `${API_BASE_URL}/qr/${encodeURIComponent(currentTableId)}`,
-        );
+        const tableIdCandidates = buildTableIdCandidates(currentTableId);
+        let payload = null;
 
-        if (!response.ok) {
+        for (const tableIdCandidate of tableIdCandidates) {
+          const qrParams = new URLSearchParams();
+          if (currentBusinessId) qrParams.set("biz", currentBusinessId);
+          if (currentRestroSlug) qrParams.set("restro", currentRestroSlug);
+
+          const qrUrl = qrParams.toString()
+            ? `${API_BASE_URL}/qr/${encodeURIComponent(tableIdCandidate)}?${qrParams.toString()}`
+            : `${API_BASE_URL}/qr/${encodeURIComponent(tableIdCandidate)}`;
+
+          const response = await fetch(qrUrl);
+          if (!response.ok) continue;
+
+          const candidatePayload = await response.json();
+          const payloadBusinessId = String(
+            candidatePayload?.business?.id || "",
+          );
+
+          if (
+            currentBusinessId &&
+            payloadBusinessId &&
+            payloadBusinessId !== String(currentBusinessId)
+          ) {
+            continue;
+          }
+
+          payload = candidatePayload;
+          break;
+        }
+
+        if (!payload || cancelled) {
           return;
         }
 
-        const payload = await response.json();
-        if (cancelled) return;
-
         setRestaurantProfile((prev) => ({
           ...prev,
-          name: payload.business?.name || prev.name,
+          name: payload.business?.name || restroNameFromSlug || prev.name,
           heroImage: DEFAULT_HERO_IMAGE,
           tableLabel: payload.table?.label || getTableLabel(currentTableId),
           totalTables:
@@ -528,7 +623,12 @@ export default function DemoMenu() {
     return () => {
       cancelled = true;
     };
-  }, [currentBusinessId, currentTableId]);
+  }, [
+    currentBusinessId,
+    currentRestroSlug,
+    currentTableId,
+    restroNameFromSlug,
+  ]);
 
   // Load visit count and order history from localStorage when the guest logs in
   useEffect(() => {
@@ -558,17 +658,49 @@ export default function DemoMenu() {
     { pct: 10, title: "Festival 10%", subtitle: "10% off", minSubtotal: 1000 },
   ];
 
+  const mapBackendStatusToStep = (status) => {
+    if (status === "Ready" || status === "Served") return 2;
+    if (status === "Preparing") return 1;
+    if (status === "Pending") return 0;
+    return 0;
+  };
+
   useEffect(() => {
-    if (orderPlaced) {
-      setOrderStatus(0);
-      const timer1 = setTimeout(() => setOrderStatus(1), 3500);
-      const timer2 = setTimeout(() => setOrderStatus(2), 7500);
-      return () => {
-        clearTimeout(timer1);
-        clearTimeout(timer2);
-      };
-    }
-  }, [orderPlaced]);
+    if (!orderPlaced || !guestPhone || !activeOrderDbId) return;
+
+    let cancelled = false;
+    const normalizedPhone = normalizeGuestPhone(guestPhone);
+    const phone = `+91${normalizedPhone}`;
+
+    const pollOrderStatus = async () => {
+      try {
+        const response = await fetch(
+          `${API_BASE_URL}/guests/${encodeURIComponent(phone)}/orders`,
+        );
+        if (!response.ok) return;
+
+        const orders = await response.json();
+        if (cancelled || !Array.isArray(orders)) return;
+
+        const activeOrder = orders.find(
+          (order) => String(order._id) === String(activeOrderDbId),
+        );
+        if (!activeOrder?.status) return;
+
+        setOrderStatus(mapBackendStatusToStep(activeOrder.status));
+      } catch {
+        // Keep UI stable if polling fails temporarily.
+      }
+    };
+
+    pollOrderStatus();
+    const poller = setInterval(pollOrderStatus, 5000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(poller);
+    };
+  }, [orderPlaced, guestPhone, activeOrderDbId]);
 
   const addToCart = (id) => {
     setCart((prev) => ({ ...prev, [id]: (prev[id] || 0) + 1 }));
@@ -643,13 +775,13 @@ export default function DemoMenu() {
     if (filterPopular) items = items.filter((i) => i.popular);
     const groups = {};
     for (const item of items) {
-      const key = item.price;
+      const key = item.category || "Menu";
       if (!groups[key]) groups[key] = [];
       groups[key].push(item);
     }
     return Object.entries(groups)
-      .sort(([a], [b]) => Number(a) - Number(b))
-      .map(([price, grpItems]) => ({ price: Number(price), items: grpItems }));
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([category, grpItems]) => ({ category, items: grpItems }));
   }, [
     menuItems,
     searchQuery,
@@ -659,8 +791,8 @@ export default function DemoMenu() {
     filterPopular,
   ]);
 
-  const toggleSection = (price) => {
-    setCollapsedSections((prev) => ({ ...prev, [price]: !prev[price] }));
+  const toggleSection = (category) => {
+    setCollapsedSections((prev) => ({ ...prev, [category]: !prev[category] }));
   };
 
   useEffect(() => {
@@ -679,6 +811,101 @@ export default function DemoMenu() {
       setShowCart(false);
     }
   }, [totalItems, showCart]);
+
+  const handlePlaceOrder = async () => {
+    if (!guestName.trim()) {
+      setShowCart(true);
+      return;
+    }
+
+    let backendOrderId = null;
+    let backendOrderDbId = "";
+    let backendStatus = "Pending";
+
+    const phone = "+91" + guestPhone;
+    if (
+      guestPhone.length === 10 &&
+      resolvedBusinessId &&
+      orderLineItems.length > 0
+    ) {
+      try {
+        const res = await fetch(
+          `${API_BASE_URL}/guests/${encodeURIComponent(phone)}/orders`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              businessId: resolvedBusinessId,
+              tableId: currentTableId || undefined,
+              guestName: guestDisplayName,
+              orderType: "Dine-in",
+              paymentMethod: "Pending",
+              items: orderLineItems.map((i) => ({
+                menuItemId: i.id,
+                name: i.name,
+                quantity: i.qty,
+                price: i.price,
+              })),
+            }),
+          },
+        );
+        if (res.ok) {
+          const data = await res.json();
+          backendOrderId = data.orderId || null;
+          backendOrderDbId = String(data._id || "");
+          backendStatus = data.status || "Pending";
+        }
+      } catch {
+        // Non-blocking — fall through to offline flow
+      }
+    }
+
+    const nextOrderNo = backendOrderId
+      ? String(backendOrderId).replace(/^#/, "")
+      : String(Math.floor(1000 + Math.random() * 9000));
+
+    setOrderNo(nextOrderNo);
+    setActiveOrderDbId(backendOrderDbId);
+    setOrderStatus(mapBackendStatusToStep(backendStatus));
+    setOrderPlaced(true);
+
+    const orderRecord = {
+      id: nextOrderNo,
+      date: new Date().toLocaleString(),
+      total: grandTotal,
+      subtotal: totalPrice,
+      discount: discountAmount,
+      tax: taxAmount,
+      taxableAmount,
+      items: totalItems,
+      itemList: orderLineItems,
+      status: "Placed",
+      couponCode: appliedCoupon,
+      offerPercent: selectedOffer,
+      restaurantName: restaurantDisplayName,
+      tableName: restaurantProfile.tableLabel,
+      guestName: guestName || "Guest",
+      guestPhone,
+    };
+
+    if (guestPhone) {
+      const history = loadOrderHistory(guestPhone);
+      const updatedHistory = [orderRecord, ...history].slice(0, 10);
+      setOrderHistory(updatedHistory);
+      saveOrderHistory(guestPhone, updatedHistory);
+
+      const newVisitCount = visitCount + 1;
+      setVisitCount(newVisitCount);
+      localStorage.setItem("visits_" + guestPhone, newVisitCount.toString());
+
+      if (
+        newVisitCount >= 5 &&
+        !localStorage.getItem("reward_claimed_" + guestPhone)
+      ) {
+        setTimeout(() => setShowReward(true), 3000);
+      }
+    }
+  };
 
   const applyCouponCode = () => {
     const normalized = couponCode.trim().toUpperCase();
@@ -833,7 +1060,7 @@ export default function DemoMenu() {
             >
               <div className="flex items-center gap-3 px-4 py-3">
                 <button
-                  onClick={() => navigate(-1)}
+                  onClick={goBackPreservingOrderUrl}
                   className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-700"
                 >
                   <ArrowLeft size={16} />
@@ -880,7 +1107,7 @@ export default function DemoMenu() {
 
           {/* Top controls */}
           <button
-            onClick={() => navigate(-1)}
+            onClick={goBackPreservingOrderUrl}
             className="absolute top-4 left-4 w-9 h-9 rounded-full bg-black/55 backdrop-blur-sm flex items-center justify-center text-white"
           >
             <ArrowLeft size={18} />
@@ -1013,20 +1240,13 @@ export default function DemoMenu() {
             <div className="flex items-center gap-2">
               {orderHistory.length > 0 && (
                 <Link
-                  to="/history"
+                  to={`/history${window.location.search}`}
                   className="text-xs text-gray-500 border border-gray-200 rounded-full px-2.5 py-1 hover:bg-gray-50"
                 >
                   {orderHistory.length} past order
                   {orderHistory.length > 1 ? "s" : ""}
                 </Link>
               )}
-              <button
-                onClick={() => setShowProfile(true)}
-                className="w-8 h-8 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-700 hover:bg-gray-200 transition-colors"
-                aria-label="Open guest profile"
-              >
-                <User size={14} />
-              </button>
               <div className="flex items-center gap-1 bg-green-700 text-white px-3 py-1.5 rounded-full">
                 <Star size={12} className="fill-white" />
                 <span className="text-sm font-bold">
@@ -1127,27 +1347,27 @@ export default function DemoMenu() {
               </p>
             </div>
           ) : (
-            groupedItems.map(({ price, items: sectionItems }) => (
-              <div key={price} className="border-b border-gray-100">
+            groupedItems.map(({ category, items: sectionItems }) => (
+              <div key={category} className="border-b border-gray-100">
                 {/* Section header */}
                 <button
-                  onClick={() => toggleSection(price)}
+                  onClick={() => toggleSection(category)}
                   className="w-full flex items-center justify-between px-4 py-4 text-left"
                 >
                   <h2 className="text-base font-bold text-gray-900">
-                    Items at ₹{price}{" "}
+                    {category}{" "}
                     <span className="text-gray-400 font-medium">
                       ({sectionItems.length})
                     </span>
                   </h2>
                   <ChevronDown
                     size={20}
-                    className={`text-gray-500 transition-transform duration-200 ${collapsedSections[price] ? "-rotate-90" : ""}`}
+                    className={`text-gray-500 transition-transform duration-200 ${collapsedSections[category] ? "-rotate-90" : ""}`}
                   />
                 </button>
 
                 {/* Item grid */}
-                {!collapsedSections[price] && (
+                {!collapsedSections[category] && (
                   <div className="grid grid-cols-2 gap-3 px-4 pb-4">
                     {sectionItems.map((item) => (
                       <div
@@ -1426,6 +1646,8 @@ export default function DemoMenu() {
                       if (orderPlaced) {
                         setCart({});
                         setOrderPlaced(false);
+                        setActiveOrderDbId("");
+                        setOrderStatus(0);
                         setShowCart(false);
                         setRating(0);
                       } else {
@@ -1755,7 +1977,7 @@ export default function DemoMenu() {
                             initial={{ width: "0%" }}
                             animate={{
                               width:
-                                orderStatus === 0
+                                orderStatus <= 0
                                   ? "33%"
                                   : orderStatus === 1
                                     ? "66%"
@@ -1857,6 +2079,8 @@ export default function DemoMenu() {
                         onClick={() => {
                           setCart({});
                           setOrderPlaced(false);
+                          setActiveOrderDbId("");
+                          setOrderStatus(0);
                           setShowCart(false);
                           setRating(0);
                         }}
@@ -1872,63 +2096,7 @@ export default function DemoMenu() {
                 {!orderPlaced && (
                   <div className="absolute bottom-0 left-0 w-full p-4 bg-white border-t border-[#e0d9ce] shrink-0 text-center">
                     <button
-                      onClick={() => {
-                        if (!guestName.trim()) {
-                          setShowCart(true);
-                          return;
-                        }
-
-                        const nextOrderNo = Math.floor(
-                          1000 + Math.random() * 9000,
-                        );
-                        setOrderNo(nextOrderNo);
-                        setOrderPlaced(true);
-
-                        const orderRecord = {
-                          id: nextOrderNo,
-                          date: new Date().toLocaleString(),
-                          total: grandTotal,
-                          subtotal: totalPrice,
-                          discount: discountAmount,
-                          tax: taxAmount,
-                          taxableAmount,
-                          items: totalItems,
-                          itemList: orderLineItems,
-                          status: "Placed",
-                          couponCode: appliedCoupon,
-                          offerPercent: selectedOffer,
-                          restaurantName: restaurantDisplayName,
-                          tableName: restaurantProfile.tableLabel,
-                          guestName: guestName || "Guest",
-                          guestPhone,
-                        };
-
-                        if (guestPhone) {
-                          const history = loadOrderHistory(guestPhone);
-                          const updatedHistory = [
-                            orderRecord,
-                            ...history,
-                          ].slice(0, 10);
-                          setOrderHistory(updatedHistory);
-                          saveOrderHistory(guestPhone, updatedHistory);
-
-                          const newVisitCount = visitCount + 1;
-                          setVisitCount(newVisitCount);
-                          localStorage.setItem(
-                            `visits_${guestPhone}`,
-                            newVisitCount.toString(),
-                          );
-
-                          if (
-                            newVisitCount >= 5 &&
-                            !localStorage.getItem(
-                              `reward_claimed_${guestPhone}`,
-                            )
-                          ) {
-                            setTimeout(() => setShowReward(true), 3000);
-                          }
-                        }
-                      }}
+                      onClick={handlePlaceOrder}
                       disabled={!guestName.trim()}
                       className="w-full bg-[#e8720c] disabled:bg-[#e0d9ce] disabled:text-[#857c6e] text-white py-3.5 rounded-xl font-bold text-lg shadow-[0_4px_20px_rgba(232,114,12,0.3)] hover:bg-[#d4620a] transition-colors flex items-center justify-center gap-2"
                     >
@@ -1994,7 +2162,7 @@ export default function DemoMenu() {
                     <button
                       onClick={() => {
                         setShowProfile(false);
-                        navigate("/history");
+                        navigate("/history" + window.location.search);
                       }}
                       className="w-full px-2 py-2.5 rounded-xl flex items-center gap-2.5 hover:bg-gray-50 text-left"
                     >
