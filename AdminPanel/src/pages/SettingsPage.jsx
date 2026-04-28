@@ -34,8 +34,9 @@ function normalizeMenuBase(baseUrl) {
   }
 
   // Admin host should never be used for guest menu links.
-  if (url.hostname === "restroadmin.buzingbee.com") {
-    url.hostname = "restro.buzingbee.com";
+  const baseDomain = import.meta.env.VITE_BASE_DOMAIN || "buzingbee.com";
+  if (url.hostname === `restroadmin.${baseDomain}`) {
+    url.hostname = `restro.${baseDomain}`;
   }
 
   return url.toString().replace(/\/$/, "");

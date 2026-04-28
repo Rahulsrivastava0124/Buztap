@@ -6,7 +6,7 @@ import RegistrationModal from "../components/registration/RegistrationModal";
 
 export default function AuthPage() {
   const [registrationModalOpen, setRegistrationModalOpen] = useState(false);
-  const loginUrl = "https://restroadmin.buzingbee.com";
+  const loginUrl = import.meta.env.VITE_ADMIN_URL || "https://restroadmin.buzingbee.com";
 
   const navigate = useNavigate();
 
