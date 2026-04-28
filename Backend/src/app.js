@@ -23,8 +23,18 @@ const mongoose = require("mongoose");
 
 const app = express();
 
-// Respect reverse proxy headers when deployed behind Render/Nginx/Cloudflare.
-if (process.env.TRUST_PROXY === "true") {
+// Respect reverse proxy headers (Render/Nginx/Cloudflare).
+// Default to 1 proxy hop so rate-limit can safely use X-Forwarded-For.
+const trustProxyRaw = String(process.env.TRUST_PROXY || "")
+  .trim()
+  .toLowerCase();
+if (trustProxyRaw === "false" || trustProxyRaw === "0") {
+  app.set("trust proxy", false);
+} else if (trustProxyRaw === "true") {
+  app.set("trust proxy", true);
+} else if (/^\d+$/.test(trustProxyRaw)) {
+  app.set("trust proxy", Number(trustProxyRaw));
+} else {
   app.set("trust proxy", 1);
 }
 
@@ -75,16 +85,7 @@ app.use(express.json());
 app.use(helmet());
 
 // ── Rate limiting ─────────────────────────────────────────────────────────────
-// General API: 200 req / 15 min per IP
-const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 200,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: "Too many requests, please try again later" },
-});
-
-// Auth (login/register): 10 attempts / 15 min per IP — brute-force guard
+// Login only: 10 attempts / 15 min per account+IP — brute-force guard
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,
@@ -92,7 +93,7 @@ const authLimiter = rateLimit({
   legacyHeaders: false,
   skipSuccessfulRequests: true,
   keyGenerator: (req) => {
-    const ip = req.ip || "unknown-ip";
+    const ipKey = rateLimit.ipKeyGenerator(req.ip || "");
     const identifier = String(
       req.body?.identifier || req.body?.email || req.body?.phone || "",
     )
@@ -100,14 +101,12 @@ const authLimiter = rateLimit({
       .toLowerCase();
 
     // Isolate attempts per account identifier on the same IP.
-    return identifier ? `${ip}:${identifier}` : ip;
+    return identifier ? `${ipKey}:${identifier}` : ipKey;
   },
   message: { error: "Too many login attempts, please try again in 15 minutes" },
 });
 
-app.use("/api", apiLimiter);
 app.use("/api/auth/login", authLimiter);
-app.use("/api/auth/register", authLimiter);
 app.get("/api/health", (_req, res) => res.json({ status: "ok" }));
 
 // Routes
