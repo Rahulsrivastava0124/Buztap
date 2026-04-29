@@ -14,7 +14,6 @@ import {
   User,
   Phone,
   PlusCircle,
-  RefreshCw,
   Clock3,
 } from "lucide-react";
 import { motion as Motion, AnimatePresence } from "framer-motion";
@@ -48,6 +47,8 @@ const TABLE_STATUS_DOT = {
   Cleaning: "bg-muted2",
 };
 
+const CLEANING_WINDOW_MS = 15 * 60 * 1000;
+
 function buildTableIdCandidates(rawTableId) {
   const value = String(rawTableId || "").trim();
   if (!value) return [];
@@ -77,6 +78,7 @@ export default function PosSystem() {
   const [guestPhone, setGuestPhone] = useState("");
   const [paymentMode, setPaymentMode] = useState("UPI");
   const [transactionId, setTransactionId] = useState("");
+  const [showPayModal, setShowPayModal] = useState(false);
   const searchRef = useRef(null);
   const navigate = useNavigate();
   const { slug } = useParams();
@@ -104,11 +106,21 @@ export default function PosSystem() {
     isLoading: tablesLoading,
     isError: tablesError,
     refetch: refetchTables,
+    dataUpdatedAt: tablesUpdatedAt,
   } = useQuery({
     queryKey: ["tables"],
     queryFn: fetchTables,
     refetchInterval: 20_000,
   });
+
+  const getCleaningTimeLabel = (table) => {
+    if (table?.status !== "Cleaning") return null;
+    const updatedMs = new Date(table?.updatedAt || "").getTime();
+    if (!Number.isFinite(updatedMs) || !tablesUpdatedAt) return "15m left";
+    const remainingMs = CLEANING_WINDOW_MS - (tablesUpdatedAt - updatedMs);
+    if (remainingMs <= 0) return "finishing soon";
+    return `${Math.ceil(remainingMs / 60000)}m left`;
+  };
 
   // ── Orders query (for occupied table detail) ──
   const { data: orders = [] } = useQuery({
@@ -214,13 +226,13 @@ export default function PosSystem() {
     onError: (err) => toast.error(err?.message || "Unable to update payment."),
   });
 
-  const isServed = detailOrderSummary?.status === "Served";
   const isPaymentDone =
     detailOrderSummary?.paymentStatus === "Completed" ||
     detailOrder?.paymentStatus === "Completed";
 
-  const markPayment = () => {
-    if (!detailOrderSummary?._id) return;
+  const markPayment = async () => {
+    if (!detailOrderSummary?._id) return false;
+    const targetTableId = detailTable?.id;
     const paymentMethodMap = {
       UPI: "Card/UPI",
       Cash: "Cash",
@@ -233,7 +245,21 @@ export default function PosSystem() {
           ? transactionId.trim() || `UPI-${Date.now()}`
           : transactionId.trim() || undefined,
     };
-    paymentMutation.mutate({ id: detailOrderSummary._id, payload });
+    try {
+      await paymentMutation.mutateAsync({
+        id: detailOrderSummary._id,
+        payload,
+      });
+      if (targetTableId) {
+        await statusMutation.mutateAsync({
+          tableId: targetTableId,
+          status: "Cleaning",
+        });
+      }
+      return true;
+    } catch {
+      return false;
+    }
   };
 
   const printInvoice = () => {
@@ -422,6 +448,7 @@ export default function PosSystem() {
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
                 {tables.map((table) => {
                   const isActive = detailTable?.id === table.id;
+                  const cleaningTimeLabel = getCleaningTimeLabel(table);
                   return (
                     <Motion.button
                       key={table.id}
@@ -444,6 +471,11 @@ export default function PosSystem() {
                       {table.seats > 0 && (
                         <span className="text-xs text-muted">
                           {table.seats} seats
+                        </span>
+                      )}
+                      {cleaningTimeLabel && (
+                        <span className="text-[11px] font-semibold text-muted">
+                          Cleaning: {cleaningTimeLabel}
                         </span>
                       )}
                       {table.status !== "Occupied" && (
@@ -625,147 +657,171 @@ export default function PosSystem() {
                     </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Panel Actions */}
-              <div className="p-4 border-t border-border space-y-2 bg-paper">
-                {/* Mark Cleaning — top */}
-                {isPaymentDone ? (
-                  <button
-                    disabled={statusMutation.isPending}
-                    onClick={() =>
-                      statusMutation.mutate({
-                        tableId: detailTable.id,
-                        status: "Cleaning",
-                      })
-                    }
-                    className="w-full py-2.5 rounded-xl border border-warning/40 bg-warning/5 hover:bg-warning/10 text-sm font-semibold text-warning flex items-center justify-center gap-2 transition-colors disabled:opacity-60"
-                  >
-                    <RefreshCw size={14} />
-                    {statusMutation.isPending ? "Clearing…" : "Clear Table"}
-                  </button>
-                ) : (
-                  <button
-                    disabled={statusMutation.isPending}
-                    onClick={async () => {
-                      try {
-                        await statusMutation.mutateAsync({
-                          tableId: detailTable.id,
-                          status: "Cleaning",
-                        });
-                        clearCart();
-                        selectTable({ ...detailTable, status: "Cleaning" });
-                      } catch {
-                        // error already toasted by mutation
-                      }
-                    }}
-                    className="w-full py-2.5 rounded-xl border border-border bg-white hover:bg-paper text-sm font-semibold text-ink flex items-center justify-center gap-2 transition-colors disabled:opacity-60"
-                  >
-                    <RefreshCw size={14} />
-                    {statusMutation.isPending
-                      ? "Updating…"
-                      : `New Order — Mark Cleaning`}
-                  </button>
-                )}
-
-                {/* Add Items + Print Invoice — one row */}
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => selectTable(detailTable)}
-                    className="flex-1 py-2.5 rounded-xl bg-saffron hover:bg-saffron2 text-white font-bold text-sm flex items-center justify-center gap-1.5 transition-colors shadow-md"
-                  >
-                    <PlusCircle size={15} /> Add Items
-                  </button>
-                  {detailOrder && (
-                    <button
-                      type="button"
-                      onClick={printInvoice}
-                      className="flex-1 py-2.5 rounded-xl border border-border bg-white hover:bg-paper text-sm font-semibold text-ink flex items-center justify-center gap-1.5 transition-colors"
-                    >
-                      <Printer size={14} /> Print
-                    </button>
-                  )}
-                </div>
-
-                {/* Pay section — only when order is Served */}
-                {isServed && (
-                  <div className="rounded-xl border border-border bg-white p-3 space-y-2.5">
-                    <p className="text-xs font-semibold text-ink">Payment</p>
-                    {isPaymentDone ? (
-                      <p className="text-xs text-green-700 font-semibold">
-                        Payment completed.
-                      </p>
-                    ) : (
-                      <>
-                        <div className="flex gap-2 flex-wrap">
-                          <button
-                            type="button"
-                            onClick={() => setPaymentMode("UPI")}
-                            className={`text-sm px-4 py-2 rounded-xl border transition-colors cursor-pointer ${paymentMode === "UPI" ? "bg-saffron text-white border-saffron" : "border-border text-muted hover:bg-paper"}`}
-                          >
-                            UPI
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setPaymentMode("Cash")}
-                            className={`text-sm px-4 py-2 rounded-xl border transition-colors cursor-pointer ${paymentMode === "Cash" ? "bg-saffron text-white border-saffron" : "border-border text-muted hover:bg-paper"}`}
-                          >
-                            Cash
-                          </button>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-2xl font-black text-ink">
-                            Total
-                          </span>
-                          <span className="text-4xl font-black text-ink">
-                            ₹
-                            {Number(
-                              detailOrder?.total ??
-                                detailOrderSummary?.amount ??
-                                0,
-                            ).toFixed(0)}
-                          </span>
-                        </div>
-                        {paymentMode === "UPI" ? (
-                          upiId ? (
-                            <div className="rounded-xl border border-border bg-paper p-3 flex justify-center">
-                              <img
-                                src={upiQrUrl}
-                                alt="UPI payment QR"
-                                className="w-56 h-56 object-contain"
-                              />
-                            </div>
-                          ) : (
-                            <p className="text-xs text-error">
-                              Set UPI ID in Settings to show QR.
-                            </p>
-                          )
-                        ) : null}
-                        <input
-                          value={transactionId}
-                          onChange={(e) => setTransactionId(e.target.value)}
-                          placeholder="Transaction ID (optional)"
-                          className="w-full rounded-xl border border-border px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-saffron/25"
-                        />
+                {/* Pay section — inside scrollable area */}
+                {detailOrderSummary && (
+                  <div className="rounded-xl border border-border bg-white overflow-hidden">
+                    {/* Total row */}
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+                      <span className="text-base font-black text-ink">
+                        Total
+                      </span>
+                      <span className="text-base font-black text-ink">
+                        ₹
+                        {Number(
+                          detailOrder?.total ?? detailOrderSummary?.amount ?? 0,
+                        ).toFixed(0)}
+                      </span>
+                    </div>
+                    <div className="p-3">
+                      {isPaymentDone ? (
+                        <p className="text-xs text-green-700 font-semibold text-center py-1">
+                          ✓ Payment completed
+                        </p>
+                      ) : (
                         <button
                           type="button"
-                          onClick={markPayment}
-                          disabled={
-                            paymentMutation.isPending ||
-                            (paymentMode === "UPI" && !upiId)
-                          }
-                          className="w-full bg-saffron hover:bg-saffron2 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-xl py-3 text-sm font-bold flex items-center justify-center gap-2 cursor-pointer transition-colors"
+                          onClick={() => setShowPayModal(true)}
+                          className="w-full bg-saffron hover:bg-saffron2 text-white rounded-xl py-3 text-sm font-bold flex items-center justify-center gap-2 cursor-pointer transition-colors"
                         >
                           <CreditCard size={16} />
-                          {paymentMutation.isPending
-                            ? "Updating..."
-                            : "Mark Payment Completed"}
+                          Mark Payment Completed
                         </button>
-                      </>
-                    )}
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
+
+              {/* Panel Actions — fixed footer with action buttons only */}
+              <div className="p-4 border-t border-border space-y-2 bg-paper shrink-0">
+                {/* Add Items / Print — show Print only after payment */}
+                {isPaymentDone ? (
+                  <button
+                    type="button"
+                    onClick={printInvoice}
+                    className="w-full py-2.5 rounded-xl border border-border bg-white hover:bg-paper text-sm font-semibold text-ink flex items-center justify-center gap-1.5 transition-colors"
+                  >
+                    <Printer size={14} /> Print Invoice
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => selectTable(detailTable)}
+                    className="w-full py-2.5 rounded-xl bg-saffron hover:bg-saffron2 text-white font-bold text-sm flex items-center justify-center gap-1.5 transition-colors shadow-md"
+                  >
+                    <PlusCircle size={15} /> Add Items
+                  </button>
+                )}
+              </div>
+            </Motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Payment Modal */}
+        <AnimatePresence>
+          {showPayModal && (
+            <Motion.div
+              key="pay-modal-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+              onClick={() => setShowPayModal(false)}
+            >
+              <Motion.div
+                key="pay-modal"
+                initial={{ y: 60, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                exit={{ y: 60, opacity: 0 }}
+                transition={{ type: "spring", damping: 28, stiffness: 320 }}
+                className="w-full max-w-sm bg-white rounded-2xl shadow-2xl overflow-hidden"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Modal Header */}
+                <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+                  <div>
+                    <p className="font-bold text-ink text-sm">Payment</p>
+                    <p className="text-xs text-muted mt-0.5">
+                      Total: ₹
+                      {Number(
+                        detailOrder?.total ?? detailOrderSummary?.amount ?? 0,
+                      ).toFixed(0)}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setShowPayModal(false)}
+                    className="p-1.5 rounded-md text-muted hover:bg-border transition-colors"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+
+                {/* Modal Body */}
+                <div className="p-5 space-y-4">
+                  {/* Mode toggle */}
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMode("UPI")}
+                      className={`flex-1 py-2.5 rounded-xl border text-sm font-semibold transition-colors cursor-pointer ${paymentMode === "UPI" ? "bg-saffron text-white border-saffron" : "border-border text-muted hover:bg-paper"}`}
+                    >
+                      UPI
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMode("Cash")}
+                      className={`flex-1 py-2.5 rounded-xl border text-sm font-semibold transition-colors cursor-pointer ${paymentMode === "Cash" ? "bg-saffron text-white border-saffron" : "border-border text-muted hover:bg-paper"}`}
+                    >
+                      Cash
+                    </button>
+                  </div>
+
+                  {/* QR code for UPI */}
+                  {paymentMode === "UPI" &&
+                    (upiId ? (
+                      <div className="rounded-xl border border-border bg-paper p-4 flex justify-center">
+                        <img
+                          src={upiQrUrl}
+                          alt="UPI payment QR"
+                          className="w-52 h-52 object-contain"
+                        />
+                      </div>
+                    ) : (
+                      <p className="text-xs text-error text-center">
+                        Set UPI ID in Settings to show QR.
+                      </p>
+                    ))}
+
+                  {/* Transaction ID */}
+                  <input
+                    value={transactionId}
+                    onChange={(e) => setTransactionId(e.target.value)}
+                    placeholder="Transaction ID (optional)"
+                    className="w-full rounded-xl border border-border px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-saffron/25"
+                  />
+
+                  {/* Confirm button */}
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const ok = await markPayment();
+                      if (ok) {
+                        setShowPayModal(false);
+                      }
+                    }}
+                    disabled={
+                      paymentMutation.isPending ||
+                      (paymentMode === "UPI" && !upiId)
+                    }
+                    className="w-full bg-saffron hover:bg-saffron2 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-xl py-3 text-sm font-bold flex items-center justify-center gap-2 transition-colors"
+                  >
+                    <CreditCard size={16} />
+                    {paymentMutation.isPending
+                      ? "Updating..."
+                      : "Confirm Payment"}
+                  </button>
+                </div>
+              </Motion.div>
             </Motion.div>
           )}
         </AnimatePresence>

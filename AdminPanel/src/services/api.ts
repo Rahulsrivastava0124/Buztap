@@ -126,6 +126,7 @@ export interface TableRecord {
   seats: number;
   status: "Occupied" | "Free" | "Reserved" | "Cleaning";
   guestName: string | null;
+  updatedAt: string | null;
 }
 
 export interface TableQrPayload {
@@ -597,6 +598,7 @@ export async function fetchTables(): Promise<TableRecord[]> {
     seats: Number(table.seats || 0),
     status: table.status,
     guestName: table.guestName ?? null,
+    updatedAt: table.updatedAt ?? null,
   }));
 }
 
@@ -613,6 +615,7 @@ export async function updateTableStatus(
     seats: Number(table.seats || 0),
     status: table.status,
     guestName: table.guestName ?? null,
+    updatedAt: table.updatedAt ?? null,
   };
 }
 

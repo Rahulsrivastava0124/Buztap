@@ -18,8 +18,7 @@ import {
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_URL 
+const API_BASE_URL = import.meta.env.VITE_API_URL;
 
 const DEFAULT_HERO_IMAGE =
   "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&q=80";
@@ -446,6 +445,7 @@ export default function DemoMenu() {
   const [joinError, setJoinError] = useState("");
   const [orderStatus, setOrderStatus] = useState(0);
   const [orderBackendStatus, setOrderBackendStatus] = useState("Pending");
+  const [orderPaymentStatus, setOrderPaymentStatus] = useState("Pending");
   const [orderNo, setOrderNo] = useState("");
   const [placedOrderAmount, setPlacedOrderAmount] = useState(0);
   const [paymentMode, setPaymentMode] = useState("Online");
@@ -812,6 +812,7 @@ export default function DemoMenu() {
         if (!activeOrder?.status) return;
 
         setOrderBackendStatus(activeOrder.status);
+        setOrderPaymentStatus(activeOrder.paymentStatus || "Pending");
         setOrderStatus(mapBackendStatusToStep(activeOrder.status));
       } catch {
         // Keep UI stable if polling fails temporarily.
@@ -998,6 +999,7 @@ export default function DemoMenu() {
     let backendOrderId = null;
     let backendOrderDbId = "";
     let backendStatus = "Pending";
+    let backendPaymentStatus = "Pending";
 
     const phone = "+91" + guestPhone;
     if (
@@ -1036,6 +1038,7 @@ export default function DemoMenu() {
           backendOrderId = data.orderId || null;
           backendOrderDbId = String(data._id || "");
           backendStatus = data.status || "Pending";
+          backendPaymentStatus = data.paymentStatus || "Pending";
         }
       } catch {
         // Non-blocking — fall through to offline flow
@@ -1050,6 +1053,7 @@ export default function DemoMenu() {
     setPlacedOrderAmount(grandTotal);
     setActiveOrderDbId(backendOrderDbId);
     setOrderBackendStatus(backendStatus);
+    setOrderPaymentStatus(backendPaymentStatus);
     setOrderStatus(mapBackendStatusToStep(backendStatus));
     setOrderPlaced(true);
 
@@ -1116,7 +1120,8 @@ export default function DemoMenu() {
     setCouponError("");
   };
 
-  const canShowPayment = orderBackendStatus === "Served";
+  const isPaymentDone = orderPaymentStatus === "Completed";
+  const canShowPayment = orderBackendStatus === "Served" && !isPaymentDone;
   const upiDeepLink = useMemo(() => {
     const upiId = String(restaurantProfile.restroUpi || "").trim();
     if (!upiId || !placedOrderAmount) return "";
@@ -2266,13 +2271,15 @@ export default function DemoMenu() {
                         transition={{ duration: 0.3 }}
                         className="text-xl font-display font-bold text-[#0f0e0b] mt-1"
                       >
-                        {canShowPayment
-                          ? `Time to Pay${guestName ? `, ${guestName.split(" ")[0]}` : ""}!`
-                          : orderStatus === 1
-                            ? `Hang tight${guestName ? `, ${guestName.split(" ")[0]}` : ""}!`
-                            : orderStatus >= 2
-                              ? `Almost Ready${guestName ? `, ${guestName.split(" ")[0]}` : ""}!`
-                              : `Order Placed${guestName ? `, ${guestName.split(" ")[0]}` : ""}!`}
+                        {isPaymentDone
+                          ? `Payment Received${guestName ? `, ${guestName.split(" ")[0]}` : ""}!`
+                          : canShowPayment
+                            ? `Time to Pay${guestName ? `, ${guestName.split(" ")[0]}` : ""}!`
+                            : orderStatus === 1
+                              ? `Hang tight${guestName ? `, ${guestName.split(" ")[0]}` : ""}!`
+                              : orderStatus >= 2
+                                ? `Almost Ready${guestName ? `, ${guestName.split(" ")[0]}` : ""}!`
+                                : `Order Placed${guestName ? `, ${guestName.split(" ")[0]}` : ""}!`}
                       </motion.h2>
                       <p className="font-bold text-[#e8720c] bg-[#fef0e4] px-4 py-1.5 rounded-md text-sm inline-block tracking-wider">
                         ORDER #{orderNo}
@@ -2295,7 +2302,33 @@ export default function DemoMenu() {
                           />
                         </div>
 
-                        {canShowPayment ? (
+                        {isPaymentDone ? (
+                          <div className="pt-5 pb-4 px-5 flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-2xl bg-[#eaf4ee] flex items-center justify-center shrink-0">
+                              <svg
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                strokeWidth={2.5}
+                                stroke="#3a6348"
+                                className="w-6 h-6"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  d="M5 13l4 4L19 7"
+                                />
+                              </svg>
+                            </div>
+                            <div>
+                              <p className="font-bold text-base text-[#0f0e0b]">
+                                Payment Completed
+                              </p>
+                              <p className="text-xs text-[#857c6e] mt-0.5 leading-relaxed">
+                                This order is already paid at counter.
+                              </p>
+                            </div>
+                          </div>
+                        ) : canShowPayment ? (
                           /* Payment active — full-width served banner */
                           <div className="pt-5 pb-4 px-5 flex items-center gap-4">
                             <div className="w-12 h-12 rounded-2xl bg-[#eaf4ee] flex items-center justify-center shrink-0">
