@@ -818,8 +818,32 @@ export default function DemoMenu() {
     return 0;
   };
 
+  // Demo mode: auto-advance order status through the pipeline locally
   useEffect(() => {
-    if (!orderPlaced || !guestPhone || !activeOrderDbId) return;
+    if (!orderPlaced || !isForcedDemo) return;
+
+    const DEMO_STEPS = ["Pending", "Preparing", "Ready", "Served"];
+    let stepIndex = 0;
+    setOrderBackendStatus(DEMO_STEPS[0]);
+    setOrderStatus(mapBackendStatusToStep(DEMO_STEPS[0]));
+
+    const advance = setInterval(() => {
+      stepIndex += 1;
+      if (stepIndex >= DEMO_STEPS.length) {
+        clearInterval(advance);
+        return;
+      }
+      const next = DEMO_STEPS[stepIndex];
+      setOrderBackendStatus(next);
+      setOrderStatus(mapBackendStatusToStep(next));
+    }, 4000);
+
+    return () => clearInterval(advance);
+  }, [orderPlaced, isForcedDemo]);
+
+  // Real mode: poll backend for live order status
+  useEffect(() => {
+    if (!orderPlaced || !guestPhone || !activeOrderDbId || isForcedDemo) return;
 
     let cancelled = false;
     const normalizedPhone = normalizeGuestPhone(guestPhone);
@@ -862,6 +886,7 @@ export default function DemoMenu() {
     };
   }, [
     orderPlaced,
+    isForcedDemo,
     guestPhone,
     activeOrderDbId,
     resolvedBusinessId,
@@ -1035,47 +1060,49 @@ export default function DemoMenu() {
     let backendStatus = "Pending";
     let backendPaymentStatus = "Pending";
 
-    const phone = "+91" + guestPhone;
-    if (
-      guestPhone.length === 10 &&
-      resolvedBusinessId &&
-      orderLineItems.length > 0
-    ) {
-      try {
-        const res = await fetch(
-          `${API_BASE_URL}/guests/${encodeURIComponent(phone)}/orders?${new URLSearchParams(
+    if (!isForcedDemo) {
+      const phone = "+91" + guestPhone;
+      if (
+        guestPhone.length === 10 &&
+        resolvedBusinessId &&
+        orderLineItems.length > 0
+      ) {
+        try {
+          const res = await fetch(
+            `${API_BASE_URL}/guests/${encodeURIComponent(phone)}/orders?${new URLSearchParams(
+              {
+                ...(resolvedBusinessId ? { biz: resolvedBusinessId } : {}),
+                ...(currentRestroSlug ? { restro: currentRestroSlug } : {}),
+              },
+            ).toString()}`,
             {
-              ...(resolvedBusinessId ? { biz: resolvedBusinessId } : {}),
-              ...(currentRestroSlug ? { restro: currentRestroSlug } : {}),
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                businessId: resolvedBusinessId,
+                tableId: currentTableId || undefined,
+                guestName: guestDisplayName,
+                orderType: "Dine-in",
+                paymentMethod: "Pending",
+                items: orderLineItems.map((i) => ({
+                  menuItemId: i.id,
+                  name: i.name,
+                  quantity: i.qty,
+                  price: i.price,
+                })),
+              }),
             },
-          ).toString()}`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              businessId: resolvedBusinessId,
-              tableId: currentTableId || undefined,
-              guestName: guestDisplayName,
-              orderType: "Dine-in",
-              paymentMethod: "Pending",
-              items: orderLineItems.map((i) => ({
-                menuItemId: i.id,
-                name: i.name,
-                quantity: i.qty,
-                price: i.price,
-              })),
-            }),
-          },
-        );
-        if (res.ok) {
-          const data = await res.json();
-          backendOrderId = data.orderId || null;
-          backendOrderDbId = String(data._id || "");
-          backendStatus = data.status || "Pending";
-          backendPaymentStatus = data.paymentStatus || "Pending";
+          );
+          if (res.ok) {
+            const data = await res.json();
+            backendOrderId = data.orderId || null;
+            backendOrderDbId = String(data._id || "");
+            backendStatus = data.status || "Pending";
+            backendPaymentStatus = data.paymentStatus || "Pending";
+          }
+        } catch {
+          // Non-blocking — fall through to offline flow
         }
-      } catch {
-        // Non-blocking — fall through to offline flow
       }
     }
 
