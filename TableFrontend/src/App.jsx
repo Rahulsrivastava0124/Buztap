@@ -3,9 +3,15 @@ import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import ErrorBoundary from "./components/shared/ErrorBoundary";
 import lazyWithRetry from "./utils/lazyWithRetry";
 
-const Landing = lazy(() => lazyWithRetry(() => import("./pages/Landing"), "landing"));
-const AuthPage = lazy(() => lazyWithRetry(() => import("./pages/AuthPage"), "auth"));
-const DemoMenu = lazy(() => lazyWithRetry(() => import("./pages/DemoMenu"), "demo-menu"));
+const Landing = lazy(() =>
+  lazyWithRetry(() => import("./pages/Landing"), "landing"),
+);
+const AuthPage = lazy(() =>
+  lazyWithRetry(() => import("./pages/AuthPage"), "auth"),
+);
+const DemoMenu = lazy(() =>
+  lazyWithRetry(() => import("./pages/DemoMenu"), "demo-menu"),
+);
 const OrderHistory = lazy(() =>
   lazyWithRetry(() => import("./pages/OrderHistory"), "order-history"),
 );

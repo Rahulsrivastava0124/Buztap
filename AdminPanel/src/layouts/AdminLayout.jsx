@@ -482,7 +482,10 @@ export default function AdminLayout() {
                             <div>
                               <p className="text-sm font-semibold text-ink">
                                 {order.id}
-                                <span className="text-muted font-medium"> · {order.source}</span>
+                                <span className="text-muted font-medium">
+                                  {" "}
+                                  · {order.source}
+                                </span>
                               </p>
                               <p className="text-xs font-semibold text-saffron mt-1">
                                 {order.amountLabel}

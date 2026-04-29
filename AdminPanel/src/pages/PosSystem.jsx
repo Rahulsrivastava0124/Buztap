@@ -372,7 +372,11 @@ export default function PosSystem() {
     const order = getLatestTableOrder(table);
     if (!order) return null;
     const rawId = order.id || order.orderId || order._id || "";
-    const normalizedId = rawId.startsWith("#") ? rawId : rawId ? `#${rawId}` : "";
+    const normalizedId = rawId.startsWith("#")
+      ? rawId
+      : rawId
+        ? `#${rawId}`
+        : "";
     return {
       orderId: normalizedId,
       itemCount: Number(order.items || 0),
@@ -545,214 +549,216 @@ export default function PosSystem() {
                 transition={{ type: "spring", damping: 28, stiffness: 300 }}
                 className="absolute top-0 right-0 h-full w-full max-w-sm bg-white border-l border-border flex flex-col shadow-xl z-50"
               >
-              {/* Panel Header */}
-              <div className="p-4 border-b border-border flex items-center justify-between bg-paper">
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`text-sm font-bold px-2.5 py-1 rounded-lg border ${TABLE_STATUS_STYLES[detailTable.status]}`}
-                  >
-                    {detailTable.id}
-                  </span>
-                  {detailTable.seats > 0 && (
-                    <span className="text-xs text-muted">
-                      {detailTable.seats} seats
+                {/* Panel Header */}
+                <div className="p-4 border-b border-border flex items-center justify-between bg-paper">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`text-sm font-bold px-2.5 py-1 rounded-lg border ${TABLE_STATUS_STYLES[detailTable.status]}`}
+                    >
+                      {detailTable.id}
                     </span>
-                  )}
+                    {detailTable.seats > 0 && (
+                      <span className="text-xs text-muted">
+                        {detailTable.seats} seats
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => setDetailTable(null)}
+                    className="p-1.5 rounded-md text-muted hover:bg-border transition-colors"
+                  >
+                    <X size={16} />
+                  </button>
                 </div>
-                <button
-                  onClick={() => setDetailTable(null)}
-                  className="p-1.5 rounded-md text-muted hover:bg-border transition-colors"
-                >
-                  <X size={16} />
-                </button>
-              </div>
 
-              <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
-                {/* Active Order */}
-                <div>
-                  <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-2 flex items-center gap-1.5">
-                    <Clock3 size={12} /> Active Order
-                  </p>
-                  {detailOrderLoading ? (
-                    <div className="rounded-lg border border-border bg-paper p-3 text-sm text-muted text-center">
-                      Loading order…
-                    </div>
-                  ) : !detailOrderSummary ? (
-                    <div className="rounded-lg border border-border bg-paper p-3 text-sm text-muted text-center">
-                      No active order found for this table.
-                    </div>
-                  ) : (
-                    <div className="rounded-xl border border-border bg-paper overflow-hidden">
-                      <div className="px-3 py-2 border-b border-border flex items-center justify-between bg-white">
-                        <span className="text-xs font-semibold text-ink">
-                          {detailOrderSummary.id ||
-                            `#${detailOrderSummary._id?.slice(-6)}`}
-                        </span>
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-warning/20 text-warning font-medium">
-                          {detailOrderSummary.status}
-                        </span>
+                <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
+                  {/* Active Order */}
+                  <div>
+                    <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                      <Clock3 size={12} /> Active Order
+                    </p>
+                    {detailOrderLoading ? (
+                      <div className="rounded-lg border border-border bg-paper p-3 text-sm text-muted text-center">
+                        Loading order…
                       </div>
-                      <div className="divide-y divide-border">
-                        {(detailOrder?.items || []).map((item, idx) => (
-                          <div
-                            key={idx}
-                            className="px-3 py-2 flex justify-between items-center"
-                          >
-                            <div>
-                              <p className="text-sm font-medium text-ink">
-                                {item.name}
-                              </p>
-                              {item.notes && (
-                                <p className="text-xs text-muted italic">
-                                  {item.notes}
+                    ) : !detailOrderSummary ? (
+                      <div className="rounded-lg border border-border bg-paper p-3 text-sm text-muted text-center">
+                        No active order found for this table.
+                      </div>
+                    ) : (
+                      <div className="rounded-xl border border-border bg-paper overflow-hidden">
+                        <div className="px-3 py-2 border-b border-border flex items-center justify-between bg-white">
+                          <span className="text-xs font-semibold text-ink">
+                            {detailOrderSummary.id ||
+                              `#${detailOrderSummary._id?.slice(-6)}`}
+                          </span>
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-warning/20 text-warning font-medium">
+                            {detailOrderSummary.status}
+                          </span>
+                        </div>
+                        <div className="divide-y divide-border">
+                          {(detailOrder?.items || []).map((item, idx) => (
+                            <div
+                              key={idx}
+                              className="px-3 py-2 flex justify-between items-center"
+                            >
+                              <div>
+                                <p className="text-sm font-medium text-ink">
+                                  {item.name}
                                 </p>
-                              )}
+                                {item.notes && (
+                                  <p className="text-xs text-muted italic">
+                                    {item.notes}
+                                  </p>
+                                )}
+                              </div>
+                              <div className="text-right shrink-0 ml-2">
+                                <p className="text-xs text-muted">
+                                  x{item.quantity}
+                                </p>
+                                <p className="text-sm font-bold text-ink">
+                                  ₹
+                                  {Number(
+                                    item.total ?? item.price * item.quantity,
+                                  ).toFixed(0)}
+                                </p>
+                              </div>
                             </div>
-                            <div className="text-right shrink-0 ml-2">
-                              <p className="text-xs text-muted">
-                                x{item.quantity}
-                              </p>
-                              <p className="text-sm font-bold text-ink">
-                                ₹
-                                {Number(
-                                  item.total ?? item.price * item.quantity,
-                                ).toFixed(0)}
-                              </p>
+                          ))}
+                          {detailOrderLoading && (
+                            <div className="px-3 py-2 text-xs text-muted text-center">
+                              Loading items…
                             </div>
-                          </div>
-                        ))}
-                        {detailOrderLoading && (
-                          <div className="px-3 py-2 text-xs text-muted text-center">
-                            Loading items…
-                          </div>
-                        )}
+                          )}
+                        </div>
+                        <div className="px-3 py-2 border-t border-border bg-white flex justify-between items-center">
+                          <span className="text-xs text-muted font-medium">
+                            Total
+                          </span>
+                          <span className="text-sm font-black text-saffron">
+                            ₹
+                            {Number(
+                              detailOrder?.total ??
+                                detailOrderSummary.amount ??
+                                0,
+                            ).toFixed(0)}
+                          </span>
+                        </div>
+                        <div className="px-3 py-2 border-t border-border bg-white flex justify-between items-center">
+                          <span className="text-xs text-muted font-medium">
+                            Payment
+                          </span>
+                          <span
+                            className={`text-xs font-semibold ${
+                              (detailOrder?.paymentStatus ||
+                                detailOrderSummary?.paymentStatus ||
+                                "Pending") === "Completed"
+                                ? "text-green-700"
+                                : "text-orange-600"
+                            }`}
+                          >
+                            {detailOrder?.paymentStatus ||
+                              detailOrderSummary?.paymentStatus ||
+                              "Pending"}
+                          </span>
+                        </div>
                       </div>
-                      <div className="px-3 py-2 border-t border-border bg-white flex justify-between items-center">
-                        <span className="text-xs text-muted font-medium">
+                    )}
+                  </div>
+
+                  {/* Guest Info */}
+                  <div>
+                    <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-2">
+                      Guest Info
+                    </p>
+                    <div className="space-y-2">
+                      <div className="relative">
+                        <User
+                          size={14}
+                          className="absolute left-3 top-2.5 text-muted2"
+                        />
+                        <input
+                          type="text"
+                          value={guestName}
+                          onChange={(e) => setGuestName(e.target.value)}
+                          placeholder="Guest name"
+                          className="w-full pl-8 pr-3 py-2 text-sm border border-border rounded-lg bg-paper focus:outline-none focus:ring-2 focus:ring-saffron/30 focus:border-saffron"
+                        />
+                      </div>
+                      <div className="relative">
+                        <Phone
+                          size={14}
+                          className="absolute left-3 top-2.5 text-muted2"
+                        />
+                        <input
+                          type="tel"
+                          value={guestPhone}
+                          onChange={(e) => setGuestPhone(e.target.value)}
+                          placeholder="Guest phone number"
+                          className="w-full pl-8 pr-3 py-2 text-sm border border-border rounded-lg bg-paper focus:outline-none focus:ring-2 focus:ring-saffron/30 focus:border-saffron"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Pay section — inside scrollable area */}
+                  {detailOrderSummary && (
+                    <div className="rounded-xl border border-border bg-white overflow-hidden">
+                      {/* Total row */}
+                      <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+                        <span className="text-base font-black text-ink">
                           Total
                         </span>
-                        <span className="text-sm font-black text-saffron">
+                        <span className="text-base font-black text-ink">
                           ₹
                           {Number(
                             detailOrder?.total ??
-                              detailOrderSummary.amount ??
+                              detailOrderSummary?.amount ??
                               0,
                           ).toFixed(0)}
                         </span>
                       </div>
-                      <div className="px-3 py-2 border-t border-border bg-white flex justify-between items-center">
-                        <span className="text-xs text-muted font-medium">
-                          Payment
-                        </span>
-                        <span
-                          className={`text-xs font-semibold ${
-                            (detailOrder?.paymentStatus ||
-                              detailOrderSummary?.paymentStatus ||
-                              "Pending") === "Completed"
-                              ? "text-green-700"
-                              : "text-orange-600"
-                          }`}
-                        >
-                          {detailOrder?.paymentStatus ||
-                            detailOrderSummary?.paymentStatus ||
-                            "Pending"}
-                        </span>
+                      <div className="p-3">
+                        {isPaymentDone ? (
+                          <p className="text-xs text-green-700 font-semibold text-center py-1">
+                            ✓ Payment completed
+                          </p>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setShowPayModal(true)}
+                            className="w-full bg-saffron hover:bg-saffron2 text-white rounded-xl py-3 text-sm font-bold flex items-center justify-center gap-2 cursor-pointer transition-colors"
+                          >
+                            <CreditCard size={16} />
+                            Mark Payment Completed
+                          </button>
+                        )}
                       </div>
                     </div>
                   )}
                 </div>
 
-                {/* Guest Info */}
-                <div>
-                  <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-2">
-                    Guest Info
-                  </p>
-                  <div className="space-y-2">
-                    <div className="relative">
-                      <User
-                        size={14}
-                        className="absolute left-3 top-2.5 text-muted2"
-                      />
-                      <input
-                        type="text"
-                        value={guestName}
-                        onChange={(e) => setGuestName(e.target.value)}
-                        placeholder="Guest name"
-                        className="w-full pl-8 pr-3 py-2 text-sm border border-border rounded-lg bg-paper focus:outline-none focus:ring-2 focus:ring-saffron/30 focus:border-saffron"
-                      />
-                    </div>
-                    <div className="relative">
-                      <Phone
-                        size={14}
-                        className="absolute left-3 top-2.5 text-muted2"
-                      />
-                      <input
-                        type="tel"
-                        value={guestPhone}
-                        onChange={(e) => setGuestPhone(e.target.value)}
-                        placeholder="Guest phone number"
-                        className="w-full pl-8 pr-3 py-2 text-sm border border-border rounded-lg bg-paper focus:outline-none focus:ring-2 focus:ring-saffron/30 focus:border-saffron"
-                      />
-                    </div>
-                  </div>
+                {/* Panel Actions — fixed footer with action buttons only */}
+                <div className="p-4 border-t border-border space-y-2 bg-paper shrink-0">
+                  {/* Add Items / Print — show Print only after payment */}
+                  {isPaymentDone ? (
+                    <button
+                      type="button"
+                      onClick={printInvoice}
+                      className="w-full py-2.5 rounded-xl border border-border bg-white hover:bg-paper text-sm font-semibold text-ink flex items-center justify-center gap-1.5 transition-colors"
+                    >
+                      <Printer size={14} /> Print Invoice
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => selectTable(detailTable)}
+                      className="w-full py-2.5 rounded-xl bg-saffron hover:bg-saffron2 text-white font-bold text-sm flex items-center justify-center gap-1.5 transition-colors shadow-md"
+                    >
+                      <PlusCircle size={15} /> Add Items
+                    </button>
+                  )}
                 </div>
-
-                {/* Pay section — inside scrollable area */}
-                {detailOrderSummary && (
-                  <div className="rounded-xl border border-border bg-white overflow-hidden">
-                    {/* Total row */}
-                    <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-                      <span className="text-base font-black text-ink">
-                        Total
-                      </span>
-                      <span className="text-base font-black text-ink">
-                        ₹
-                        {Number(
-                          detailOrder?.total ?? detailOrderSummary?.amount ?? 0,
-                        ).toFixed(0)}
-                      </span>
-                    </div>
-                    <div className="p-3">
-                      {isPaymentDone ? (
-                        <p className="text-xs text-green-700 font-semibold text-center py-1">
-                          ✓ Payment completed
-                        </p>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => setShowPayModal(true)}
-                          className="w-full bg-saffron hover:bg-saffron2 text-white rounded-xl py-3 text-sm font-bold flex items-center justify-center gap-2 cursor-pointer transition-colors"
-                        >
-                          <CreditCard size={16} />
-                          Mark Payment Completed
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Panel Actions — fixed footer with action buttons only */}
-              <div className="p-4 border-t border-border space-y-2 bg-paper shrink-0">
-                {/* Add Items / Print — show Print only after payment */}
-                {isPaymentDone ? (
-                  <button
-                    type="button"
-                    onClick={printInvoice}
-                    className="w-full py-2.5 rounded-xl border border-border bg-white hover:bg-paper text-sm font-semibold text-ink flex items-center justify-center gap-1.5 transition-colors"
-                  >
-                    <Printer size={14} /> Print Invoice
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => selectTable(detailTable)}
-                    className="w-full py-2.5 rounded-xl bg-saffron hover:bg-saffron2 text-white font-bold text-sm flex items-center justify-center gap-1.5 transition-colors shadow-md"
-                  >
-                    <PlusCircle size={15} /> Add Items
-                  </button>
-                )}
-              </div>
-            </Motion.div>
+              </Motion.div>
             </>
           )}
         </AnimatePresence>
