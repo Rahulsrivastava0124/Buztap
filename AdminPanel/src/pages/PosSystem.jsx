@@ -221,8 +221,13 @@ export default function PosSystem() {
 
   const markPayment = () => {
     if (!detailOrderSummary?._id) return;
+    const paymentMethodMap = {
+      UPI: "Card/UPI",
+      Cash: "Cash",
+      Card: "Credit/Debit Card",
+    };
     const payload = {
-      paymentMethod: paymentMode === "UPI" ? "Card/UPI" : "Cash",
+      paymentMethod: paymentMethodMap[paymentMode] || paymentMode,
       paymentStatus: "Completed",
       transactionId:
         paymentMode === "UPI"
@@ -693,7 +698,7 @@ export default function PosSystem() {
                       </p>
                     ) : (
                       <>
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 flex-wrap">
                           <button
                             type="button"
                             onClick={() => setPaymentMode("UPI")}
@@ -707,6 +712,13 @@ export default function PosSystem() {
                             className={`text-xs px-2.5 py-1 rounded-md border ${paymentMode === "Cash" ? "bg-saffron text-white border-saffron" : "border-border text-muted"}`}
                           >
                             Cash
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setPaymentMode("Card")}
+                            className={`text-xs px-2.5 py-1 rounded-md border ${paymentMode === "Card" ? "bg-saffron text-white border-saffron" : "border-border text-muted"}`}
+                          >
+                            Card
                           </button>
                         </div>
                         {paymentMode === "UPI" ? (
