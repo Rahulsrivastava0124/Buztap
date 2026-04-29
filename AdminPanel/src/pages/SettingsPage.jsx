@@ -5,6 +5,8 @@ import {
   Building2,
   Globe2,
   ImageUp,
+  Printer,
+  QrCode,
   Save,
   ShieldCheck,
   X,
@@ -12,6 +14,8 @@ import {
 import toast from "react-hot-toast";
 import {
   fetchBusinessProfile,
+  fetchTableQr,
+  fetchTables,
   updateBusinessProfile,
   uploadMenuImage,
 } from "../services/api";
@@ -95,6 +99,136 @@ const EMPTY_FORM = {
   branches: 1,
   tableCount: 0,
 };
+
+function TableQrCard() {
+  const [selectedTableId, setSelectedTableId] = useState("");
+  const [qrData, setQrData] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const { data: tables = [] } = useQuery({
+    queryKey: ["tables"],
+    queryFn: fetchTables,
+    staleTime: 60_000,
+  });
+
+  const qrImageUrl = qrData?.menuUrl
+    ? `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrData.menuUrl)}`
+    : "";
+
+  const handleGenerate = async () => {
+    const tableId = selectedTableId || tables[0]?.id;
+    if (!tableId) {
+      toast.error("No table selected.");
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const data = await fetchTableQr(tableId);
+      setQrData(data);
+    } catch (err) {
+      toast.error(err?.message || "Unable to generate QR.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const printQr = () => {
+    if (!qrData || !qrImageUrl) return;
+    const popup = window.open("", "_blank", "width=760,height=840");
+    if (!popup) {
+      toast.error("Please allow popups to print QR.");
+      return;
+    }
+    const title = `${qrData.businessName || "BuzTap"} — ${qrData.table?.label || qrData.tableId}`;
+    popup.document.write(`
+      <html>
+        <head>
+          <title>${title}</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 0; padding: 24px; text-align: center; color: #222; }
+            .card { border: 1px solid #ddd; border-radius: 16px; padding: 24px; max-width: 520px; margin: 0 auto; }
+            h1 { margin: 0 0 6px; font-size: 24px; }
+            p { margin: 4px 0; color: #555; }
+            img { width: 300px; height: 300px; margin: 16px auto; display: block; }
+            .url { margin-top: 10px; font-size: 12px; color: #666; word-break: break-all; }
+          </style>
+        </head>
+        <body>
+          <div class="card">
+            <h1>${qrData.businessName || "BuzTap"}</h1>
+            <p><strong>${qrData.table?.label || qrData.tableId}</strong></p>
+            <p>Seats: ${qrData.table?.seats ?? "-"}</p>
+            <img src="${qrImageUrl}" alt="Table QR" />
+            <p>Scan to view menu and place order</p>
+            ${qrData.menuUrl ? `<p class="url">${qrData.menuUrl}</p>` : ""}
+          </div>
+          <script>window.onload = function() { window.print(); };</script>
+        </body>
+      </html>
+    `);
+    popup.document.close();
+  };
+
+  return (
+    <div className="bg-white border border-border rounded-xl p-5">
+      <div className="w-10 h-10 rounded-lg bg-paper border border-border flex items-center justify-center mb-3">
+        <QrCode size={18} className="text-saffron" />
+      </div>
+      <h3 className="font-semibold text-ink">Table QR Codes</h3>
+      <p className="text-sm text-muted mt-1">
+        Generate and print QR codes for any table.
+      </p>
+
+      <div className="mt-4 space-y-3">
+        <select
+          value={selectedTableId}
+          onChange={(e) => {
+            setSelectedTableId(e.target.value);
+            setQrData(null);
+          }}
+          className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-saffron/30"
+        >
+          <option value="">Select a table…</option>
+          {tables.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.id} ({t.seats} seats)
+            </option>
+          ))}
+        </select>
+
+        <button
+          type="button"
+          onClick={handleGenerate}
+          disabled={isLoading}
+          className="w-full bg-saffron hover:brightness-95 disabled:opacity-60 text-white rounded-lg py-2 text-sm font-bold flex items-center justify-center gap-2"
+        >
+          <QrCode size={15} />
+          {isLoading ? "Generating..." : "Generate QR"}
+        </button>
+
+        {qrData && qrImageUrl && (
+          <>
+            <div className="rounded-lg border border-border bg-paper p-3 flex justify-center">
+              <img
+                src={qrImageUrl}
+                alt={`QR for ${qrData.table?.label || qrData.tableId}`}
+                className="w-48 h-48 object-contain"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={printQr}
+              className="w-full border border-border hover:bg-paper text-ink rounded-lg py-2 text-sm font-bold flex items-center justify-center gap-2"
+            >
+              <Printer size={15} />
+              Print QR
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function SettingsPage() {
   const queryClient = useQueryClient();
@@ -626,6 +760,7 @@ export default function SettingsPage() {
         </form>
 
         <div className="space-y-4">
+          <TableQrCard />
           {SETTINGS.map((item) => (
             <div
               key={item.title}

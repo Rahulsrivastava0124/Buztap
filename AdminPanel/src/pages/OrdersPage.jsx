@@ -1,11 +1,23 @@
-import { useState } from "react";
-import { Clock3, CookingPot, PackageCheck, Truck, X } from "lucide-react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
+import {
+  Clock3,
+  CookingPot,
+  CreditCard,
+  PackageCheck,
+  Printer,
+  Sparkles,
+  Truck,
+  X,
+} from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import {
-  fetchOrders,
+  fetchBusinessProfile,
   fetchOrderById,
+  fetchOrders,
+  updateOrderPayment,
   updateOrderStatus,
+  updateTableStatus,
 } from "../services/api";
 import StatCard from "../components/shared/StatCard";
 import OrderStatusBadge from "../components/shared/OrderStatusBadge";
@@ -15,6 +27,8 @@ import PageShell from "../components/layout/PageShell";
 function OrderDetailDrawer({ orderId, onClose }) {
   const queryClient = useQueryClient();
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [paymentMode, setPaymentMode] = useState("UPI");
+  const [transactionId, setTransactionId] = useState("");
 
   const {
     data: order,
@@ -26,6 +40,138 @@ function OrderDetailDrawer({ orderId, onClose }) {
     enabled: Boolean(orderId),
     staleTime: 30_000,
   });
+
+  const { data: businessProfile } = useQuery({
+    queryKey: ["business-profile"],
+    queryFn: fetchBusinessProfile,
+    staleTime: 300_000,
+  });
+
+  const isServed = order?.status === "Served";
+  const isPaymentDone = order?.paymentStatus === "Completed";
+  const upiId = businessProfile?.restroUpi || "";
+
+  const upiPaymentLink = useMemo(() => {
+    if (!order || !upiId) return "";
+    const params = new URLSearchParams({
+      pa: upiId,
+      pn: businessProfile?.name || "Restaurant",
+      am: String(Number(order.total || 0).toFixed(2)),
+      cu: "INR",
+      tn: order.orderId || "Order Payment",
+    });
+    return `upi://pay?${params.toString()}`;
+  }, [businessProfile, order, upiId]);
+
+  const upiQrUrl = upiPaymentLink
+    ? `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(upiPaymentLink)}`
+    : "";
+
+  const paymentMutation = useMutation({
+    mutationFn: ({ id, payload }) => updateOrderPayment(id, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      queryClient.invalidateQueries({ queryKey: ["order", orderId] });
+      toast.success("Payment recorded.");
+      setTransactionId("");
+    },
+    onError: (err) => toast.error(err?.message || "Unable to update payment."),
+  });
+
+  const tableClearMutation = useMutation({
+    mutationFn: (tableId) => updateTableStatus(tableId, "Cleaning"),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tables"] });
+      toast.success("Table marked for cleaning.");
+    },
+    onError: () => toast.error("Failed to update table status."),
+  });
+
+  const markPayment = () => {
+    if (!order?._id) return;
+    const payload = {
+      paymentMethod: paymentMode === "UPI" ? "Card/UPI" : "Cash",
+      paymentStatus: "Completed",
+      transactionId:
+        paymentMode === "UPI"
+          ? transactionId.trim() || `UPI-${Date.now()}`
+          : transactionId.trim() || undefined,
+    };
+    paymentMutation.mutate({ id: order._id, payload });
+  };
+
+  const printInvoice = () => {
+    if (!order) return;
+    const popup = window.open("", "_blank", "width=860,height=920");
+    if (!popup) {
+      toast.error("Please allow popups to print invoice.");
+      return;
+    }
+    const lineRows = (order.items || [])
+      .map(
+        (item) => `
+          <tr>
+            <td>${item.name}</td>
+            <td style="text-align:center;">${item.quantity}</td>
+            <td style="text-align:right;">₹${Number(item.price || 0).toFixed(2)}</td>
+            <td style="text-align:right;">₹${Number(item.total || 0).toFixed(2)}</td>
+          </tr>`,
+      )
+      .join("");
+    popup.document.write(`
+      <html>
+        <head>
+          <title>Invoice ${order.orderId}</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 22px; color: #222; }
+            .head { display:flex; justify-content:space-between; margin-bottom: 14px; }
+            .title { font-size: 22px; font-weight: 700; margin: 0; }
+            .muted { color: #666; font-size: 12px; }
+            table { width:100%; border-collapse: collapse; margin-top: 12px; }
+            th, td { border-bottom: 1px solid #ddd; padding: 8px; font-size: 13px; }
+            th { text-align:left; background: #f8f8f8; }
+            .totals { margin-top: 14px; width: 280px; margin-left: auto; }
+            .totals p { display:flex; justify-content:space-between; margin: 6px 0; font-size: 13px; }
+            .grand { font-size: 16px; font-weight: 700; }
+          </style>
+        </head>
+        <body>
+          <div class="head">
+            <div>
+              <p class="title">${businessProfile?.name || "Restaurant"}</p>
+              <p class="muted">${businessProfile?.address || ""}</p>
+            </div>
+            <div style="text-align:right;">
+              <p class="title">INVOICE</p>
+              <p class="muted">Order: ${order.orderId || "-"}</p>
+              <p class="muted">Table: ${order.tableId || "-"}</p>
+              <p class="muted">Date: ${new Date(order.createdAt).toLocaleString("en-IN")}</p>
+            </div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th style="text-align:center;">Qty</th>
+                <th style="text-align:right;">Price</th>
+                <th style="text-align:right;">Total</th>
+              </tr>
+            </thead>
+            <tbody>${lineRows}</tbody>
+          </table>
+          <div class="totals">
+            <p><span>Subtotal</span><span>₹${Number(order.subtotal || 0).toFixed(2)}</span></p>
+            <p><span>Discount</span><span>₹${Number(order.discount || 0).toFixed(2)}</span></p>
+            <p><span>Tax</span><span>₹${Number(order.tax || 0).toFixed(2)}</span></p>
+            <p class="grand"><span>Grand Total</span><span>₹${Number(order.total || 0).toFixed(2)}</span></p>
+            <p><span>Payment</span><span>${order.paymentMethod || "-"} / ${order.paymentStatus || "-"}</span></p>
+          </div>
+          <script>window.onload = function() { window.print(); };</script>
+        </body>
+      </html>
+    `);
+    popup.document.close();
+  };
 
   const nextStatus =
     order?.status === "Preparing"
@@ -201,6 +347,98 @@ function OrderDetailDrawer({ orderId, onClose }) {
                   <span className="font-medium">Cancel reason: </span>
                   {order.cancelReason}
                 </div>
+              )}
+
+              {/* Payment section — shown once order is Served */}
+              {isServed && (
+                <div className="rounded-lg border border-border p-3 bg-white space-y-3">
+                  <p className="text-xs font-semibold text-ink">Payment</p>
+                  {isPaymentDone ? (
+                    <p className="text-xs text-green-700 font-semibold">
+                      Payment completed.
+                    </p>
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setPaymentMode("UPI")}
+                          className={`text-xs px-2.5 py-1 rounded-md border ${paymentMode === "UPI" ? "bg-saffron text-white border-saffron" : "border-border text-muted"}`}
+                        >
+                          UPI
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setPaymentMode("Cash")}
+                          className={`text-xs px-2.5 py-1 rounded-md border ${paymentMode === "Cash" ? "bg-saffron text-white border-saffron" : "border-border text-muted"}`}
+                        >
+                          Cash
+                        </button>
+                      </div>
+                      {paymentMode === "UPI" ? (
+                        <div>
+                          {upiId ? (
+                            <div className="rounded-md border border-border bg-paper p-2 flex justify-center">
+                              <img
+                                src={upiQrUrl}
+                                alt="UPI payment QR"
+                                className="w-28 h-28 object-contain"
+                              />
+                            </div>
+                          ) : (
+                            <p className="text-xs text-error">
+                              Set Restaurant UPI ID in Settings to generate UPI
+                              QR.
+                            </p>
+                          )}
+                        </div>
+                      ) : null}
+                      <input
+                        value={transactionId}
+                        onChange={(e) => setTransactionId(e.target.value)}
+                        placeholder="Transaction ID (optional)"
+                        className="w-full rounded-lg border border-border px-3 py-2 text-xs outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={markPayment}
+                        disabled={
+                          paymentMutation.isPending ||
+                          (paymentMode === "UPI" && !upiId)
+                        }
+                        className="w-full bg-saffron hover:brightness-95 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-lg py-2 text-xs font-bold flex items-center justify-center gap-1.5"
+                      >
+                        <CreditCard size={14} />
+                        {paymentMutation.isPending
+                          ? "Updating..."
+                          : "Mark Payment Completed"}
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* Print Invoice */}
+              <button
+                type="button"
+                onClick={printInvoice}
+                className="w-full border border-border hover:bg-paper text-ink rounded-lg py-2 text-xs font-bold flex items-center justify-center gap-1.5"
+              >
+                <Printer size={14} />
+                Print Invoice
+              </button>
+
+              {/* Clear Table — shown after payment is done and order has a tableId */}
+              {isPaymentDone && order.tableId && (
+                <button
+                  type="button"
+                  onClick={() => tableClearMutation.mutate(order.tableId)}
+                  disabled={tableClearMutation.isPending}
+                  className="w-full border border-warning/40 bg-warning/5 hover:bg-warning/10 text-warning rounded-lg py-2 text-xs font-bold flex items-center justify-center gap-1.5 disabled:opacity-60"
+                >
+                  <Sparkles size={14} />
+                  {tableClearMutation.isPending ? "Clearing..." : "Clear Table"}
+                </button>
               )}
             </>
           )}

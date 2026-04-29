@@ -18,7 +18,6 @@ import {
   UtensilsCrossed,
   Smartphone,
   ClipboardList,
-  Armchair,
   Boxes,
   Users2,
   FileBarChart2,
@@ -75,7 +74,6 @@ const SIDEBAR_ITEMS = [
     label: "Orders",
     minimumRole: "cashier",
   },
-  { path: "/tables", icon: Armchair, label: "Tables", minimumRole: "cashier" },
   { path: "/inventory", icon: Boxes, label: "Inventory", minimumRole: "admin" },
   { path: "/staff", icon: Users2, label: "Staff", minimumRole: "manager" },
   {

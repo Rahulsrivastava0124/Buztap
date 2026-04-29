@@ -6,21 +6,81 @@ import {
   Trash2,
   Utensils,
   ReceiptText,
+  ArrowLeft,
+  ChevronRight,
+  CreditCard,
+  Printer,
+  X,
+  User,
+  Phone,
+  PlusCircle,
+  RefreshCw,
+  Clock3,
 } from "lucide-react";
 import { motion as Motion, AnimatePresence } from "framer-motion";
-import { useQuery } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
-import { fetchPosCatalog } from "../services/api";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate, useParams } from "react-router-dom";
+import toast from "react-hot-toast";
+import {
+  fetchPosCatalog,
+  fetchTables,
+  fetchOrders,
+  fetchOrderById,
+  fetchBusinessProfile,
+  updateTableStatus,
+  updateOrderPayment,
+} from "../services/api";
 import { usePosStore } from "../features/pos/store/usePosStore";
 import usePOSHotkeys from "../hooks/usePOSHotkeys";
 import { useAuth } from "../context/AuthContext";
 
+const TABLE_STATUS_STYLES = {
+  Occupied: "border-warning bg-warning/10 text-ink",
+  Free: "border-sage bg-sage-lt text-sage",
+  Reserved: "border-saffron bg-saffron-lt text-saffron",
+  Cleaning: "border-muted2 bg-base-200 text-muted",
+};
+
+const TABLE_STATUS_DOT = {
+  Occupied: "bg-warning",
+  Free: "bg-sage",
+  Reserved: "bg-saffron",
+  Cleaning: "bg-muted2",
+};
+
+function buildTableIdCandidates(rawTableId) {
+  const value = String(rawTableId || "").trim();
+  if (!value) return [];
+  const set = new Set([value]);
+  const digits = value.replace(/\D/g, "");
+  if (digits) {
+    const n = Number(digits);
+    if (Number.isFinite(n) && n > 0) {
+      set.add(String(n));
+      set.add(String(n).padStart(2, "0"));
+      set.add(`T-${String(n)}`);
+      set.add(`T-${String(n).padStart(2, "0")}`);
+    }
+  }
+  return Array.from(set);
+}
+
 export default function PosSystem() {
+  // step: "table" | "menu"
+  const [step, setStep] = useState("table");
   const [activeCat, setActiveCat] = useState("All");
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedTable, setSelectedTable] = useState("01");
+  const [selectedTable, setSelectedTable] = useState(null);
+  // Occupied table detail panel
+  const [detailTable, setDetailTable] = useState(null);
+  const [guestName, setGuestName] = useState("");
+  const [guestPhone, setGuestPhone] = useState("");
+  const [paymentMode, setPaymentMode] = useState("UPI");
+  const [transactionId, setTransactionId] = useState("");
   const searchRef = useRef(null);
   const navigate = useNavigate();
+  const { slug } = useParams();
+  const queryClient = useQueryClient();
   const { businessType } = useAuth();
   const isHotelMode = businessType === "hotel";
   const locationLabel = isHotelMode ? "Room" : "Table";
@@ -37,6 +97,26 @@ export default function PosSystem() {
     getTotals,
   } = usePosStore();
 
+  // ── Tables query ──
+  const {
+    data: tables = [],
+    isLoading: tablesLoading,
+    isError: tablesError,
+    refetch: refetchTables,
+  } = useQuery({
+    queryKey: ["tables"],
+    queryFn: fetchTables,
+    refetchInterval: 20_000,
+  });
+
+  // ── Orders query (for occupied table detail) ──
+  const { data: orders = [] } = useQuery({
+    queryKey: ["orders"],
+    queryFn: fetchOrders,
+    refetchInterval: 15_000,
+  });
+
+  // ── Menu query ──
   const {
     data: menuItems = [],
     isLoading: menuLoading,
@@ -46,7 +126,167 @@ export default function PosSystem() {
   } = useQuery({
     queryKey: ["pos-catalog"],
     queryFn: fetchPosCatalog,
+    enabled: step === "menu",
   });
+
+  // Active order summary (from queue) for the detail panel table
+  const detailOrderSummary = useMemo(() => {
+    if (!detailTable) return null;
+    const candidates = new Set(buildTableIdCandidates(detailTable.id));
+    const activeStatuses = new Set(["Pending", "Preparing", "Ready", "Served"]);
+    return (
+      orders
+        .filter(
+          (o) =>
+            candidates.has(String(o.tableId || "").trim()) &&
+            activeStatuses.has(o.status),
+        )
+        .sort(
+          (a, b) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+        )[0] || null
+    );
+  }, [detailTable, orders]);
+
+  // Full order detail (with real items array) fetched when panel opens
+  const { data: detailOrder, isLoading: detailOrderLoading } = useQuery({
+    queryKey: ["order-detail", detailOrderSummary?._id],
+    queryFn: () => fetchOrderById(detailOrderSummary._id),
+    enabled: !!detailOrderSummary?._id,
+  });
+
+  // Table status mutation (Occupied → Cleaning → Free)
+  const statusMutation = useMutation({
+    mutationFn: ({ tableId, status }) => updateTableStatus(tableId, status),
+    onSuccess: (updated) => {
+      queryClient.invalidateQueries({ queryKey: ["tables"] });
+      toast.success(`${updated.id} marked ${updated.status}`);
+    },
+    onError: () => toast.error("Unable to update table status"),
+  });
+
+  // Business profile (for UPI id)
+  const { data: businessProfile } = useQuery({
+    queryKey: ["business-profile"],
+    queryFn: fetchBusinessProfile,
+    staleTime: 300_000,
+  });
+
+  const upiId = businessProfile?.restroUpi || "";
+
+  const upiPaymentLink = useMemo(() => {
+    if (!detailOrder || !upiId) return "";
+    const params = new URLSearchParams({
+      pa: upiId,
+      pn: businessProfile?.name || "Restaurant",
+      am: String(
+        Number(detailOrder.total || detailOrderSummary?.amount || 0).toFixed(2),
+      ),
+      cu: "INR",
+      tn: detailOrder.orderId || "Table Payment",
+    });
+    return `upi://pay?${params.toString()}`;
+  }, [businessProfile, detailOrder, detailOrderSummary, upiId]);
+
+  const upiQrUrl = upiPaymentLink
+    ? `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(upiPaymentLink)}`
+    : "";
+
+  // Payment mutation
+  const paymentMutation = useMutation({
+    mutationFn: ({ id, payload }) => updateOrderPayment(id, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      queryClient.invalidateQueries({
+        queryKey: ["order-detail", detailOrderSummary?._id],
+      });
+      toast.success("Payment recorded.");
+      setTransactionId("");
+    },
+    onError: (err) => toast.error(err?.message || "Unable to update payment."),
+  });
+
+  const isServed = detailOrderSummary?.status === "Served";
+  const isPaymentDone =
+    detailOrderSummary?.paymentStatus === "Completed" ||
+    detailOrder?.paymentStatus === "Completed";
+
+  const markPayment = () => {
+    if (!detailOrderSummary?._id) return;
+    const payload = {
+      paymentMethod: paymentMode === "UPI" ? "Card/UPI" : "Cash",
+      paymentStatus: "Completed",
+      transactionId:
+        paymentMode === "UPI"
+          ? transactionId.trim() || `UPI-${Date.now()}`
+          : transactionId.trim() || undefined,
+    };
+    paymentMutation.mutate({ id: detailOrderSummary._id, payload });
+  };
+
+  const printInvoice = () => {
+    const order = detailOrder;
+    if (!order) return;
+    const popup = window.open("", "_blank", "width=860,height=920");
+    if (!popup) {
+      toast.error("Please allow popups to print invoice.");
+      return;
+    }
+    const lineRows = (order.items || [])
+      .map(
+        (item) => `<tr>
+          <td>${item.name}</td>
+          <td style="text-align:center;">${item.quantity}</td>
+          <td style="text-align:right;">₹${Number(item.price || 0).toFixed(2)}</td>
+          <td style="text-align:right;">₹${Number(item.total || 0).toFixed(2)}</td>
+        </tr>`,
+      )
+      .join("");
+    popup.document.write(`
+      <html><head><title>Invoice ${order.orderId}</title>
+      <style>
+        body{font-family:Arial,sans-serif;margin:22px;color:#222}
+        .head{display:flex;justify-content:space-between;margin-bottom:14px}
+        .title{font-size:22px;font-weight:700;margin:0}
+        .muted{color:#666;font-size:12px}
+        table{width:100%;border-collapse:collapse;margin-top:12px}
+        th,td{border-bottom:1px solid #ddd;padding:8px;font-size:13px}
+        th{text-align:left;background:#f8f8f8}
+        .totals{margin-top:14px;width:280px;margin-left:auto}
+        .totals p{display:flex;justify-content:space-between;margin:6px 0;font-size:13px}
+        .grand{font-size:16px;font-weight:700}
+      </style></head>
+      <body>
+        <div class="head">
+          <div><p class="title">${businessProfile?.name || "Restaurant"}</p><p class="muted">${businessProfile?.address || ""}</p></div>
+          <div style="text-align:right;"><p class="title">INVOICE</p>
+            <p class="muted">Order: ${order.orderId || "-"}</p>
+            <p class="muted">Table: ${order.tableId || "-"}</p>
+            <p class="muted">Date: ${new Date(order.createdAt).toLocaleString("en-IN")}</p>
+          </div>
+        </div>
+        <table><thead><tr><th>Item</th><th style="text-align:center;">Qty</th><th style="text-align:right;">Price</th><th style="text-align:right;">Total</th></tr></thead>
+        <tbody>${lineRows}</tbody></table>
+        <div class="totals">
+          <p><span>Subtotal</span><span>₹${Number(order.subtotal || 0).toFixed(2)}</span></p>
+          <p><span>Discount</span><span>₹${Number(order.discount || 0).toFixed(2)}</span></p>
+          <p><span>Tax</span><span>₹${Number(order.tax || 0).toFixed(2)}</span></p>
+          <p class="grand"><span>Grand Total</span><span>₹${Number(order.total || 0).toFixed(2)}</span></p>
+          <p><span>Payment</span><span>${order.paymentMethod || "-"} / ${order.paymentStatus || "-"}</span></p>
+        </div>
+        <script>window.onload=function(){window.print()};</script>
+      </body></html>
+    `);
+    popup.document.close();
+  };
+
+  // Pre-fill guest info from the active order when panel opens
+  useEffect(() => {
+    if (detailTable) {
+      setGuestName(detailOrderSummary?.guestName || "");
+      setGuestPhone(detailOrderSummary?.guestPhone || "");
+    }
+  }, [detailTable, detailOrderSummary]);
 
   const categories = useMemo(
     () => ["All", ...new Set(menuItems.map((item) => item.cat))],
@@ -79,11 +319,30 @@ export default function PosSystem() {
 
   const { subtotal, tax, total, itemCount } = getTotals();
 
+  function handleTableClick(table) {
+    if (table.status === "Occupied") {
+      setDetailTable(table);
+    } else {
+      selectTable(table);
+    }
+  }
+
+  function selectTable(table) {
+    setSelectedTable(table);
+    setDetailTable(null);
+    setStep("menu");
+  }
+
+  function changeTable() {
+    setDetailTable(null);
+    setStep("table");
+  }
+
   const goToCheckout = () => {
     if (!cart.length) return;
-    navigate("/pos/checkout", {
+    navigate(`/${slug}/pos/checkout`, {
       state: {
-        selectedTable,
+        selectedTable: selectedTable?.id,
         orderType,
         locationLabel,
       },
@@ -91,17 +350,402 @@ export default function PosSystem() {
   };
 
   usePOSHotkeys({
-    onFocusSearch: () => searchRef.current?.focus(),
+    onFocusSearch: () => step === "menu" && searchRef.current?.focus(),
     onCheckout: () => goToCheckout(),
     onClear: () => clearCart(),
   });
 
+  // ── Step 1: Table Picker ──
+  if (step === "table") {
+    return (
+      <div className="h-[calc(100vh-64px)] flex overflow-hidden bg-paper">
+        {/* Table Grid */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="p-5 bg-white border-b border-border shadow-sm">
+            <h2 className="font-bold text-lg text-ink flex items-center gap-2">
+              <Utensils size={20} className="text-saffron" />
+              Select a {locationLabel}
+            </h2>
+            <p className="text-sm text-muted mt-0.5">
+              {locationLabel === "Table"
+                ? "Occupied tables show the active order. Tap to view or add items."
+                : `Choose a ${locationLabel.toLowerCase()} to start the order.`}
+            </p>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-5 custom-scrollbar">
+            {tablesLoading ? (
+              <p className="text-sm text-muted">
+                Loading {locationLabel.toLowerCase()}s…
+              </p>
+            ) : tablesError ? (
+              <div className="flex items-center gap-4">
+                <p className="text-sm text-error">Failed to load tables.</p>
+                <button
+                  onClick={() => refetchTables()}
+                  className="text-xs px-3 py-1.5 rounded-md border border-border hover:bg-white"
+                >
+                  Retry
+                </button>
+              </div>
+            ) : tables.length === 0 ? (
+              <p className="text-sm text-muted">
+                No tables found. Add tables in the Tables page.
+              </p>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+                {tables.map((table) => {
+                  const isActive = detailTable?.id === table.id;
+                  return (
+                    <Motion.button
+                      key={table.id}
+                      onClick={() => handleTableClick(table)}
+                      whileTap={{ scale: 0.96 }}
+                      className={`relative flex flex-col items-center justify-center gap-1.5 p-4 rounded-xl border-2 font-semibold transition-all hover:shadow-md ${
+                        isActive
+                          ? "border-saffron ring-2 ring-saffron/30 shadow-md"
+                          : TABLE_STATUS_STYLES[table.status] ||
+                            "border-border bg-white text-ink"
+                      }`}
+                    >
+                      <span className="text-2xl font-black">{table.id}</span>
+                      <span className="flex items-center gap-1.5 text-xs font-medium">
+                        <span
+                          className={`w-2 h-2 rounded-full ${TABLE_STATUS_DOT[table.status] || "bg-muted2"}`}
+                        />
+                        {table.status}
+                      </span>
+                      {table.seats > 0 && (
+                        <span className="text-xs text-muted">
+                          {table.seats} seats
+                        </span>
+                      )}
+                      {table.status !== "Occupied" && (
+                        <ChevronRight
+                          size={14}
+                          className="absolute top-2 right-2 opacity-30"
+                        />
+                      )}
+                      {table.status === "Occupied" && (
+                        <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-warning animate-pulse" />
+                      )}
+                    </Motion.button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Occupied Table Detail Panel */}
+        <AnimatePresence>
+          {detailTable && (
+            <Motion.div
+              key="detail-panel"
+              initial={{ x: "100%", opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: "100%", opacity: 0 }}
+              transition={{ type: "spring", damping: 28, stiffness: 300 }}
+              className="w-full max-w-sm bg-white border-l border-border flex flex-col shadow-xl shrink-0"
+            >
+              {/* Panel Header */}
+              <div className="p-4 border-b border-border flex items-center justify-between bg-paper">
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`text-sm font-bold px-2.5 py-1 rounded-lg border ${TABLE_STATUS_STYLES[detailTable.status]}`}
+                  >
+                    {locationLabel} {detailTable.id}
+                  </span>
+                  {detailTable.seats > 0 && (
+                    <span className="text-xs text-muted">
+                      {detailTable.seats} seats
+                    </span>
+                  )}
+                </div>
+                <button
+                  onClick={() => setDetailTable(null)}
+                  className="p-1.5 rounded-md text-muted hover:bg-border transition-colors"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
+                {/* Active Order */}
+                <div>
+                  <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                    <Clock3 size={12} /> Active Order
+                  </p>
+                  {detailOrderLoading ? (
+                    <div className="rounded-lg border border-border bg-paper p-3 text-sm text-muted text-center">
+                      Loading order…
+                    </div>
+                  ) : !detailOrderSummary ? (
+                    <div className="rounded-lg border border-border bg-paper p-3 text-sm text-muted text-center">
+                      No active order found for this table.
+                    </div>
+                  ) : (
+                    <div className="rounded-xl border border-border bg-paper overflow-hidden">
+                      <div className="px-3 py-2 border-b border-border flex items-center justify-between bg-white">
+                        <span className="text-xs font-semibold text-ink">
+                          {detailOrderSummary.id ||
+                            `#${detailOrderSummary._id?.slice(-6)}`}
+                        </span>
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-warning/20 text-warning font-medium">
+                          {detailOrderSummary.status}
+                        </span>
+                      </div>
+                      <div className="divide-y divide-border">
+                        {(detailOrder?.items || []).map((item, idx) => (
+                          <div
+                            key={idx}
+                            className="px-3 py-2 flex justify-between items-center"
+                          >
+                            <div>
+                              <p className="text-sm font-medium text-ink">
+                                {item.name}
+                              </p>
+                              {item.notes && (
+                                <p className="text-xs text-muted italic">
+                                  {item.notes}
+                                </p>
+                              )}
+                            </div>
+                            <div className="text-right shrink-0 ml-2">
+                              <p className="text-xs text-muted">
+                                x{item.quantity}
+                              </p>
+                              <p className="text-sm font-bold text-ink">
+                                ₹
+                                {Number(
+                                  item.total ?? item.price * item.quantity,
+                                ).toFixed(0)}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                        {detailOrderLoading && (
+                          <div className="px-3 py-2 text-xs text-muted text-center">
+                            Loading items…
+                          </div>
+                        )}
+                      </div>
+                      <div className="px-3 py-2 border-t border-border bg-white flex justify-between items-center">
+                        <span className="text-xs text-muted font-medium">
+                          Total
+                        </span>
+                        <span className="text-sm font-black text-saffron">
+                          ₹
+                          {Number(
+                            detailOrder?.total ??
+                              detailOrderSummary.amount ??
+                              0,
+                          ).toFixed(0)}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Guest Info */}
+                <div>
+                  <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-2">
+                    Guest Info
+                  </p>
+                  <div className="space-y-2">
+                    <div className="relative">
+                      <User
+                        size={14}
+                        className="absolute left-3 top-2.5 text-muted2"
+                      />
+                      <input
+                        type="text"
+                        value={guestName}
+                        onChange={(e) => setGuestName(e.target.value)}
+                        placeholder="Guest name"
+                        className="w-full pl-8 pr-3 py-2 text-sm border border-border rounded-lg bg-paper focus:outline-none focus:ring-2 focus:ring-saffron/30 focus:border-saffron"
+                      />
+                    </div>
+                    <div className="relative">
+                      <Phone
+                        size={14}
+                        className="absolute left-3 top-2.5 text-muted2"
+                      />
+                      <input
+                        type="tel"
+                        value={guestPhone}
+                        onChange={(e) => setGuestPhone(e.target.value)}
+                        placeholder="Guest phone number"
+                        className="w-full pl-8 pr-3 py-2 text-sm border border-border rounded-lg bg-paper focus:outline-none focus:ring-2 focus:ring-saffron/30 focus:border-saffron"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Panel Actions */}
+              <div className="p-4 border-t border-border space-y-2 bg-paper">
+                <button
+                  onClick={() => selectTable(detailTable)}
+                  className="w-full py-2.5 rounded-xl bg-saffron hover:bg-saffron2 text-white font-bold text-sm flex items-center justify-center gap-2 transition-colors shadow-md"
+                >
+                  <PlusCircle size={16} /> Add Items to Order
+                </button>
+
+                {/* Pay section — only when order is Served */}
+                {isServed && (
+                  <div className="rounded-xl border border-border bg-white p-3 space-y-2.5">
+                    <p className="text-xs font-semibold text-ink">Payment</p>
+                    {isPaymentDone ? (
+                      <p className="text-xs text-green-700 font-semibold">
+                        Payment completed.
+                      </p>
+                    ) : (
+                      <>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setPaymentMode("UPI")}
+                            className={`text-xs px-2.5 py-1 rounded-md border ${paymentMode === "UPI" ? "bg-saffron text-white border-saffron" : "border-border text-muted"}`}
+                          >
+                            UPI
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setPaymentMode("Cash")}
+                            className={`text-xs px-2.5 py-1 rounded-md border ${paymentMode === "Cash" ? "bg-saffron text-white border-saffron" : "border-border text-muted"}`}
+                          >
+                            Cash
+                          </button>
+                        </div>
+                        {paymentMode === "UPI" ? (
+                          upiId ? (
+                            <div className="rounded-md border border-border bg-paper p-2 flex justify-center">
+                              <img
+                                src={upiQrUrl}
+                                alt="UPI payment QR"
+                                className="w-28 h-28 object-contain"
+                              />
+                            </div>
+                          ) : (
+                            <p className="text-xs text-error">
+                              Set UPI ID in Settings to show QR.
+                            </p>
+                          )
+                        ) : null}
+                        <input
+                          value={transactionId}
+                          onChange={(e) => setTransactionId(e.target.value)}
+                          placeholder="Transaction ID (optional)"
+                          className="w-full rounded-lg border border-border px-3 py-2 text-xs outline-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={markPayment}
+                          disabled={
+                            paymentMutation.isPending ||
+                            (paymentMode === "UPI" && !upiId)
+                          }
+                          className="w-full bg-saffron hover:bg-saffron2 disabled:opacity-60 text-white rounded-lg py-2 text-xs font-bold flex items-center justify-center gap-1.5"
+                        >
+                          <CreditCard size={14} />
+                          {paymentMutation.isPending
+                            ? "Updating..."
+                            : "Mark Payment Completed"}
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
+
+                {/* Print Invoice */}
+                {detailOrder && (
+                  <button
+                    type="button"
+                    onClick={printInvoice}
+                    className="w-full py-2 rounded-xl border border-border bg-white hover:bg-paper text-sm font-semibold text-ink flex items-center justify-center gap-2 transition-colors"
+                  >
+                    <Printer size={14} /> Print Invoice
+                  </button>
+                )}
+
+                {/* Clear Table — after payment done */}
+                {isPaymentDone ? (
+                  <button
+                    disabled={statusMutation.isPending}
+                    onClick={() =>
+                      statusMutation.mutate({
+                        tableId: detailTable.id,
+                        status: "Cleaning",
+                      })
+                    }
+                    className="w-full py-2.5 rounded-xl border border-warning/40 bg-warning/5 hover:bg-warning/10 text-sm font-semibold text-warning flex items-center justify-center gap-2 transition-colors disabled:opacity-60"
+                  >
+                    <RefreshCw size={14} />
+                    {statusMutation.isPending ? "Clearing…" : "Clear Table"}
+                  </button>
+                ) : (
+                  <button
+                    disabled={statusMutation.isPending}
+                    onClick={async () => {
+                      try {
+                        await statusMutation.mutateAsync({
+                          tableId: detailTable.id,
+                          status: "Cleaning",
+                        });
+                        clearCart();
+                        selectTable({ ...detailTable, status: "Cleaning" });
+                      } catch {
+                        // error already toasted by mutation
+                      }
+                    }}
+                    className="w-full py-2.5 rounded-xl border border-border bg-white hover:bg-paper text-sm font-semibold text-ink flex items-center justify-center gap-2 transition-colors disabled:opacity-60"
+                  >
+                    <RefreshCw size={14} />
+                    {statusMutation.isPending
+                      ? "Updating…"
+                      : `New Order — Mark Cleaning`}
+                  </button>
+                )}
+              </div>
+            </Motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    );
+  }
+
+  // ── Step 2: Menu + Cart ──
   return (
     <div className="h-[calc(100vh-64px)] flex flex-col lg:flex-row overflow-hidden bg-paper">
       {/* ── Left Area: Menu Grid ── */}
       <div className="flex-1 flex flex-col overflow-hidden relative border-r border-border">
         {/* Top Controls */}
         <div className="p-4 bg-white border-b border-border flex flex-col gap-3 z-10 shadow-sm">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={changeTable}
+              className="flex items-center gap-1.5 text-sm font-semibold text-muted hover:text-ink transition-colors"
+            >
+              <ArrowLeft size={16} />
+              {locationLabel}s
+            </button>
+            <span className="text-muted2">/</span>
+            <span className="text-sm font-bold text-saffron">
+              {locationLabel} {selectedTable?.id}
+            </span>
+            {selectedTable?.status && (
+              <span
+                className={`text-xs px-2 py-0.5 rounded-full border font-medium ${
+                  TABLE_STATUS_STYLES[selectedTable.status] ||
+                  "border-border bg-paper text-muted"
+                }`}
+              >
+                {selectedTable.status}
+              </span>
+            )}
+          </div>
+
           <div className="relative">
             <Search className="absolute left-3 top-2.5 text-muted2" size={18} />
             <input
@@ -194,31 +838,12 @@ export default function PosSystem() {
             <Utensils size={18} className="text-saffron" />
             Current Order
           </h2>
-          <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-muted">
-              {locationLabel}
-            </label>
-            <select
-              value={selectedTable}
-              onChange={(e) => setSelectedTable(e.target.value)}
-              className="bg-white border border-border rounded-md px-2 py-1 text-sm font-bold text-saffron outline-none"
-            >
-              {[...Array(20)].map((_, i) => (
-                <option
-                  key={i}
-                  value={
-                    isHotelMode
-                      ? String(101 + i)
-                      : String(i + 1).padStart(2, "0")
-                  }
-                >
-                  {isHotelMode
-                    ? String(101 + i)
-                    : String(i + 1).padStart(2, "0")}
-                </option>
-              ))}
-            </select>
-          </div>
+          <button
+            onClick={changeTable}
+            className="flex items-center gap-1.5 text-sm font-bold text-saffron hover:text-saffron2 transition-colors border border-saffron/30 rounded-lg px-2.5 py-1"
+          >
+            {locationLabel} {selectedTable?.id}
+          </button>
         </div>
 
         {/* Cart Items */}

@@ -4,8 +4,6 @@ import {
   CheckCircle2,
   Clock3,
   DoorOpen,
-  Printer,
-  QrCode,
   Sparkles,
 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -14,7 +12,6 @@ import {
   fetchBusinessProfile,
   fetchOrderById,
   fetchOrders,
-  fetchTableQr,
   fetchTables,
   updateOrderPayment,
   updateTableStatus,
@@ -91,16 +88,8 @@ export default function TablesPage() {
 
   const [activeFilter, setActiveFilter] = useState("All");
   const [selectedTableId, setSelectedTableId] = useState("T-01");
-  const [qrData, setQrData] = useState(null);
-  const [isQrOpen, setIsQrOpen] = useState(false);
   const [paymentMode, setPaymentMode] = useState("UPI");
   const [transactionId, setTransactionId] = useState("");
-
-  const qrImageUrl = qrData?.menuUrl
-    ? `https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=${encodeURIComponent(
-        qrData.menuUrl,
-      )}`
-    : "";
 
   const tableMutation = useMutation({
     mutationFn: ({ tableId, status }) => updateTableStatus(tableId, status),
@@ -266,18 +255,6 @@ export default function TablesPage() {
     });
   };
 
-  const openQrSheet = async () => {
-    if (!selectedTable) return;
-
-    try {
-      const data = await fetchTableQr(selectedTable.id);
-      setQrData(data);
-      setIsQrOpen(true);
-    } catch (err) {
-      toast.error(err?.message || "Unable to generate table QR");
-    }
-  };
-
   const markPayment = () => {
     if (!selectedTableLatestOrder?._id) return;
     if (!selectedOrderIsServed) {
@@ -387,47 +364,6 @@ export default function TablesPage() {
     } catch (err) {
       toast.error(err?.message || "Unable to generate invoice.");
     }
-  };
-
-  const printQrSheet = () => {
-    if (!qrData || !qrImageUrl) return;
-
-    const popup = window.open("", "_blank", "width=760,height=840");
-    if (!popup) {
-      toast.error("Please allow popups to print QR");
-      return;
-    }
-
-    const title = `${qrData.businessName || "BuzTap"} - ${qrData.table?.label || qrData.tableId}`;
-    popup.document.write(`
-      <html>
-        <head>
-          <title>${title}</title>
-          <style>
-            body { font-family: Arial, sans-serif; margin: 0; padding: 24px; text-align: center; color: #222; }
-            .card { border: 1px solid #ddd; border-radius: 16px; padding: 24px; max-width: 520px; margin: 0 auto; }
-            h1 { margin: 0 0 6px; font-size: 24px; }
-            p { margin: 4px 0; color: #555; }
-            img { width: 320px; height: 320px; margin: 16px auto; display: block; }
-            .url { margin-top: 10px; font-size: 12px; color: #666; word-break: break-all; }
-          </style>
-        </head>
-        <body>
-          <div class="card">
-            <h1>${qrData.businessName || "BuzTap"}</h1>
-            <p><strong>${qrData.table?.label || qrData.tableId}</strong></p>
-            <p>Seats: ${qrData.table?.seats ?? "-"}</p>
-            <img src="${qrImageUrl}" alt="Table QR" />
-            <p>Scan to view menu and place order</p>
-            ${qrData.menuUrl ? `<p class="url">${qrData.menuUrl}</p>` : ""}
-          </div>
-          <script>
-            window.onload = function() { window.print(); };
-          </script>
-        </body>
-      </html>
-    `);
-    popup.document.close();
   };
 
   return (
@@ -672,15 +608,6 @@ export default function TablesPage() {
               </p>
             ) : null}
 
-            <button
-              onClick={openQrSheet}
-              disabled={!selectedTable}
-              className="w-full mt-3 border border-border hover:bg-paper text-ink rounded-xl py-2.5 text-sm font-bold flex items-center justify-center gap-2"
-            >
-              <QrCode size={16} />
-              Generate Table QR
-            </button>
-
             <div className="mt-4 text-xs text-muted space-y-1">
               <p>Reserved → Cleaning → Free</p>
               <p>Reserved is assigned automatically by the system.</p>
@@ -688,41 +615,6 @@ export default function TablesPage() {
             </div>
           </div>
         </div>
-
-        {isQrOpen && qrData ? (
-          <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-[1px] flex items-center justify-center p-4">
-            <div className="w-full max-w-md rounded-2xl bg-white border border-border shadow-[0_16px_50px_rgba(15,14,11,0.2)] p-5">
-              <h3 className="text-lg font-bold text-ink">Table QR Ready</h3>
-              <p className="text-xs text-muted mt-1">
-                {qrData.businessName || "BuzTap"} •{" "}
-                {qrData.table?.label || qrData.tableId}
-              </p>
-
-              <div className="mt-4 rounded-xl border border-border bg-paper p-4 flex justify-center">
-                <img
-                  src={qrImageUrl}
-                  alt={`QR for ${qrData.table?.label || qrData.tableId}`}
-                  className="w-56 h-56 object-contain"
-                />
-              </div>
-
-              <div className="mt-4 flex items-center gap-2">
-                <button
-                  onClick={printQrSheet}
-                  className="flex-1 bg-saffron hover:bg-saffron2 text-white rounded-xl py-2.5 text-sm font-bold flex items-center justify-center gap-2"
-                >
-                  <Printer size={15} /> Print QR
-                </button>
-                <button
-                  onClick={() => setIsQrOpen(false)}
-                  className="px-4 py-2.5 rounded-xl border border-border text-sm font-semibold hover:bg-paper"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          </div>
-        ) : null}
       </ErrorBoundary>
     </PageShell>
   );

@@ -4,8 +4,8 @@ import AdminLayout from "./layouts/AdminLayout";
 import Dashboard from "./pages/Dashboard";
 import PosSystem from "./pages/PosSystem";
 import PosCheckout from "./pages/PosCheckout";
+import ErrorBoundary from "./components/shared/ErrorBoundary";
 import OrdersPage from "./pages/OrdersPage";
-import TablesPage from "./pages/TablesPage";
 import InventoryPage from "./pages/InventoryPage";
 import StaffPage from "./pages/StaffPage";
 import ReportsPage from "./pages/ReportsPage";
@@ -26,10 +26,23 @@ export default function App() {
         <Route path="/:slug" element={<AdminLayout />}>
           <Route index element={<Navigate to="dashboard/overview" replace />} />
           <Route path="dashboard/*" element={<Dashboard />} />
-          <Route path="pos" element={<PosSystem />} />
-          <Route path="pos/checkout" element={<PosCheckout />} />
+          <Route
+            path="pos"
+            element={
+              <ErrorBoundary label="POS">
+                <PosSystem />
+              </ErrorBoundary>
+            }
+          />
+          <Route
+            path="pos/checkout"
+            element={
+              <ErrorBoundary label="POS Checkout">
+                <PosCheckout />
+              </ErrorBoundary>
+            }
+          />
           <Route path="orders" element={<OrdersPage />} />
-          <Route path="tables" element={<TablesPage />} />
           <Route element={<ProtectedRoute minimumRole="manager" />}>
             <Route path="menu" element={<MenuPage />} />
             <Route path="staff" element={<StaffPage />} />
