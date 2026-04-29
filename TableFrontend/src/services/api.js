@@ -28,8 +28,16 @@ export function registerRestro(payload) {
   return request("POST", "/auth/register", payload);
 }
 
-export function loginRestro(username, password) {
-  return request("POST", "/auth/login", { username, password });
+export function loginRestro(identifier, password, otpToken) {
+  return request("POST", "/auth/login", { identifier, password, otpToken });
+}
+
+export function requestEmailOtp(email, purpose) {
+  return request("POST", "/auth/otp/request", { email, purpose });
+}
+
+export function verifyEmailOtp(email, purpose, otp) {
+  return request("POST", "/auth/otp/verify", { email, purpose, otp });
 }
 
 // ── Business Profile ─────────────────────────────────────────────────────────

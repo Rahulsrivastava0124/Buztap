@@ -112,9 +112,9 @@ export function AuthProvider({ children }) {
     return () => window.removeEventListener("auth:expired", handleExpired);
   }, []);
 
-  const login = async (identifier, password) => {
+  const login = async (identifier, password, otpToken) => {
     try {
-      const data = await loginAdmin(identifier, password);
+      const data = await loginAdmin(identifier, password, otpToken);
       setIsAuthenticated(true);
       setRole(data.role || "cashier");
       setBusinessType(data.businessType || BUSINESS_TYPES.RESTRO);

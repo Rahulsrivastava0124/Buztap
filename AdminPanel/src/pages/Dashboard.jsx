@@ -836,8 +836,8 @@ function VisitorsTab() {
     error,
     refetch,
   } = useQuery({
-    queryKey: ["dashboard-today-stats"],
-    queryFn: fetchTodayStats,
+    queryKey: ["dashboard-today-stats", visitorTimeRange],
+    queryFn: () => fetchTodayStats(visitorTimeRange),
     refetchInterval: 30_000,
   });
 

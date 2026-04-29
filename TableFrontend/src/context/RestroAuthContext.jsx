@@ -59,11 +59,11 @@ export function RestroAuthProvider({ children }) {
   );
 
   const login = useCallback(
-    async (username, password) => {
+    async (identifier, password, otpToken) => {
       setLoading(true);
       setError(null);
       try {
-        const res = await loginRestro(username, password);
+        const res = await loginRestro(identifier, password, otpToken);
         _persist(res.token, {
           name: res.name,
           businessName: res.businessName,

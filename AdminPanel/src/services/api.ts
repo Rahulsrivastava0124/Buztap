@@ -152,6 +152,28 @@ export interface AdminLoginResponse {
   businessId?: string;
 }
 
+export interface OtpRequestResponse {
+  success: boolean;
+  expiresInSeconds: number;
+}
+
+export interface PhoneOtpRequestResponse {
+  success: boolean;
+  resolvedEmail: string;
+  expiresInSeconds: number;
+}
+
+export interface LoginOtpRequestResponse {
+  success: boolean;
+  resolvedEmail: string;
+  expiresInSeconds: number;
+}
+
+export interface OtpVerifyResponse {
+  success: boolean;
+  otpToken: string;
+}
+
 export interface OrderQueueItem {
   _id: string;
   id: string;
@@ -237,6 +259,7 @@ export interface OfferRecord {
   description: string;
   discountPct: number;
   minSubtotal: number;
+  expiresAt?: string | null;
   isVisible: boolean;
   isActive: boolean;
   createdAt?: string;
@@ -249,6 +272,7 @@ export interface CreateOfferInput {
   description?: string;
   discountPct: number;
   minSubtotal?: number;
+  expiresAt?: string | null;
   isVisible?: boolean;
   isActive?: boolean;
 }
@@ -398,7 +422,13 @@ async function request<T>(
       // Notify the app so AuthContext can redirect to login
       window.dispatchEvent(new CustomEvent("auth:expired"));
     }
-    throw new Error(buildApiErrorMessage(payload, response.status));
+    const err = new Error(
+      buildApiErrorMessage(payload, response.status),
+    ) as Error & { retryAfterSeconds?: number };
+    if (typeof payload?.retryAfterSeconds === "number") {
+      err.retryAfterSeconds = payload.retryAfterSeconds;
+    }
+    throw err;
   }
 
   return payload as T;
@@ -407,18 +437,87 @@ async function request<T>(
 export async function loginAdmin(
   identifier: string,
   password: string,
+  otpToken?: string,
 ): Promise<AdminLoginResponse> {
   const data = await request<AdminLoginResponse>(
     "/auth/login",
     {
       method: "POST",
-      body: JSON.stringify({ identifier, password }),
+      body: JSON.stringify({ identifier, password, otpToken }),
     },
     false,
   );
 
   sessionStorage.setItem(AUTH_TOKEN_KEY, data.token);
   return data;
+}
+
+export async function requestEmailOtp(
+  email: string,
+  purpose: "register" | "login" | "reset-password",
+): Promise<OtpRequestResponse> {
+  return request<OtpRequestResponse>(
+    "/auth/otp/request",
+    {
+      method: "POST",
+      body: JSON.stringify({ email, purpose }),
+    },
+    false,
+  );
+}
+
+export async function requestPhoneLoginOtp(
+  phone: string,
+): Promise<PhoneOtpRequestResponse> {
+  return request<PhoneOtpRequestResponse>(
+    "/auth/otp/request-by-phone",
+    { method: "POST", body: JSON.stringify({ phone }) },
+    false,
+  );
+}
+
+export async function requestLoginOtp(
+  identifier: string,
+  password: string,
+): Promise<LoginOtpRequestResponse> {
+  return request<LoginOtpRequestResponse>(
+    "/auth/otp/request-login",
+    {
+      method: "POST",
+      body: JSON.stringify({ identifier, password }),
+    },
+    false,
+  );
+}
+
+export async function verifyEmailOtp(
+  email: string,
+  purpose: "register" | "login" | "reset-password",
+  otp: string,
+): Promise<OtpVerifyResponse> {
+  return request<OtpVerifyResponse>(
+    "/auth/otp/verify",
+    {
+      method: "POST",
+      body: JSON.stringify({ email, purpose, otp }),
+    },
+    false,
+  );
+}
+
+export async function resetAdminPassword(
+  email: string,
+  otpToken: string,
+  newPassword: string,
+): Promise<{ success: boolean; message?: string }> {
+  return request<{ success: boolean; message?: string }>(
+    "/auth/password/reset",
+    {
+      method: "POST",
+      body: JSON.stringify({ email, otpToken, newPassword }),
+    },
+    false,
+  );
 }
 
 export async function fetchAuthMe(): Promise<{
@@ -763,8 +862,8 @@ export async function deleteMenuItem(id: string): Promise<void> {
   await request(`/menu/${id}`, { method: "DELETE" });
 }
 
-export async function fetchTodayStats(): Promise<TodayStats> {
-  return request("/dashboard/today-stats");
+export async function fetchTodayStats(range = "1D"): Promise<TodayStats> {
+  return request(`/dashboard/today-stats?range=${range}`);
 }
 
 export async function uploadMenuImage(file: File): Promise<string> {

@@ -107,6 +107,8 @@ const authLimiter = rateLimit({
 });
 
 app.use("/api/auth/login", authLimiter);
+app.use("/api/auth/otp/request", authLimiter);
+app.use("/api/auth/password/reset", authLimiter);
 app.get("/api/health", (_req, res) => res.json({ status: "ok" }));
 
 // Routes

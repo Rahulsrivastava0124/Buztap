@@ -14,7 +14,7 @@ async function getSnapshot(req, res, next) {
     today.setHours(0, 0, 0, 0);
 
     // Fetch all today's orders and menu items in parallel
-    const [liveOrders, todayOrders, tables, channels, menuItems] =
+    const [liveOrders, todayOrders, tables, channels, menuItems, business] =
       await Promise.all([
         Order.find({ businessId, status: { $in: ["Preparing", "Ready"] } })
           .sort({ createdAt: 1 })
@@ -24,8 +24,10 @@ async function getSnapshot(req, res, next) {
         Table.find({ businessId, isActive: true }).lean(),
         PaymentChannel.find({ businessId }).lean(),
         MenuItem.find({ businessId }).select("name category cost").lean(),
+        Business.findById(businessId).select("gstPct taxPct").lean(),
       ]);
 
+    const gstRate = Number(business?.gstPct ?? 5) / 100;
     // Build name→{category, cost} lookup from menu items
     const menuMap = {};
     for (const m of menuItems) {
@@ -81,7 +83,7 @@ async function getSnapshot(req, res, next) {
       (o) => o.status === "Served" || o.paymentStatus === "Completed",
     );
     const grossSales = completedOrders.reduce((s, o) => s + (o.total || 0), 0);
-    const gstAmount = Math.round(grossSales * 0.05);
+    const gstAmount = Math.round(grossSales * gstRate);
 
     // Total units sold today
     const totalUnitsSold = todayOrders.reduce((s, o) => {
@@ -469,14 +471,28 @@ module.exports = {
 async function getTodayStats(req, res, next) {
   try {
     const { businessId } = req.user;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const { range = "1D" } = req.query;
     const now = new Date();
 
-    // All today's orders
+    // Determine the "since" date based on range
+    let since = new Date(now);
+    if (range === "7D") {
+      since = new Date(now.getTime() - 6 * 24 * 60 * 60 * 1000);
+    } else if (range === "1M") {
+      since = new Date(now.getTime() - 29 * 24 * 60 * 60 * 1000);
+    } else if (range === "6M") {
+      since = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+    }
+    since.setHours(0, 0, 0, 0);
+    const today =
+      range === "1D"
+        ? since
+        : new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    // All orders in range
     const todayOrders = await Order.find({
       businessId,
-      createdAt: { $gte: today },
+      createdAt: { $gte: since },
     }).lean();
 
     const activeOrders = todayOrders.filter(
@@ -492,19 +508,23 @@ async function getTodayStats(req, res, next) {
     const uniqueGuestNames = new Set(
       todayOrders.map((o) => o.guestName).filter(Boolean),
     );
-    const orderVisitorEstimate = Math.max(
-      uniqueGuestPhones.size,
-      uniqueGuestNames.size,
-      todayOrders.length,
+    // Count unique tables — one table = one visit group
+    const uniqueTables = new Set(
+      todayOrders.map((o) => o.tableId).filter(Boolean),
     );
+    const orderVisitorEstimate =
+      Math.max(
+        uniqueGuestPhones.size,
+        uniqueGuestNames.size,
+        uniqueTables.size,
+      ) || todayOrders.length;
 
     // Guest logins via QR join flow (register API)
     const qrLoginGuests = await Guest.find({
       businessId,
-      lastSeenAt: { $gte: today },
-      lastSource: "QR",
+      lastSeenAt: { $gte: since },
     })
-      .select("firstSeenAt qrLoginCount")
+      .select("firstSeenAt qrLoginCount lastSource")
       .lean();
 
     const qrLoginVisitors = qrLoginGuests.length;
@@ -514,7 +534,11 @@ async function getTodayStats(req, res, next) {
     const posOrders = todayOrders.filter((o) => o.source === "POS");
     const qrOrders = todayOrders.filter((o) => o.source === "QR");
 
-    // Hourly visit buckets (8 AM – 11 PM)
+    // Hourly visit buckets (8 AM – 11 PM) — always based on today regardless of range
+    const todayOnlyOrders =
+      range === "1D"
+        ? todayOrders
+        : todayOrders.filter((o) => new Date(o.createdAt) >= today);
     const HOURS = [
       8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
     ];
@@ -522,7 +546,7 @@ async function getTodayStats(req, res, next) {
     HOURS.forEach((h) => {
       hourlyMap[h] = 0;
     });
-    for (const order of todayOrders) {
+    for (const order of todayOnlyOrders) {
       const h = new Date(order.createdAt).getHours();
       if (hourlyMap[h] !== undefined) hourlyMap[h]++;
     }
@@ -542,12 +566,26 @@ async function getTodayStats(req, res, next) {
     const avgSpendPerVisitor =
       totalVisitors > 0 ? Math.round(totalRevenue / totalVisitors) : 0;
 
-    // New vs returning guests from QR login records
-    const returningGuests = qrLoginGuests.filter(
+    // New vs returning: combine QR guests + order-based guests
+    const qrReturning = qrLoginGuests.filter(
       (g) =>
-        (g.qrLoginCount || 0) > 1 || (g.firstSeenAt && g.firstSeenAt < today),
+        (g.qrLoginCount || 0) > 1 || (g.firstSeenAt && g.firstSeenAt < since),
     ).length;
-    const newGuests = Math.max(0, qrLoginVisitors - returningGuests);
+    // For POS orders without guest records, check if phone appeared in earlier orders
+    const phoneList = Array.from(uniqueGuestPhones);
+    const returningOrderPhones =
+      phoneList.length > 0
+        ? await Order.countDocuments({
+            businessId,
+            guestPhone: { $in: phoneList },
+            createdAt: { $lt: since },
+          })
+        : 0;
+    const returningGuests = Math.max(
+      qrReturning,
+      returningOrderPhones > 0 ? 1 : 0,
+    );
+    const newGuests = Math.max(0, totalVisitors - returningGuests);
 
     // Current occupancy
     const tables = await Table.find({ businessId, isActive: true }).lean();

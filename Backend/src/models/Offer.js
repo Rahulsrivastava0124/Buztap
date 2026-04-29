@@ -13,6 +13,7 @@ const offerSchema = new Schema(
     description: { type: String, trim: true, default: "" },
     discountPct: { type: Number, required: true, min: 1, max: 90 },
     minSubtotal: { type: Number, default: 0, min: 0 },
+    expiresAt: { type: Date, default: null },
     isVisible: { type: Boolean, default: true },
     isActive: { type: Boolean, default: true },
   },

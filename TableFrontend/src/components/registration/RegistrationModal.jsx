@@ -22,6 +22,7 @@ import { useRestroAuth } from "../../context/RestroAuthContext";
 import toast from "react-hot-toast";
 import MenuUploadStep from "./MenuUploadStep";
 import RegistrationReviewStep from "./RegistrationReviewStep";
+import { requestEmailOtp, verifyEmailOtp } from "../../services/api";
 
 const STEPS = [
   { id: 1, label: "Account" },
@@ -60,7 +61,19 @@ function FieldError({ msg }) {
   return <p className="text-xs text-red-500 mt-1">{msg}</p>;
 }
 
-function AccountStep({ data, onChange, errors }) {
+function AccountStep({
+  data,
+  onChange,
+  errors,
+  otp,
+  otpRequested,
+  onOtpChange,
+  onSendOtp,
+  onVerifyOtp,
+  sendingOtp,
+  verifyingOtp,
+  otpVerified,
+}) {
   const [showPw, setShowPw] = useState(false);
   return (
     <div className="space-y-4">
@@ -144,6 +157,41 @@ function AccountStep({ data, onChange, errors }) {
             />
           </div>
           <FieldError msg={errors?.email} />
+          {!otpRequested ? (
+            <p className="text-xs text-[#857c6e] mt-2">
+              Click Next to send OTP automatically.
+            </p>
+          ) : (
+            <div className="flex gap-2 mt-2">
+              <input
+                value={otp}
+                onChange={onOtpChange}
+                inputMode="numeric"
+                placeholder="Enter 6-digit OTP"
+                className="flex-1 px-3 py-2.5 bg-[#faf7f2] border border-[#e0d9ce] rounded-lg text-sm text-[#0f0e0b] placeholder-[#b0a898] focus:outline-none focus:border-[#e8720c] focus:ring-1 focus:ring-[#e8720c]"
+              />
+              <button
+                type="button"
+                onClick={onSendOtp}
+                disabled={sendingOtp}
+                className="px-3 py-2.5 rounded-lg text-xs font-semibold border border-[#e0d9ce] bg-white hover:bg-[#faf7f2] disabled:opacity-60"
+              >
+                {sendingOtp ? "Sending..." : "Resend"}
+              </button>
+              <button
+                type="button"
+                onClick={onVerifyOtp}
+                disabled={verifyingOtp || String(otp).length !== 6}
+                className="px-3 py-2.5 rounded-lg text-xs font-semibold bg-[#e8720c] text-white hover:bg-[#d4620a] disabled:opacity-60"
+              >
+                {verifyingOtp ? "Submitting..." : "Submit OTP"}
+              </button>
+            </div>
+          )}
+          {otpVerified ? (
+            <p className="text-xs text-green-600 mt-1">Email OTP verified.</p>
+          ) : null}
+          <FieldError msg={errors?.otp} />
         </label>
         <label className="block space-y-1">
           <span className="text-xs font-semibold text-[#0f0e0b]">Password</span>
@@ -332,13 +380,14 @@ function DoneStep({ businessName, onGoDashboard }) {
   );
 }
 
-function validateAccount(d) {
+function validateAccount(d, otpVerifiedToken, requireOtp = true) {
   const e = {};
   if (!d.businessName.trim())
     e.businessName = "Restaurant / hotel name is required";
   if (!d.ownerName.trim()) e.ownerName = "Name is required";
   if (!d.email.trim() || !/\S+@\S+\.\S+/.test(d.email))
     e.email = "Valid email required";
+  if (requireOtp && !otpVerifiedToken) e.otp = "Verify email OTP to continue";
   if (d.password.length < 6) e.password = "Minimum 6 characters";
   return e;
 }
@@ -351,11 +400,16 @@ function validateProfile(d) {
 }
 
 export default function RegistrationModal({ isOpen, onClose, onComplete }) {
-  const { register, loading, error, clearError } = useRestroAuth();
+  const { register, loading, clearError } = useRestroAuth();
   const [step, setStep] = useState(1);
   const [processingPhase, setProcessingPhase] = useState(0);
   const [fieldErrors, setFieldErrors] = useState({});
   const [account, setAccount] = useState(EMPTY_ACCOUNT);
+  const [accountOtp, setAccountOtp] = useState("");
+  const [otpVerifiedToken, setOtpVerifiedToken] = useState("");
+  const [otpRequested, setOtpRequested] = useState(false);
+  const [sendingOtp, setSendingOtp] = useState(false);
+  const [verifyingOtp, setVerifyingOtp] = useState(false);
   const [profile, setProfile] = useState(EMPTY_PROFILE);
   const [menuImage, setMenuImage] = useState(null);
   const [aiMenuJson, setAiMenuJson] = useState(null);
@@ -372,6 +426,9 @@ export default function RegistrationModal({ isOpen, onClose, onComplete }) {
     setStep(1);
     setFieldErrors({});
     setAccount(EMPTY_ACCOUNT);
+    setAccountOtp("");
+    setOtpVerifiedToken("");
+    setOtpRequested(false);
     setProfile(EMPTY_PROFILE);
     setMenuImage(null);
     setAiMenuJson(null);
@@ -382,7 +439,56 @@ export default function RegistrationModal({ isOpen, onClose, onComplete }) {
   function onAccountChange(e) {
     const { name, value } = e.target;
     setAccount((prev) => ({ ...prev, [name]: value }));
+    if (name === "email") {
+      setAccountOtp("");
+      setOtpVerifiedToken("");
+      setOtpRequested(false);
+    }
     setFieldErrors((prev) => ({ ...prev, [name]: undefined }));
+  }
+
+  async function handleSendOtp() {
+    const emailValue = account.email.trim().toLowerCase();
+    if (!/\S+@\S+\.\S+/.test(emailValue)) {
+      setFieldErrors((prev) => ({ ...prev, email: "Valid email required" }));
+      return;
+    }
+
+    try {
+      setSendingOtp(true);
+      await requestEmailOtp(emailValue, "register");
+      setOtpRequested(true);
+      setOtpVerifiedToken("");
+      setFieldErrors((prev) => ({ ...prev, otp: undefined }));
+      toast.success("OTP sent to your email");
+    } catch (err) {
+      toast.error(err.message || "Unable to send OTP");
+    } finally {
+      setSendingOtp(false);
+    }
+  }
+
+  async function handleVerifyOtp() {
+    const emailValue = account.email.trim().toLowerCase();
+    const otpValue = accountOtp.trim();
+
+    if (!/^\d{6}$/.test(otpValue)) {
+      setFieldErrors((prev) => ({ ...prev, otp: "Enter valid 6-digit OTP" }));
+      return;
+    }
+
+    try {
+      setVerifyingOtp(true);
+      const res = await verifyEmailOtp(emailValue, "register", otpValue);
+      setOtpVerifiedToken(res.otpToken);
+      setFieldErrors((prev) => ({ ...prev, otp: undefined }));
+      toast.success("Email verified");
+    } catch (err) {
+      setOtpVerifiedToken("");
+      toast.error(err.message || "OTP verification failed");
+    } finally {
+      setVerifyingOtp(false);
+    }
   }
 
   function onProfileChange(e) {
@@ -393,11 +499,25 @@ export default function RegistrationModal({ isOpen, onClose, onComplete }) {
 
   async function handleNext() {
     if (step === 1) {
-      const errs = validateAccount(account);
+      const errs = validateAccount(account, otpVerifiedToken, false);
       if (Object.keys(errs).length) {
         setFieldErrors(errs);
         return;
       }
+
+      if (!otpRequested) {
+        await handleSendOtp();
+        return;
+      }
+
+      if (!otpVerifiedToken) {
+        setFieldErrors((prev) => ({
+          ...prev,
+          otp: "Submit and verify OTP to continue",
+        }));
+        return;
+      }
+
       setStep(2);
     } else if (step === 2) {
       const errs = validateProfile(profile);
@@ -446,6 +566,7 @@ export default function RegistrationModal({ isOpen, onClose, onComplete }) {
       email: account.email,
       username: autoUsername,
       password: account.password,
+      otpToken: otpVerifiedToken,
       businessName: account.businessName,
       businessType: account.businessType,
       phone: profile.phone,
@@ -577,6 +698,20 @@ export default function RegistrationModal({ isOpen, onClose, onComplete }) {
                   data={account}
                   onChange={onAccountChange}
                   errors={fieldErrors}
+                  otp={accountOtp}
+                  otpRequested={otpRequested}
+                  onOtpChange={(e) => {
+                    const next = e.target.value.replace(/\D/g, "").slice(0, 6);
+                    setAccountOtp(next);
+                    if (fieldErrors.otp) {
+                      setFieldErrors((prev) => ({ ...prev, otp: undefined }));
+                    }
+                  }}
+                  onSendOtp={handleSendOtp}
+                  onVerifyOtp={handleVerifyOtp}
+                  sendingOtp={sendingOtp}
+                  verifyingOtp={verifyingOtp}
+                  otpVerified={Boolean(otpVerifiedToken)}
                 />
               </Motion.div>
             )}
@@ -639,19 +774,29 @@ export default function RegistrationModal({ isOpen, onClose, onComplete }) {
                 <button
                   type="button"
                   onClick={handleNext}
-                  disabled={loading}
+                  disabled={
+                    loading ||
+                    (numericStep === 1 && (sendingOtp || verifyingOtp))
+                  }
                   className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-[#e8720c] hover:bg-[#d4620a] text-white text-sm font-semibold transition-colors disabled:opacity-50 shadow-[0_4px_14px_rgba(232,114,12,0.2)]"
                 >
-                  {loading ? (
+                  {loading ||
+                  (numericStep === 1 && (sendingOtp || verifyingOtp)) ? (
                     <Loader2 size={15} className="animate-spin" />
                   ) : null}
-                  {numericStep === 3
-                    ? menuImage
-                      ? "Process Menu"
-                      : "Upload & Continue"
-                    : numericStep === 2
-                      ? "Continue to Menu"
-                      : "Next"}
+                  {numericStep === 1
+                    ? sendingOtp
+                      ? "Sending OTP..."
+                      : !otpRequested
+                        ? "Send OTP"
+                        : "Next"
+                    : numericStep === 3
+                      ? menuImage
+                        ? "Process Menu"
+                        : "Upload & Continue"
+                      : numericStep === 2
+                        ? "Continue to Menu"
+                        : "Next"}
                   {!loading && <ChevronRight size={15} />}
                 </button>
               </div>

@@ -2,6 +2,12 @@ const { z } = require("zod");
 const Offer = require("../models/Offer");
 const Business = require("../models/Business");
 
+const optionalExpiryDate = z.preprocess((value) => {
+  if (value === undefined) return undefined;
+  if (value === null || value === "") return null;
+  return new Date(value);
+}, z.date().nullable().optional());
+
 const createOfferSchema = z.object({
   title: z.string().trim().min(2).max(80),
   code: z
@@ -12,6 +18,7 @@ const createOfferSchema = z.object({
   description: z.string().trim().max(180).optional().or(z.literal("")),
   discountPct: z.coerce.number().min(1).max(90),
   minSubtotal: z.coerce.number().min(0).max(100000).optional(),
+  expiresAt: optionalExpiryDate,
   isVisible: z.boolean().optional(),
   isActive: z.boolean().optional(),
 });
@@ -28,6 +35,7 @@ const updateOfferSchema = z
     description: z.string().trim().max(180).optional().or(z.literal("")),
     discountPct: z.coerce.number().min(1).max(90).optional(),
     minSubtotal: z.coerce.number().min(0).max(100000).optional(),
+    expiresAt: optionalExpiryDate,
     isVisible: z.boolean().optional(),
     isActive: z.boolean().optional(),
   })
@@ -43,6 +51,7 @@ function mapOffer(offer) {
     description: offer.description || "",
     discountPct: Number(offer.discountPct || 0),
     minSubtotal: Number(offer.minSubtotal || 0),
+    expiresAt: offer.expiresAt || null,
     isVisible: Boolean(offer.isVisible),
     isActive: Boolean(offer.isActive),
     createdAt: offer.createdAt,
@@ -71,6 +80,7 @@ async function create(req, res, next) {
       description: payload.description || "",
       discountPct: payload.discountPct,
       minSubtotal: payload.minSubtotal || 0,
+      expiresAt: payload.expiresAt || null,
       isVisible: payload.isVisible !== false,
       isActive: payload.isActive !== false,
     });
@@ -130,6 +140,7 @@ async function getPublicOffers(req, res, next) {
       businessId,
       isActive: true,
       isVisible: true,
+      $or: [{ expiresAt: null }, { expiresAt: { $gt: new Date() } }],
     })
       .sort({ createdAt: -1 })
       .lean();

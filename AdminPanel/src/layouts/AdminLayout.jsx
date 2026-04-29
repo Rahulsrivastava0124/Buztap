@@ -173,7 +173,7 @@ function SidebarContent({
         <button
           onClick={handleLogout}
           title={compactSidebar ? "Sign Out" : undefined}
-          className={`flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-semibold text-muted hover:bg-red-50 hover:text-red-600 transition-colors ${compactSidebar ? "justify-center" : ""}`}
+          className={`flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-semibold text-red-600 bg-red-50 border border-red-100 hover:bg-red-100 transition-colors cursor-pointer ${compactSidebar ? "justify-center" : ""}`}
         >
           <LogOut size={18} />
           {!compactSidebar ? "Sign Out" : null}
@@ -190,7 +190,7 @@ export default function AdminLayout() {
   );
   const location = useLocation();
   const { slug } = useParams();
-  const { logout, role, businessType, businessName } = useAuth();
+  const { logout, role, businessType, businessName, userName } = useAuth();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [incomingQrOrders, setIncomingQrOrders] = useState([]);
@@ -212,6 +212,9 @@ export default function AdminLayout() {
   const brandLogo = businessProfile?.logoImage || "";
 
   const isHotelMode = businessType === "hotel";
+  const roleLabel = role
+    ? role.charAt(0).toUpperCase() + role.slice(1)
+    : "User";
   const canViewIncomingOrders = hasRoleAccess(role, "cashier");
   const unreadIncomingCount = incomingQrOrders.length;
   const formattedIncomingOrders = useMemo(
@@ -346,7 +349,7 @@ export default function AdminLayout() {
         />
         <button
           onClick={() => setCompactSidebar((prev) => !prev)}
-          className="absolute -right-3 top-6 w-6 h-6 rounded-full border border-border bg-white text-muted hover:text-ink shadow-sm flex items-center justify-center"
+          className="absolute -right-3 top-6 w-6 h-6 rounded-full border border-border bg-white text-muted hover:text-ink shadow-sm flex items-center justify-center cursor-pointer"
           title={compactSidebar ? "Show menu names" : "Hide menu names"}
           aria-label={compactSidebar ? "Show menu names" : "Hide menu names"}
         >
@@ -399,7 +402,7 @@ export default function AdminLayout() {
           <div className="flex items-center gap-3">
             <button
               onClick={() => setMobileOpen(true)}
-              className="lg:hidden p-2 -ml-2 text-muted hover:bg-paper rounded-lg"
+              className="lg:hidden p-2 -ml-2 text-muted hover:bg-paper rounded-lg cursor-pointer"
             >
               <Menu size={20} />
             </button>
@@ -430,7 +433,7 @@ export default function AdminLayout() {
             <div className="relative" ref={notificationRef}>
               <button
                 onClick={() => setShowNotifications((prev) => !prev)}
-                className="relative p-2 text-muted hover:bg-paper rounded-full transition-colors"
+                className="relative p-2 text-muted hover:bg-paper rounded-full transition-colors cursor-pointer"
                 title="Incoming QR orders"
               >
                 <Bell size={18} />
@@ -452,7 +455,7 @@ export default function AdminLayout() {
                         setShowNotifications(false);
                         navigate(`/${slug}/orders`);
                       }}
-                      className="text-xs text-saffron font-semibold hover:underline"
+                      className="text-xs text-saffron font-semibold hover:underline cursor-pointer"
                     >
                       View all
                     </button>
@@ -490,14 +493,14 @@ export default function AdminLayout() {
                             <button
                               onClick={() => handleApprove(order, null)}
                               disabled={approvingId === order._id}
-                              className="flex-1 text-xs font-semibold px-3 py-1.5 rounded-lg bg-green-50 text-green-700 hover:bg-green-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                              className="flex-1 text-xs font-semibold px-3 py-1.5 rounded-lg bg-green-50 text-green-700 hover:bg-green-100 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
                             >
                               {approvingId === order._id ? "..." : "Approve"}
                             </button>
                             <button
                               onClick={() => handleDecline(order, null)}
                               disabled={approvingId === order._id}
-                              className="flex-1 text-xs font-semibold px-3 py-1.5 rounded-lg bg-red-50 text-red-700 hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                              className="flex-1 text-xs font-semibold px-3 py-1.5 rounded-lg bg-red-50 text-red-700 hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
                             >
                               {approvingId === order._id ? "..." : "Decline"}
                             </button>
@@ -513,8 +516,8 @@ export default function AdminLayout() {
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-full bg-[#fbdabf] border border-saffron-lt flex items-center justify-center">
                 <span className="text-xs font-bold text-saffron">
-                  {businessName
-                    ? businessName
+                  {userName || businessName
+                    ? (userName || businessName)
                         .split(" ")
                         .slice(0, 2)
                         .map((w) => w[0])
@@ -525,11 +528,9 @@ export default function AdminLayout() {
               </div>
               <div className="hidden sm:block">
                 <p className="text-xs font-semibold text-ink leading-tight">
-                  {businessName || "—"}
+                  {userName || "—"}
                 </p>
-                <p className="text-xs text-muted">
-                  {businessType === "hotel" ? "Hotel Mode" : "Restaurant Mode"}
-                </p>
+                <p className="text-xs text-muted">{roleLabel}</p>
               </div>
             </div>
           </div>

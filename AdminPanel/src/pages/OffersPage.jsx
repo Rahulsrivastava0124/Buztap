@@ -1,6 +1,15 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, TicketPercent, Eye, EyeOff, Trash2 } from "lucide-react";
+import {
+  Plus,
+  TicketPercent,
+  Eye,
+  EyeOff,
+  Trash2,
+  PencilLine,
+} from "lucide-react";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 import {
   createOffer,
   deleteOffer,
@@ -15,11 +24,64 @@ const EMPTY_FORM = {
   description: "",
   discountPct: 10,
   minSubtotal: 0,
+  expiresAt: null,
 };
+
+function buildOfferPayload(form) {
+  return {
+    title: form.title.trim(),
+    code: form.code.trim().toUpperCase(),
+    description: form.description.trim(),
+    discountPct: Number(form.discountPct || 0),
+    minSubtotal: Number(form.minSubtotal || 0),
+    expiresAt: form.expiresAt ? form.expiresAt.toISOString() : null,
+  };
+}
+
+function formFromOffer(offer) {
+  return {
+    title: offer.title || "",
+    code: offer.code || "",
+    description: offer.description || "",
+    discountPct: Number(offer.discountPct || 0),
+    minSubtotal: Number(offer.minSubtotal || 0),
+    expiresAt: offer.expiresAt ? new Date(offer.expiresAt) : null,
+  };
+}
+
+function getOfferMeta(offer) {
+  const expiryDate = offer.expiresAt ? new Date(offer.expiresAt) : null;
+  const hasExpiry = Boolean(expiryDate && !Number.isNaN(expiryDate.getTime()));
+  const isExpired = hasExpiry && expiryDate.getTime() < Date.now();
+
+  return {
+    hasExpiry,
+    isExpired,
+    expiryLabel: hasExpiry ? expiryDate.toLocaleDateString() : "No expiry",
+  };
+}
+
+function StatusChip({
+  active,
+  activeClass,
+  inactiveClass,
+  activeLabel,
+  inactiveLabel,
+}) {
+  return (
+    <span
+      className={`px-2 py-0.5 rounded-full border ${active ? activeClass : inactiveClass}`}
+    >
+      {active ? activeLabel : inactiveLabel}
+    </span>
+  );
+}
 
 export default function OffersPage() {
   const queryClient = useQueryClient();
   const [form, setForm] = useState(EMPTY_FORM);
+  const [editingOfferId, setEditingOfferId] = useState("");
+  const isEditMode = Boolean(editingOfferId);
 
   const {
     data: offers = [],
@@ -42,7 +104,13 @@ export default function OffersPage() {
 
   const patchMutation = useMutation({
     mutationFn: ({ id, payload }) => updateOffer(id, payload),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["offers"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["offers"] });
+      if (isEditMode) {
+        setEditingOfferId("");
+        setForm(EMPTY_FORM);
+      }
+    },
   });
 
   const deleteMutation = useMutation({
@@ -50,17 +118,37 @@ export default function OffersPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["offers"] }),
   });
 
+  const isSubmitting = createMutation.isPending || patchMutation.isPending;
+  const mutationError =
+    createMutation.error?.message || patchMutation.error?.message;
+
   function onSubmit(e) {
     e.preventDefault();
+    const payload = buildOfferPayload(form);
+
+    if (isEditMode) {
+      patchMutation.mutate({
+        id: editingOfferId,
+        payload,
+      });
+      return;
+    }
+
     createMutation.mutate({
-      title: form.title.trim(),
-      code: form.code.trim().toUpperCase(),
-      description: form.description.trim(),
-      discountPct: Number(form.discountPct || 0),
-      minSubtotal: Number(form.minSubtotal || 0),
+      ...payload,
       isVisible: true,
       isActive: true,
     });
+  }
+
+  function startEdit(offer) {
+    setEditingOfferId(offer.id);
+    setForm(formFromOffer(offer));
+  }
+
+  function cancelEdit() {
+    setEditingOfferId("");
+    setForm(EMPTY_FORM);
   }
 
   function onChange(e) {
@@ -85,7 +173,9 @@ export default function OffersPage() {
             <div className="w-9 h-9 rounded-lg bg-paper border border-border flex items-center justify-center">
               <TicketPercent size={18} className="text-saffron" />
             </div>
-            <h2 className="font-bold text-ink">Add Coupon / Offer</h2>
+            <h2 className="font-bold text-ink">
+              {isEditMode ? "Edit Coupon / Offer" : "Add Coupon / Offer"}
+            </h2>
           </div>
 
           <div className="space-y-3">
@@ -150,21 +240,56 @@ export default function OffersPage() {
                 />
               </label>
             </div>
+
+            <label className="block text-sm">
+              <span className="block text-muted mb-1">Expiry Date</span>
+              <DatePicker
+                selected={form.expiresAt}
+                onChange={(date) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    expiresAt: date,
+                  }))
+                }
+                minDate={new Date()}
+                isClearable
+                placeholderText="Select expiry date"
+                dateFormat="dd MMM yyyy"
+                wrapperClassName="w-full"
+                popperClassName="z-[80]"
+                popperPlacement="bottom-start"
+                className="w-full rounded-lg border border-border bg-white px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-saffron/30"
+              />
+            </label>
           </div>
 
           <button
             type="submit"
-            disabled={createMutation.isPending}
+            disabled={isSubmitting}
             className="mt-4 w-full inline-flex items-center justify-center gap-2 text-sm px-4 py-2 rounded-lg bg-saffron text-white hover:bg-saffron2 disabled:opacity-60"
           >
             <Plus size={14} />
-            {createMutation.isPending ? "Adding..." : "Add Offer"}
+            {createMutation.isPending
+              ? "Adding..."
+              : patchMutation.isPending
+                ? "Updating..."
+                : isEditMode
+                  ? "Update Offer"
+                  : "Add Offer"}
           </button>
 
-          {createMutation.error?.message ? (
-            <p className="mt-2 text-xs text-error">
-              {createMutation.error.message}
-            </p>
+          {isEditMode ? (
+            <button
+              type="button"
+              onClick={cancelEdit}
+              className="mt-2 w-full text-sm px-4 py-2 rounded-lg border border-border text-ink hover:bg-paper"
+            >
+              Cancel Edit
+            </button>
+          ) : null}
+
+          {mutationError ? (
+            <p className="mt-2 text-xs text-error">{mutationError}</p>
           ) : null}
         </form>
 
@@ -197,70 +322,106 @@ export default function OffersPage() {
 
           <div className="space-y-3">
             {offers.map((offer) => (
-              <div
+              <OfferRow
                 key={offer.id}
-                className="border border-cream rounded-lg p-4 flex items-start justify-between gap-4"
-              >
-                <div>
-                  <p className="font-semibold text-ink">{offer.title}</p>
-                  <p className="text-xs text-muted mt-1">
-                    Code:{" "}
-                    <span className="font-bold text-ink">{offer.code}</span> •{" "}
-                    {offer.discountPct}% off • Min ₹{offer.minSubtotal}
-                  </p>
-                  <p className="text-xs text-muted mt-1">
-                    {offer.description || "-"}
-                  </p>
-                  <p className="text-xs mt-2">
-                    <span
-                      className={`px-2 py-0.5 rounded-full border ${offer.isVisible ? "border-sage text-sage" : "border-muted2 text-muted"}`}
-                    >
-                      {offer.isVisible ? "Visible" : "Hidden"}
-                    </span>
-                    <span
-                      className={`ml-2 px-2 py-0.5 rounded-full border ${offer.isActive ? "border-saffron text-saffron" : "border-muted2 text-muted"}`}
-                    >
-                      {offer.isActive ? "Active" : "Inactive"}
-                    </span>
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() =>
-                      patchMutation.mutate({
-                        id: offer.id,
-                        payload: { isVisible: !offer.isVisible },
-                      })
-                    }
-                    className="text-xs px-2.5 py-1.5 rounded-md border border-border hover:bg-paper inline-flex items-center gap-1"
-                  >
-                    {offer.isVisible ? <EyeOff size={13} /> : <Eye size={13} />}
-                    {offer.isVisible ? "Hide" : "Show"}
-                  </button>
-                  <button
-                    onClick={() =>
-                      patchMutation.mutate({
-                        id: offer.id,
-                        payload: { isActive: !offer.isActive },
-                      })
-                    }
-                    className="text-xs px-2.5 py-1.5 rounded-md border border-border hover:bg-paper"
-                  >
-                    {offer.isActive ? "Disable" : "Enable"}
-                  </button>
-                  <button
-                    onClick={() => deleteMutation.mutate(offer.id)}
-                    className="text-xs px-2.5 py-1.5 rounded-md border border-red-200 text-red-600 hover:bg-red-50 inline-flex items-center gap-1"
-                  >
-                    <Trash2 size={13} /> Delete
-                  </button>
-                </div>
-              </div>
+                offer={offer}
+                onEdit={startEdit}
+                onToggleVisibility={() =>
+                  patchMutation.mutate({
+                    id: offer.id,
+                    payload: { isVisible: !offer.isVisible },
+                  })
+                }
+                onToggleActive={() =>
+                  patchMutation.mutate({
+                    id: offer.id,
+                    payload: { isActive: !offer.isActive },
+                  })
+                }
+                onDelete={() => deleteMutation.mutate(offer.id)}
+              />
             ))}
           </div>
         </div>
       </div>
     </PageShell>
+  );
+}
+
+function OfferRow({
+  offer,
+  onEdit,
+  onToggleVisibility,
+  onToggleActive,
+  onDelete,
+}) {
+  const meta = getOfferMeta(offer);
+
+  return (
+    <div className="border border-cream rounded-lg p-4 flex items-start justify-between gap-4">
+      <div>
+        <p className="font-semibold text-ink">{offer.title}</p>
+        <p className="text-xs text-muted mt-1">
+          Code: <span className="font-bold text-ink">{offer.code}</span> •{" "}
+          {offer.discountPct}% off • Min ₹{offer.minSubtotal}
+        </p>
+        <p className="text-xs text-muted mt-1">{offer.description || "-"}</p>
+        <p className="text-xs text-muted mt-1">
+          Expiry: {meta.expiryLabel}
+          {meta.isExpired ? " (Expired)" : ""}
+        </p>
+        <p className="text-xs mt-2">
+          <StatusChip
+            active={offer.isVisible}
+            activeClass="border-sage text-sage"
+            inactiveClass="border-muted2 text-muted"
+            activeLabel="Visible"
+            inactiveLabel="Hidden"
+          />
+          <span className="ml-2">
+            <StatusChip
+              active={offer.isActive}
+              activeClass="border-saffron text-saffron"
+              inactiveClass="border-muted2 text-muted"
+              activeLabel="Active"
+              inactiveLabel="Inactive"
+            />
+          </span>
+          {meta.isExpired ? (
+            <span className="ml-2 px-2 py-0.5 rounded-full border border-red-200 text-red-600">
+              Expired
+            </span>
+          ) : null}
+        </p>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => onEdit(offer)}
+          className="text-xs px-2.5 py-1.5 rounded-md border border-border hover:bg-paper inline-flex items-center gap-1"
+        >
+          <PencilLine size={13} /> Edit
+        </button>
+        <button
+          onClick={onToggleVisibility}
+          className="text-xs px-2.5 py-1.5 rounded-md border border-border hover:bg-paper inline-flex items-center gap-1"
+        >
+          {offer.isVisible ? <EyeOff size={13} /> : <Eye size={13} />}
+          {offer.isVisible ? "Hide" : "Show"}
+        </button>
+        <button
+          onClick={onToggleActive}
+          className="text-xs px-2.5 py-1.5 rounded-md border border-border hover:bg-paper"
+        >
+          {offer.isActive ? "Disable" : "Enable"}
+        </button>
+        <button
+          onClick={onDelete}
+          className="text-xs px-2.5 py-1.5 rounded-md border border-red-200 text-red-600 hover:bg-red-50 inline-flex items-center gap-1"
+        >
+          <Trash2 size={13} /> Delete
+        </button>
+      </div>
+    </div>
   );
 }

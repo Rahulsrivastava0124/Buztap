@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   Utensils,
@@ -11,19 +11,58 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "../context/AuthContext";
+import { requestLoginOtp, verifyEmailOtp } from "../services/api";
 
 export default function AuthPage() {
   const [loginMethod, setLoginMethod] = useState("phone");
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
+  const [otp, setOtp] = useState("");
+  const [resolvedEmail, setResolvedEmail] = useState("");
+  const [showOtpModal, setShowOtpModal] = useState(false);
+  const [sendingOtp, setSendingOtp] = useState(false);
+  const [verifyingOtp, setVerifyingOtp] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
+  const [otpCooldown, setOtpCooldown] = useState(0);
+  const otpTimerRef = useRef(null);
+  const otpInputRefs = useRef([]);
+
+  function startCooldown(seconds, setter, timerRef) {
+    setter(seconds);
+    clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      setter((prev) => {
+        if (prev <= 1) {
+          clearInterval(timerRef.current);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  }
+
+  useEffect(() => {
+    return () => {
+      clearInterval(otpTimerRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (showOtpModal) {
+      const timer = setTimeout(() => {
+        otpInputRefs.current[0]?.focus();
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+    return undefined;
+  }, [showOtpModal]);
 
   const { login, subdomain } = useAuth();
   const navigate = useNavigate();
 
-  function validate() {
+  function validateCredentials() {
     const errs = {};
     if (loginMethod === "phone") {
       const digits = identifier.replace(/\D/g, "");
@@ -51,15 +90,20 @@ export default function AuthPage() {
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    if (submitting) return;
-    const errs = validate();
+    if (submitting || sendingOtp) return;
+    const errs = validateCredentials();
     if (Object.keys(errs).length > 0) {
       setErrors(errs);
       return;
     }
+
+    await handleSendOtp(true);
+  };
+
+  const completeLoginWithOtp = async (otpToken) => {
     setErrors({});
     setSubmitting(true);
-    const result = await login(identifier, password);
+    const result = await login(identifier, password, otpToken || undefined);
     if (result.success) {
       const targetSlug = result.subdomain || subdomain;
       if (!targetSlug) {
@@ -68,6 +112,7 @@ export default function AuthPage() {
         return;
       }
       toast.success("Signed in successfully");
+      setShowOtpModal(false);
       navigate(`/${targetSlug}/dashboard/overview`);
     } else {
       toast.error("Invalid phone/email or password");
@@ -80,6 +125,10 @@ export default function AuthPage() {
     const cleaned =
       loginMethod === "phone" ? raw.replace(/[^\d\s+\-().]/g, "") : raw;
     setIdentifier(cleaned);
+    setOtp("");
+    setResolvedEmail("");
+    setShowOtpModal(false);
+    setErrors((prev) => ({ ...prev, otp: "" }));
     if (errors.identifier) setErrors((prev) => ({ ...prev, identifier: "" }));
   }
 
@@ -91,7 +140,117 @@ export default function AuthPage() {
   function switchMethod(method) {
     setLoginMethod(method);
     setIdentifier("");
+    setOtp("");
+    setResolvedEmail("");
+    setShowOtpModal(false);
+    setOtpCooldown(0);
+    clearInterval(otpTimerRef.current);
     setErrors({});
+  }
+
+  async function handleSendOtp(openModal = false) {
+    const errs = validateCredentials();
+    if (Object.keys(errs).length > 0) {
+      setErrors((prev) => ({ ...prev, ...errs }));
+      return;
+    }
+
+    try {
+      setSendingOtp(true);
+      const res = await requestLoginOtp(identifier.trim(), password);
+      setResolvedEmail(res.resolvedEmail);
+      toast.success("OTP sent to your registered email");
+      if (openModal) {
+        setOtp("");
+        setShowOtpModal(true);
+      }
+    } catch (err) {
+      if (err?.retryAfterSeconds) {
+        startCooldown(err.retryAfterSeconds, setOtpCooldown, otpTimerRef);
+        toast.error(`Wait ${err.retryAfterSeconds}s before resending OTP`);
+      } else {
+        toast.error(err?.message || "Unable to send OTP");
+      }
+    } finally {
+      setSendingOtp(false);
+    }
+  }
+
+  async function handleVerifyOtp() {
+    const otpValue = otp.trim();
+    if (!/^\d{6}$/.test(otpValue)) {
+      setErrors((prev) => ({ ...prev, otp: "Enter a valid 6-digit OTP." }));
+      return;
+    }
+    const emailForVerify = resolvedEmail || identifier.trim().toLowerCase();
+    if (!emailForVerify) {
+      toast.error("Send OTP first");
+      return;
+    }
+
+    try {
+      setVerifyingOtp(true);
+      const res = await verifyEmailOtp(emailForVerify, "login", otpValue);
+      setErrors((prev) => ({ ...prev, otp: "" }));
+      toast.success("OTP verified");
+      await completeLoginWithOtp(res.otpToken);
+    } catch (err) {
+      toast.error(err?.message || "OTP verification failed");
+    } finally {
+      setVerifyingOtp(false);
+    }
+  }
+
+  function handleOtpBoxChange(index, value) {
+    const digit = value.replace(/\D/g, "").slice(-1);
+    const chars = otp.split("");
+    chars[index] = digit;
+    const nextOtp = chars.join("").slice(0, 6);
+    setOtp(nextOtp);
+    setErrors((prev) => ({ ...prev, otp: "" }));
+
+    if (digit && index < 5) {
+      otpInputRefs.current[index + 1]?.focus();
+    }
+  }
+
+  function handleOtpBoxKeyDown(index, e) {
+    if (e.key === "Backspace") {
+      if (otp[index]) {
+        const chars = otp.split("");
+        chars[index] = "";
+        setOtp(chars.join(""));
+        return;
+      }
+      if (index > 0) {
+        otpInputRefs.current[index - 1]?.focus();
+      }
+    }
+
+    if (e.key === "ArrowLeft" && index > 0) {
+      otpInputRefs.current[index - 1]?.focus();
+    }
+
+    if (e.key === "ArrowRight" && index < 5) {
+      otpInputRefs.current[index + 1]?.focus();
+    }
+
+    if (e.key === "Enter") {
+      handleVerifyOtp();
+    }
+  }
+
+  function handleOtpBoxPaste(e) {
+    e.preventDefault();
+    const pasted = e.clipboardData
+      .getData("text")
+      .replace(/\D/g, "")
+      .slice(0, 6);
+    if (!pasted) return;
+    setOtp(pasted);
+    setErrors((prev) => ({ ...prev, otp: "" }));
+    const focusIndex = Math.min(pasted.length - 1, 5);
+    otpInputRefs.current[focusIndex]?.focus();
   }
 
   return (
@@ -227,12 +386,12 @@ export default function AuthPage() {
                 <label className="text-xs font-semibold text-[#0f0e0b]">
                   Password
                 </label>
-                <a
-                  href="#"
+                <Link
+                  to="/forgot-password"
                   className="text-xs font-medium text-[#e8720c] hover:underline"
                 >
                   Forgot password?
-                </a>
+                </Link>
               </div>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -269,10 +428,15 @@ export default function AuthPage() {
 
             <button
               type="submit"
-              disabled={submitting}
+              disabled={submitting || sendingOtp}
               className="w-full py-3 mt-6 bg-[#e8720c] hover:bg-[#d4620a] disabled:opacity-60 text-white text-sm font-semibold rounded-lg transition-colors shadow-[0_4px_14px_rgba(232,114,12,0.25)] flex items-center justify-center gap-2"
             >
-              {submitting ? (
+              {sendingOtp ? (
+                <>
+                  <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Sending OTP...
+                </>
+              ) : submitting ? (
                 <>
                   <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                   Signing in...
@@ -286,6 +450,89 @@ export default function AuthPage() {
           </form>
         </div>
       </div>
+
+      {showOtpModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-2xl border border-[#e0d9ce] bg-white shadow-[0_20px_50px_rgba(0,0,0,0.2)] p-6 sm:p-7">
+            <h2 className="font-display text-2xl font-bold text-[#0f0e0b] mb-2">
+              Verify OTP
+            </h2>
+            <p className="text-sm text-[#857c6e] mb-5">
+              {loginMethod === "phone"
+                ? "We sent a one-time code to the email linked with this phone number."
+                : "We sent a one-time code to your email address."}
+            </p>
+
+            <div className="flex items-center justify-between gap-2 sm:gap-3">
+              {Array.from({ length: 6 }).map((_, index) => (
+                <input
+                  key={index}
+                  ref={(el) => {
+                    otpInputRefs.current[index] = el;
+                  }}
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={1}
+                  value={otp[index] || ""}
+                  onChange={(e) => handleOtpBoxChange(index, e.target.value)}
+                  onKeyDown={(e) => handleOtpBoxKeyDown(index, e)}
+                  onPaste={handleOtpBoxPaste}
+                  className="w-11 h-12 sm:w-12 sm:h-12 text-center bg-[#faf7f2] border border-[#cfd5de] rounded-xl text-[#0f0e0b] focus:outline-none focus:ring-2 focus:ring-sky-400/50 focus:border-sky-500 transition-all font-semibold text-lg"
+                  aria-label={`OTP digit ${index + 1}`}
+                />
+              ))}
+            </div>
+
+            {errors.otp ? (
+              <p className="text-xs text-red-500 mt-2">{errors.otp}</p>
+            ) : null}
+
+            <div className="mt-4 flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => handleSendOtp(false)}
+                disabled={sendingOtp || otpCooldown > 0}
+                className="text-xs font-semibold text-[#e8720c] hover:underline disabled:opacity-60 disabled:no-underline"
+              >
+                {sendingOtp
+                  ? "Sending..."
+                  : otpCooldown > 0
+                    ? `Resend in ${otpCooldown}s`
+                    : "Resend OTP"}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setShowOtpModal(false);
+                  setOtp("");
+                }}
+                className="text-xs font-medium text-[#857c6e] hover:text-[#0f0e0b]"
+              >
+                Cancel
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleVerifyOtp}
+              disabled={verifyingOtp || submitting || otp.length !== 6}
+              className="w-full py-3 mt-5 bg-[#e8720c] hover:bg-[#d4620a] disabled:opacity-60 text-white text-sm font-semibold rounded-lg transition-colors shadow-[0_4px_14px_rgba(232,114,12,0.25)] flex items-center justify-center gap-2"
+            >
+              {verifyingOtp || submitting ? (
+                <>
+                  <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Verifying...
+                </>
+              ) : (
+                <>
+                  Verify & Sign In <ArrowRight size={16} />
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
