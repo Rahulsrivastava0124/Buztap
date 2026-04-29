@@ -224,7 +224,6 @@ export default function PosSystem() {
     const paymentMethodMap = {
       UPI: "Card/UPI",
       Cash: "Cash",
-      Card: "Credit/Debit Card",
     };
     const payload = {
       paymentMethod: paymentMethodMap[paymentMode] || paymentMode,
@@ -702,32 +701,38 @@ export default function PosSystem() {
                           <button
                             type="button"
                             onClick={() => setPaymentMode("UPI")}
-                            className={`text-xs px-2.5 py-1 rounded-md border ${paymentMode === "UPI" ? "bg-saffron text-white border-saffron" : "border-border text-muted"}`}
+                            className={`text-sm px-4 py-2 rounded-xl border transition-colors cursor-pointer ${paymentMode === "UPI" ? "bg-saffron text-white border-saffron" : "border-border text-muted hover:bg-paper"}`}
                           >
                             UPI
                           </button>
                           <button
                             type="button"
                             onClick={() => setPaymentMode("Cash")}
-                            className={`text-xs px-2.5 py-1 rounded-md border ${paymentMode === "Cash" ? "bg-saffron text-white border-saffron" : "border-border text-muted"}`}
+                            className={`text-sm px-4 py-2 rounded-xl border transition-colors cursor-pointer ${paymentMode === "Cash" ? "bg-saffron text-white border-saffron" : "border-border text-muted hover:bg-paper"}`}
                           >
                             Cash
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => setPaymentMode("Card")}
-                            className={`text-xs px-2.5 py-1 rounded-md border ${paymentMode === "Card" ? "bg-saffron text-white border-saffron" : "border-border text-muted"}`}
-                          >
-                            Card
-                          </button>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-2xl font-black text-ink">
+                            Total
+                          </span>
+                          <span className="text-4xl font-black text-ink">
+                            ₹
+                            {Number(
+                              detailOrder?.total ??
+                                detailOrderSummary?.amount ??
+                                0,
+                            ).toFixed(0)}
+                          </span>
                         </div>
                         {paymentMode === "UPI" ? (
                           upiId ? (
-                            <div className="rounded-md border border-border bg-paper p-2 flex justify-center">
+                            <div className="rounded-xl border border-border bg-paper p-3 flex justify-center">
                               <img
                                 src={upiQrUrl}
                                 alt="UPI payment QR"
-                                className="w-28 h-28 object-contain"
+                                className="w-56 h-56 object-contain"
                               />
                             </div>
                           ) : (
@@ -740,7 +745,7 @@ export default function PosSystem() {
                           value={transactionId}
                           onChange={(e) => setTransactionId(e.target.value)}
                           placeholder="Transaction ID (optional)"
-                          className="w-full rounded-lg border border-border px-3 py-2 text-xs outline-none"
+                          className="w-full rounded-xl border border-border px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-saffron/25"
                         />
                         <button
                           type="button"
@@ -749,9 +754,9 @@ export default function PosSystem() {
                             paymentMutation.isPending ||
                             (paymentMode === "UPI" && !upiId)
                           }
-                          className="w-full bg-saffron hover:bg-saffron2 disabled:opacity-60 text-white rounded-lg py-2 text-xs font-bold flex items-center justify-center gap-1.5"
+                          className="w-full bg-saffron hover:bg-saffron2 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-xl py-3 text-sm font-bold flex items-center justify-center gap-2 cursor-pointer transition-colors"
                         >
-                          <CreditCard size={14} />
+                          <CreditCard size={16} />
                           {paymentMutation.isPending
                             ? "Updating..."
                             : "Mark Payment Completed"}
