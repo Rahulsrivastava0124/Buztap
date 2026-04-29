@@ -181,10 +181,25 @@ const guestSchema = z.object({
   guestPhone: z.string().optional(),
 });
 
+async function autoFreeCleaning(businessId) {
+  const cutoff = new Date(Date.now() - 15 * 60 * 1000); // 15 minutes ago
+  await Table.updateMany(
+    {
+      businessId,
+      status: "Cleaning",
+      updatedAt: { $lte: cutoff },
+    },
+    {
+      $set: { status: "Free", guestName: null, guestPhone: null },
+    },
+  );
+}
+
 async function getAll(req, res, next) {
   try {
     await syncTablesWithBusinessCount(req.user.businessId);
     await reconcileTableOccupancy(req.user.businessId);
+    await autoFreeCleaning(req.user.businessId);
     const tables = await Table.find({
       businessId: req.user.businessId,
       isActive: true,

@@ -585,12 +585,63 @@ export default function PosSystem() {
 
               {/* Panel Actions */}
               <div className="p-4 border-t border-border space-y-2 bg-paper">
-                <button
-                  onClick={() => selectTable(detailTable)}
-                  className="w-full py-2.5 rounded-xl bg-saffron hover:bg-saffron2 text-white font-bold text-sm flex items-center justify-center gap-2 transition-colors shadow-md"
-                >
-                  <PlusCircle size={16} /> Add Items to Order
-                </button>
+                {/* Mark Cleaning — top */}
+                {isPaymentDone ? (
+                  <button
+                    disabled={statusMutation.isPending}
+                    onClick={() =>
+                      statusMutation.mutate({
+                        tableId: detailTable.id,
+                        status: "Cleaning",
+                      })
+                    }
+                    className="w-full py-2.5 rounded-xl border border-warning/40 bg-warning/5 hover:bg-warning/10 text-sm font-semibold text-warning flex items-center justify-center gap-2 transition-colors disabled:opacity-60"
+                  >
+                    <RefreshCw size={14} />
+                    {statusMutation.isPending ? "Clearing…" : "Clear Table"}
+                  </button>
+                ) : (
+                  <button
+                    disabled={statusMutation.isPending}
+                    onClick={async () => {
+                      try {
+                        await statusMutation.mutateAsync({
+                          tableId: detailTable.id,
+                          status: "Cleaning",
+                        });
+                        clearCart();
+                        selectTable({ ...detailTable, status: "Cleaning" });
+                      } catch {
+                        // error already toasted by mutation
+                      }
+                    }}
+                    className="w-full py-2.5 rounded-xl border border-border bg-white hover:bg-paper text-sm font-semibold text-ink flex items-center justify-center gap-2 transition-colors disabled:opacity-60"
+                  >
+                    <RefreshCw size={14} />
+                    {statusMutation.isPending
+                      ? "Updating…"
+                      : `New Order — Mark Cleaning`}
+                  </button>
+                )}
+
+                {/* Add Items + Print Invoice — one row */}
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => selectTable(detailTable)}
+                    className="flex-1 py-2.5 rounded-xl bg-saffron hover:bg-saffron2 text-white font-bold text-sm flex items-center justify-center gap-1.5 transition-colors shadow-md"
+                  >
+                    <PlusCircle size={15} /> Add Items
+                  </button>
+                  {detailOrder && (
+                    <button
+                      type="button"
+                      onClick={printInvoice}
+                      className="flex-1 py-2.5 rounded-xl border border-border bg-white hover:bg-paper text-sm font-semibold text-ink flex items-center justify-center gap-1.5 transition-colors"
+                    >
+                      <Printer size={14} /> Print
+                    </button>
+                  )}
+                </div>
 
                 {/* Pay section — only when order is Served */}
                 {isServed && (
@@ -656,56 +707,6 @@ export default function PosSystem() {
                       </>
                     )}
                   </div>
-                )}
-
-                {/* Print Invoice */}
-                {detailOrder && (
-                  <button
-                    type="button"
-                    onClick={printInvoice}
-                    className="w-full py-2 rounded-xl border border-border bg-white hover:bg-paper text-sm font-semibold text-ink flex items-center justify-center gap-2 transition-colors"
-                  >
-                    <Printer size={14} /> Print Invoice
-                  </button>
-                )}
-
-                {/* Clear Table — after payment done */}
-                {isPaymentDone ? (
-                  <button
-                    disabled={statusMutation.isPending}
-                    onClick={() =>
-                      statusMutation.mutate({
-                        tableId: detailTable.id,
-                        status: "Cleaning",
-                      })
-                    }
-                    className="w-full py-2.5 rounded-xl border border-warning/40 bg-warning/5 hover:bg-warning/10 text-sm font-semibold text-warning flex items-center justify-center gap-2 transition-colors disabled:opacity-60"
-                  >
-                    <RefreshCw size={14} />
-                    {statusMutation.isPending ? "Clearing…" : "Clear Table"}
-                  </button>
-                ) : (
-                  <button
-                    disabled={statusMutation.isPending}
-                    onClick={async () => {
-                      try {
-                        await statusMutation.mutateAsync({
-                          tableId: detailTable.id,
-                          status: "Cleaning",
-                        });
-                        clearCart();
-                        selectTable({ ...detailTable, status: "Cleaning" });
-                      } catch {
-                        // error already toasted by mutation
-                      }
-                    }}
-                    className="w-full py-2.5 rounded-xl border border-border bg-white hover:bg-paper text-sm font-semibold text-ink flex items-center justify-center gap-2 transition-colors disabled:opacity-60"
-                  >
-                    <RefreshCw size={14} />
-                    {statusMutation.isPending
-                      ? "Updating…"
-                      : `New Order — Mark Cleaning`}
-                  </button>
                 )}
               </div>
             </Motion.div>
