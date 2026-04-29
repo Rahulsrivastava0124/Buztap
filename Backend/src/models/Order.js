@@ -43,6 +43,8 @@ const orderSchema = new Schema(
     discountPct: { type: Number, default: 0 },
     discountReason: { type: String, default: null },
     taxableAmount: { type: Number, required: true },
+    gstAmount: { type: Number, default: 0 },
+    extraTaxAmount: { type: Number, default: 0 },
     tax: { type: Number, required: true },
     total: { type: Number, required: true },
     paymentMethod: {

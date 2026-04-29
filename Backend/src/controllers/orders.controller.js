@@ -1,8 +1,7 @@
 const { z } = require("zod");
 const Order = require("../models/Order");
 const Table = require("../models/Table");
-
-const GST_RATE = 0.05;
+const Business = require("../models/Business");
 
 function buildTableIdCandidates(rawTableId) {
   const value = String(rawTableId || "").trim();
@@ -102,13 +101,23 @@ const createOrderSchema = z.object({
     .optional(),
 });
 
-function computeTotals(items, discountPct = 0) {
+function computeTotals(items, discountPct = 0, gstPct = 5, taxPct = 0) {
   const subtotal = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
   const discount = Math.round((subtotal * discountPct) / 100);
   const taxableAmount = subtotal - discount;
-  const tax = Math.round(taxableAmount * GST_RATE);
+  const gstAmount = Math.round((taxableAmount * gstPct) / 100);
+  const extraTaxAmount = Math.round((taxableAmount * taxPct) / 100);
+  const tax = gstAmount + extraTaxAmount;
   const total = taxableAmount + tax;
-  return { subtotal, discount, taxableAmount, tax, total };
+  return {
+    subtotal,
+    discount,
+    taxableAmount,
+    gstAmount,
+    extraTaxAmount,
+    tax,
+    total,
+  };
 }
 
 async function getAll(req, res, next) {
@@ -148,16 +157,27 @@ async function create(req, res, next) {
     const data = createOrderSchema.parse(req.body);
     const { discountPct = 0 } = data;
 
+    const business = await Business.findById(req.user.businessId)
+      .select("gstPct taxPct")
+      .lean();
+    const gstPct = Number(business?.gstPct ?? 5);
+    const taxPct = Number(business?.taxPct ?? 0);
+
     const items = data.items.map((i) => ({
       ...i,
       total: i.price * i.quantity,
       preparationStatus: "Pending",
     }));
 
-    const { subtotal, discount, taxableAmount, tax, total } = computeTotals(
-      items,
-      discountPct,
-    );
+    const {
+      subtotal,
+      discount,
+      taxableAmount,
+      gstAmount,
+      extraTaxAmount,
+      tax,
+      total,
+    } = computeTotals(items, discountPct, gstPct, taxPct);
 
     const order = await Order.create({
       businessId: req.user.businessId,
@@ -174,6 +194,8 @@ async function create(req, res, next) {
       discountPct,
       discountReason: data.discountReason || null,
       taxableAmount,
+      gstAmount,
+      extraTaxAmount,
       tax,
       total,
       paymentMethod: data.paymentMethod || "Pending",
@@ -241,6 +263,21 @@ async function updatePayment(req, res, next) {
       { new: true },
     );
     if (!order) return res.status(404).json({ error: "Order not found" });
+
+    // Start cleaning automatically once payment is completed for table orders.
+    if (data.paymentStatus === "Completed" && order.tableId) {
+      const tableIdCandidates = buildTableIdCandidates(order.tableId);
+      if (tableIdCandidates.length > 0) {
+        await Table.findOneAndUpdate(
+          {
+            tableId: { $in: tableIdCandidates },
+            businessId: req.user.businessId,
+          },
+          { $set: { status: "Cleaning", guestName: null, guestPhone: null } },
+        );
+      }
+    }
+
     res.json(order);
   } catch (err) {
     next(err);

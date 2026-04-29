@@ -332,6 +332,7 @@ export default function TablesPage() {
                 <p class="title">INVOICE</p>
                 <p class="muted">Order: ${order.orderId || "-"}</p>
                 <p class="muted">Table: ${order.tableId || "-"}</p>
+                <p class="muted">GST No: ${businessProfile?.gstNo || "-"}</p>
                 <p class="muted">Date: ${new Date(order.createdAt).toLocaleString("en-IN")}</p>
               </div>
             </div>

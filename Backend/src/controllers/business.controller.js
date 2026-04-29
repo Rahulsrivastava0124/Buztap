@@ -33,6 +33,9 @@ const updateBusinessSchema = z
       .or(z.literal("")),
     branches: z.coerce.number().int().min(1).max(999).optional(),
     tableCount: z.coerce.number().int().min(0).max(9999).optional(),
+    gstPct: z.coerce.number().min(0).max(100).optional(),
+    taxPct: z.coerce.number().min(0).max(100).optional(),
+    gstNo: z.string().trim().max(30).optional().or(z.literal("")),
     restroUpi: z.string().trim().max(120).optional().or(z.literal("")),
     socialLinks: socialLinksSchema.optional(),
     headerImage: z.string().trim().url().optional().or(z.literal("")),
@@ -60,6 +63,9 @@ function mapBusinessProfile(business) {
     subdomain: business.subdomain || slugify(business.name),
     branches: Number(business.branches || 1),
     tableCount: Number(business.tableCount ?? 0),
+    gstPct: Number(business.gstPct ?? 5),
+    taxPct: Number(business.taxPct ?? 0),
+    gstNo: business.gstNo || "",
     restroUpi: business.restroUpi || "",
     headerImage: business.headerImage || "",
     logoImage: business.logoImage || "",
@@ -223,6 +229,9 @@ async function updateBusinessProfile(req, res, next) {
       ...(payload.tableCount !== undefined
         ? { tableCount: payload.tableCount }
         : {}),
+      ...(payload.gstPct !== undefined ? { gstPct: payload.gstPct } : {}),
+      ...(payload.taxPct !== undefined ? { taxPct: payload.taxPct } : {}),
+      ...(payload.gstNo !== undefined ? { gstNo: payload.gstNo || "" } : {}),
       ...(payload.restroUpi !== undefined
         ? { restroUpi: payload.restroUpi || "" }
         : {}),

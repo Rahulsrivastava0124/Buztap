@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useEffect } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
@@ -18,7 +19,12 @@ import {
 import toast from "react-hot-toast";
 import { usePosStore } from "../features/pos/store/usePosStore";
 import { useAuth } from "../context/AuthContext";
-import { createPosOrder, updateOrderPayment } from "../services/api";
+import {
+  createPosOrder,
+  fetchBusinessProfile,
+  updateOrderPayment,
+} from "../services/api";
+import { useQuery } from "@tanstack/react-query";
 
 // steps: "review" → "payment" → "done"
 export default function PosCheckout() {
@@ -32,6 +38,7 @@ export default function PosCheckout() {
     cart,
     discountPct,
     setDiscountPct,
+    setTaxRates,
     setItemNotes,
     updateQty,
     removeItem,
@@ -68,6 +75,21 @@ export default function PosCheckout() {
     location.state?.orderType || (isHotelMode ? "Room Service" : "Dine-in");
 
   const { subtotal, discount, tax, total, itemCount } = getTotals();
+
+  const { data: businessProfile } = useQuery({
+    queryKey: ["business-profile"],
+    queryFn: fetchBusinessProfile,
+    staleTime: 300_000,
+  });
+
+  useEffect(() => {
+    setTaxRates({
+      gstPct: Number(businessProfile?.gstPct ?? 5),
+      taxPct: Number(businessProfile?.taxPct ?? 0),
+    });
+  }, [businessProfile?.gstPct, businessProfile?.taxPct, setTaxRates]);
+
+  const taxLabel = `Tax (${Number(businessProfile?.gstPct ?? 5)}% GST${Number(businessProfile?.taxPct ?? 0) > 0 ? ` + ${Number(businessProfile?.taxPct ?? 0)}% Tax` : ""})`;
 
   const offerOptions = [
     { pct: 0, title: "No Offer", minSubtotal: 0 },
@@ -164,7 +186,7 @@ export default function PosCheckout() {
       "",
       `Subtotal: ₹${subtotal.toFixed(2)}`,
       `Discount (${discountPct}%): -₹${discount.toFixed(2)}`,
-      `Tax (5% GST): ₹${tax.toFixed(2)}`,
+      `${taxLabel}: ₹${tax.toFixed(2)}`,
       `Total: ₹${total.toFixed(2)}`,
     ].join("\n");
     const blob = new Blob([lines], { type: "text/plain;charset=utf-8" });
@@ -238,7 +260,7 @@ export default function PosCheckout() {
               </div>
             )}
             <div className="flex justify-between text-sm text-muted">
-              <span>Tax (5% GST)</span>
+              <span>{taxLabel}</span>
               <span>₹{tax.toFixed(2)}</span>
             </div>
             <div className="flex justify-between font-black text-ink text-lg pt-2 border-t border-border mt-1">
@@ -379,7 +401,7 @@ export default function PosCheckout() {
                   </div>
                 )}
                 <div className="flex justify-between text-sm text-muted">
-                  <span>Tax (5% GST)</span>
+                  <span>{taxLabel}</span>
                   <span>₹{tax.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between font-black text-ink text-xl pt-2 border-t border-border">
@@ -610,7 +632,7 @@ export default function PosCheckout() {
                 </div>
               )}
               <div className="flex justify-between text-sm text-muted">
-                <span>Tax (5% GST)</span>
+                <span>{taxLabel}</span>
                 <span>₹{tax.toFixed(2)}</span>
               </div>
               <div className="flex justify-between font-black text-ink text-xl pt-2 border-t border-border">

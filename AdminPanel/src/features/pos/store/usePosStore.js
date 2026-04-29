@@ -1,15 +1,20 @@
 import { create } from "zustand";
 
-const TAX_RATE = 0.05;
-
 export const usePosStore = create((set, get) => ({
   cart: [],
   heldOrders: [],
   orderType: "Dine-in",
   discountPct: 0,
+  gstPct: 5,
+  taxPct: 0,
 
   setOrderType: (orderType) => set({ orderType }),
   setDiscountPct: (discountPct) => set({ discountPct }),
+  setTaxRates: ({ gstPct = 5, taxPct = 0 }) =>
+    set({
+      gstPct: Math.min(100, Math.max(0, Number(gstPct || 0))),
+      taxPct: Math.min(100, Math.max(0, Number(taxPct || 0))),
+    }),
 
   addToCart: (item) => {
     const { cart } = get();
@@ -79,14 +84,25 @@ export const usePosStore = create((set, get) => ({
   clearCart: () => set({ cart: [], discountPct: 0 }),
 
   getTotals: () => {
-    const { cart, discountPct } = get();
+    const { cart, discountPct, gstPct, taxPct } = get();
     const subtotal = cart.reduce((sum, i) => sum + i.price * i.qty, 0);
     const discount = (subtotal * discountPct) / 100;
     const taxable = subtotal - discount;
-    const tax = taxable * TAX_RATE;
+    const gstAmount = (taxable * gstPct) / 100;
+    const extraTaxAmount = (taxable * taxPct) / 100;
+    const tax = gstAmount + extraTaxAmount;
     const total = taxable + tax;
     const itemCount = cart.reduce((sum, i) => sum + i.qty, 0);
-    return { subtotal, discount, taxable, tax, total, itemCount };
+    return {
+      subtotal,
+      discount,
+      taxable,
+      gstAmount,
+      extraTaxAmount,
+      tax,
+      total,
+      itemCount,
+    };
   },
 
   splitEvenly: (people) => {

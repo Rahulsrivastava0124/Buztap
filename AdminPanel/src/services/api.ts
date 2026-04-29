@@ -87,6 +87,9 @@ export interface BusinessProfile {
   subdomain: string;
   branches: number;
   tableCount: number;
+  gstPct: number;
+  taxPct: number;
+  gstNo: string;
   restroUpi: string;
   headerImage: string;
   logoImage: string;
@@ -102,6 +105,9 @@ export interface UpdateBusinessProfileInput {
   subdomain?: string;
   branches?: number;
   tableCount?: number;
+  gstPct?: number;
+  taxPct?: number;
+  gstNo?: string;
   restroUpi?: string;
   headerImage?: string;
   logoImage?: string;
@@ -330,6 +336,9 @@ function getFallbackBusinessProfile(): BusinessProfile {
     subdomain: "",
     branches: 1,
     tableCount: 0,
+    gstPct: 5,
+    taxPct: 0,
+    gstNo: "",
     restroUpi: "",
     headerImage: "",
     logoImage: "",

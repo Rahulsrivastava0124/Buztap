@@ -94,6 +94,7 @@ export default function PosSystem() {
     updateQty,
     removeItem,
     clearCart,
+    setTaxRates,
     getTotals,
   } = usePosStore();
 
@@ -171,6 +172,13 @@ export default function PosSystem() {
     queryFn: fetchBusinessProfile,
     staleTime: 300_000,
   });
+
+  useEffect(() => {
+    setTaxRates({
+      gstPct: Number(businessProfile?.gstPct ?? 5),
+      taxPct: Number(businessProfile?.taxPct ?? 0),
+    });
+  }, [businessProfile?.gstPct, businessProfile?.taxPct, setTaxRates]);
 
   const upiId = businessProfile?.restroUpi || "";
 
@@ -262,6 +270,7 @@ export default function PosSystem() {
           <div style="text-align:right;"><p class="title">INVOICE</p>
             <p class="muted">Order: ${order.orderId || "-"}</p>
             <p class="muted">Table: ${order.tableId || "-"}</p>
+            <p class="muted">GST No: ${businessProfile?.gstNo || "-"}</p>
             <p class="muted">Date: ${new Date(order.createdAt).toLocaleString("en-IN")}</p>
           </div>
         </div>
@@ -279,14 +288,6 @@ export default function PosSystem() {
     `);
     popup.document.close();
   };
-
-  // Pre-fill guest info from the active order when panel opens
-  useEffect(() => {
-    if (detailTable) {
-      setGuestName(detailOrderSummary?.guestName || "");
-      setGuestPhone(detailOrderSummary?.guestPhone || "");
-    }
-  }, [detailTable, detailOrderSummary]);
 
   const categories = useMemo(
     () => ["All", ...new Set(menuItems.map((item) => item.cat))],
@@ -318,9 +319,30 @@ export default function PosSystem() {
   }, [activeCat, menuItems, searchTerm]);
 
   const { subtotal, tax, total, itemCount } = getTotals();
+  const taxLabel = `Tax (${Number(businessProfile?.gstPct ?? 5)}% GST${Number(businessProfile?.taxPct ?? 0) > 0 ? ` + ${Number(businessProfile?.taxPct ?? 0)}% Tax` : ""})`;
+
+  function getLatestTableOrder(table) {
+    const candidates = new Set(buildTableIdCandidates(table?.id));
+    const activeStatuses = new Set(["Pending", "Preparing", "Ready", "Served"]);
+    return (
+      orders
+        .filter(
+          (o) =>
+            candidates.has(String(o.tableId || "").trim()) &&
+            activeStatuses.has(o.status),
+        )
+        .sort(
+          (a, b) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+        )[0] || null
+    );
+  }
 
   function handleTableClick(table) {
     if (table.status === "Occupied") {
+      const activeOrder = getLatestTableOrder(table);
+      setGuestName(activeOrder?.guestName || "");
+      setGuestPhone(activeOrder?.guestPhone || "");
       setDetailTable(table);
     } else {
       selectTable(table);
@@ -366,11 +388,11 @@ export default function PosSystem() {
               <Utensils size={20} className="text-saffron" />
               Select a {locationLabel}
             </h2>
-            <p className="text-sm text-muted mt-0.5">
+            {/* <p className="text-sm text-muted mt-0.5">
               {locationLabel === "Table"
                 ? "Occupied tables show the active order. Tap to view or add items."
                 : `Choose a ${locationLabel.toLowerCase()} to start the order.`}
-            </p>
+            </p> */}
           </div>
 
           <div className="flex-1 overflow-y-auto p-5 custom-scrollbar">
@@ -454,7 +476,7 @@ export default function PosSystem() {
                   <span
                     className={`text-sm font-bold px-2.5 py-1 rounded-lg border ${TABLE_STATUS_STYLES[detailTable.status]}`}
                   >
-                    {locationLabel} {detailTable.id}
+                    {detailTable.id}
                   </span>
                   {detailTable.seats > 0 && (
                     <span className="text-xs text-muted">
@@ -541,6 +563,24 @@ export default function PosSystem() {
                               detailOrderSummary.amount ??
                               0,
                           ).toFixed(0)}
+                        </span>
+                      </div>
+                      <div className="px-3 py-2 border-t border-border bg-white flex justify-between items-center">
+                        <span className="text-xs text-muted font-medium">
+                          Payment
+                        </span>
+                        <span
+                          className={`text-xs font-semibold ${
+                            (detailOrder?.paymentStatus ||
+                              detailOrderSummary?.paymentStatus ||
+                              "Pending") === "Completed"
+                              ? "text-green-700"
+                              : "text-orange-600"
+                          }`}
+                        >
+                          {detailOrder?.paymentStatus ||
+                            detailOrderSummary?.paymentStatus ||
+                            "Pending"}
                         </span>
                       </div>
                     </div>
@@ -723,40 +763,45 @@ export default function PosSystem() {
       <div className="flex-1 flex flex-col overflow-hidden relative border-r border-border">
         {/* Top Controls */}
         <div className="p-4 bg-white border-b border-border flex flex-col gap-3 z-10 shadow-sm">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={changeTable}
-              className="flex items-center gap-1.5 text-sm font-semibold text-muted hover:text-ink transition-colors"
-            >
-              <ArrowLeft size={16} />
-              {locationLabel}s
-            </button>
-            <span className="text-muted2">/</span>
-            <span className="text-sm font-bold text-saffron">
-              {locationLabel} {selectedTable?.id}
-            </span>
-            {selectedTable?.status && (
-              <span
-                className={`text-xs px-2 py-0.5 rounded-full border font-medium ${
-                  TABLE_STATUS_STYLES[selectedTable.status] ||
-                  "border-border bg-paper text-muted"
-                }`}
+          <div className="flex flex-col lg:flex-row lg:items-center gap-3">
+            <div className="flex items-center gap-3 shrink-0">
+              <button
+                onClick={changeTable}
+                className="flex items-center gap-1.5 text-sm font-semibold text-muted hover:text-ink transition-colors"
               >
-                {selectedTable.status}
+                <ArrowLeft size={16} />
+                {locationLabel}s
+              </button>
+              <span className="text-muted2">/</span>
+              <span className="text-sm font-bold text-saffron">
+                {selectedTable?.id}
               </span>
-            )}
-          </div>
+              {selectedTable?.status && (
+                <span
+                  className={`text-xs px-2 py-0.5 rounded-full border font-medium ${
+                    TABLE_STATUS_STYLES[selectedTable.status] ||
+                    "border-border bg-paper text-muted"
+                  }`}
+                >
+                  {selectedTable.status}
+                </span>
+              )}
+            </div>
 
-          <div className="relative">
-            <Search className="absolute left-3 top-2.5 text-muted2" size={18} />
-            <input
-              ref={searchRef}
-              type="text"
-              placeholder="Search items by name..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-border rounded-lg text-sm bg-paper focus:outline-none focus:ring-1 focus:ring-saffron focus:border-saffron transition-all"
-            />
+            <div className="relative flex-1">
+              <Search
+                className="absolute left-3 top-2.5 text-muted2"
+                size={18}
+              />
+              <input
+                ref={searchRef}
+                type="text"
+                placeholder="Search items by name..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-border rounded-lg text-sm bg-paper focus:outline-none focus:ring-1 focus:ring-saffron focus:border-saffron transition-all"
+              />
+            </div>
           </div>
 
           <div className="flex gap-2 overflow-x-auto custom-scrollbar pb-1">
@@ -843,7 +888,7 @@ export default function PosSystem() {
             onClick={changeTable}
             className="flex items-center gap-1.5 text-sm font-bold text-saffron hover:text-saffron2 transition-colors border border-saffron/30 rounded-lg px-2.5 py-1"
           >
-            {locationLabel} {selectedTable?.id}
+            {selectedTable?.id}
           </button>
         </div>
 
@@ -936,7 +981,7 @@ export default function PosSystem() {
               </span>
             </div>
             <div className="flex justify-between text-sm text-muted">
-              <span>Tax (5% GST)</span>
+              <span>{taxLabel}</span>
               <span className="font-roboto font-medium text-ink">
                 ₹{tax.toFixed(2)}
               </span>

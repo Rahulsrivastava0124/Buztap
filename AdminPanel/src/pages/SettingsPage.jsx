@@ -88,6 +88,9 @@ const EMPTY_FORM = {
   email: "",
   phone: "",
   address: "",
+  gstPct: 5,
+  taxPct: 0,
+  gstNo: "",
   restroUpi: "",
   socialLinks: {
     instagram: "",
@@ -260,6 +263,9 @@ export default function SettingsPage() {
             email: profile.email || "",
             phone: profile.phone || "",
             address: profile.address || "",
+            gstPct: Number(profile.gstPct ?? 5),
+            taxPct: Number(profile.taxPct ?? 0),
+            gstNo: profile.gstNo || "",
             restroUpi: profile.restroUpi || "",
             socialLinks: {
               instagram: profile.socialLinks?.instagram || "",
@@ -332,6 +338,27 @@ export default function SettingsPage() {
     [profile?.id, form.subdomain],
   );
 
+  function normalizeNumericField(name, rawValue) {
+    const num = Number(rawValue);
+    if (!Number.isFinite(num)) {
+      return name === "branches" ? 1 : 0;
+    }
+
+    if (name === "branches") {
+      return Math.max(1, Math.round(num));
+    }
+
+    if (name === "tableCount") {
+      return Math.max(0, Math.round(num));
+    }
+
+    if (name === "gstPct" || name === "taxPct") {
+      return Math.min(100, Math.max(0, Number(num.toFixed(2))));
+    }
+
+    return num;
+  }
+
   function onChange(e) {
     const { name, value } = e.target;
 
@@ -348,10 +375,16 @@ export default function SettingsPage() {
     }
 
     setEdited((prev) => {
-      const isNumericField = name === "branches" || name === "tableCount";
+      const isNumericField =
+        name === "branches" ||
+        name === "tableCount" ||
+        name === "gstPct" ||
+        name === "taxPct";
       const normalizedValue = isNumericField
-        ? Number(value || (name === "branches" ? 1 : 0))
-        : value;
+        ? normalizeNumericField(name, value)
+        : name === "gstNo"
+          ? value.toUpperCase()
+          : value;
 
       const next = {
         ...prev,
@@ -368,6 +401,26 @@ export default function SettingsPage() {
         }
       }
       return next;
+    });
+  }
+
+  function onNumericBlur(e) {
+    const { name } = e.target;
+    if (
+      name !== "branches" &&
+      name !== "tableCount" &&
+      name !== "gstPct" &&
+      name !== "taxPct"
+    ) {
+      return;
+    }
+
+    setEdited((prev) => {
+      const currentValue = prev[name] ?? form[name];
+      return {
+        ...prev,
+        [name]: normalizeNumericField(name, currentValue),
+      };
     });
   }
 
@@ -416,6 +469,9 @@ export default function SettingsPage() {
       email: form.email.trim(),
       phone: form.phone.trim(),
       address: form.address.trim(),
+      gstPct: Math.min(100, Math.max(0, Number(form.gstPct || 0))),
+      taxPct: Math.min(100, Math.max(0, Number(form.taxPct || 0))),
+      gstNo: form.gstNo.trim().toUpperCase(),
       restroUpi: form.restroUpi.trim(),
       socialLinks: {
         instagram: form.socialLinks.instagram.trim(),
@@ -631,6 +687,49 @@ export default function SettingsPage() {
             </label>
 
             <label className="text-sm">
+              <span className="text-muted">GST No (GSTIN)</span>
+              <input
+                name="gstNo"
+                value={form.gstNo}
+                onChange={onChange}
+                className="mt-1 w-full rounded-lg border border-border bg-white px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-saffron/30"
+                placeholder="22AAAAA0000A1Z5"
+              />
+            </label>
+
+            <label className="text-sm">
+              <span className="text-muted">GST %</span>
+              <input
+                name="gstPct"
+                type="number"
+                min={0}
+                max={100}
+                step="0.01"
+                value={form.gstPct === 0 ? "" : form.gstPct}
+                onChange={onChange}
+                onBlur={onNumericBlur}
+                className="mt-1 w-full rounded-lg border border-border bg-white px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-saffron/30"
+                placeholder="5"
+              />
+            </label>
+
+            <label className="text-sm">
+              <span className="text-muted">Additional Tax %</span>
+              <input
+                name="taxPct"
+                type="number"
+                min={0}
+                max={100}
+                step="0.01"
+                value={form.taxPct === 0 ? "" : form.taxPct}
+                onChange={onChange}
+                onBlur={onNumericBlur}
+                className="mt-1 w-full rounded-lg border border-border bg-white px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-saffron/30"
+                placeholder="0"
+              />
+            </label>
+
+            <label className="text-sm">
               <span className="text-muted">Branches</span>
               <input
                 name="branches"
@@ -638,6 +737,7 @@ export default function SettingsPage() {
                 min={1}
                 value={form.branches}
                 onChange={onChange}
+                onBlur={onNumericBlur}
                 className="mt-1 w-full rounded-lg border border-border bg-white px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-saffron/30"
               />
             </label>
@@ -650,6 +750,7 @@ export default function SettingsPage() {
                 min={0}
                 value={form.tableCount}
                 onChange={onChange}
+                onBlur={onNumericBlur}
                 className="mt-1 w-full rounded-lg border border-border bg-white px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-saffron/30"
               />
             </label>
