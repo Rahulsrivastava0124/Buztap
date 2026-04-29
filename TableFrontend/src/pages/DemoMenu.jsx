@@ -16,7 +16,7 @@ import {
   History,
   LogOut,
 } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 
@@ -407,6 +407,7 @@ const ScratchCard = ({
 
 export default function DemoMenu() {
   const navigate = useNavigate();
+  const location = useLocation();
   const queryParams = new URLSearchParams(window.location.search);
   const rawTableParam = queryParams.get("table");
   const rawBusinessParam = queryParams.get("biz");
@@ -423,6 +424,11 @@ export default function DemoMenu() {
   const currentTableId = queryParams.get("table") || "04";
   const currentBusinessId = queryParams.get("biz") || "";
   const currentRestroSlug = queryParams.get("restro") || "";
+  const rawDemoParam = String(queryParams.get("demo") || "").toLowerCase();
+  const isDemoPath = location.pathname === "/demo";
+  const isForcedDemo =
+    isDemoPath || rawDemoParam === "1" || rawDemoParam === "true";
+  const isDemoLink = isForcedDemo || (!currentBusinessId && !currentRestroSlug);
   const ORDER_QUERY_CACHE_KEY = "order_query_context";
   const restroNameFromSlug = getRestaurantNameFromSlug(currentRestroSlug);
   const [resolvedBusinessId, setResolvedBusinessId] =
@@ -480,6 +486,11 @@ export default function DemoMenu() {
   const [showProfile, setShowProfile] = useState(false);
 
   useEffect(() => {
+    if (isForcedDemo) {
+      sessionStorage.removeItem(ORDER_QUERY_CACHE_KEY);
+      return;
+    }
+
     const hasQueryContext =
       Boolean(rawTableParam) ||
       Boolean(rawBusinessParam) ||
@@ -495,6 +506,7 @@ export default function DemoMenu() {
       navigate(`/order${cachedSearch}`, { replace: true });
     }
   }, [
+    isForcedDemo,
     navigate,
     preservedSearch,
     rawBusinessParam,
@@ -520,7 +532,9 @@ export default function DemoMenu() {
     totalTables: null,
     socialLinks: DEFAULT_SOCIAL_LINKS,
   });
-  const [liveMenuItems, setLiveMenuItems] = useState([]);
+  const [liveMenuItems, setLiveMenuItems] = useState(() =>
+    isDemoLink ? [...FOOD_ITEMS] : [],
+  );
   const scrollRef = useRef(null);
 
   const menuItems = liveMenuItems;
@@ -623,6 +637,16 @@ export default function DemoMenu() {
     async function loadQrMenu() {
       if (!currentTableId) return;
 
+      if (isForcedDemo) {
+        setRestaurantProfile((prev) => ({
+          ...prev,
+          name: restroNameFromSlug || "Demo Restaurant",
+          tableLabel: getTableLabel(currentTableId),
+        }));
+        setLiveMenuItems([...FOOD_ITEMS]);
+        return;
+      }
+
       try {
         const tableIdCandidates = buildTableIdCandidates(currentTableId);
         let payload = null;
@@ -684,15 +708,23 @@ export default function DemoMenu() {
           },
         }));
 
-        setLiveMenuItems(
-          Array.isArray(payload.menuItems) ? payload.menuItems : [],
-        );
+        const payloadMenuItems = Array.isArray(payload.menuItems)
+          ? payload.menuItems
+          : [];
+
+        if (payloadMenuItems.length > 0) {
+          setLiveMenuItems(payloadMenuItems);
+        } else if (isDemoLink) {
+          setLiveMenuItems([...FOOD_ITEMS]);
+        } else {
+          setLiveMenuItems([]);
+        }
 
         if (payload.business?.id) {
           setResolvedBusinessId(String(payload.business.id));
         }
       } catch {
-        setLiveMenuItems([]);
+        setLiveMenuItems(isDemoLink ? [...FOOD_ITEMS] : []);
       }
     }
 
@@ -705,6 +737,8 @@ export default function DemoMenu() {
     currentBusinessId,
     currentRestroSlug,
     currentTableId,
+    isForcedDemo,
+    isDemoLink,
     restroNameFromSlug,
   ]);
 

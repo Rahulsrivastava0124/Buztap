@@ -5,7 +5,6 @@ import {
   CreditCard,
   PackageCheck,
   Printer,
-  Sparkles,
   Truck,
   X,
 } from "lucide-react";
@@ -17,7 +16,6 @@ import {
   fetchOrders,
   updateOrderPayment,
   updateOrderStatus,
-  updateTableStatus,
 } from "../services/api";
 import StatCard from "../components/shared/StatCard";
 import OrderStatusBadge from "../components/shared/OrderStatusBadge";
@@ -76,15 +74,6 @@ function OrderDetailDrawer({ orderId, onClose }) {
       setTransactionId("");
     },
     onError: (err) => toast.error(err?.message || "Unable to update payment."),
-  });
-
-  const tableClearMutation = useMutation({
-    mutationFn: (tableId) => updateTableStatus(tableId, "Cleaning"),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["tables"] });
-      toast.success("Table marked for cleaning.");
-    },
-    onError: () => toast.error("Failed to update table status."),
   });
 
   const markPayment = () => {
@@ -428,19 +417,6 @@ function OrderDetailDrawer({ orderId, onClose }) {
                 <Printer size={14} />
                 Print Invoice
               </button>
-
-              {/* Clear Table — shown after payment is done and order has a tableId */}
-              {isPaymentDone && order.tableId && (
-                <button
-                  type="button"
-                  onClick={() => tableClearMutation.mutate(order.tableId)}
-                  disabled={tableClearMutation.isPending}
-                  className="w-full border border-warning/40 bg-warning/5 hover:bg-warning/10 text-warning rounded-lg py-2 text-xs font-bold flex items-center justify-center gap-1.5 disabled:opacity-60"
-                >
-                  <Sparkles size={14} />
-                  {tableClearMutation.isPending ? "Clearing..." : "Clear Table"}
-                </button>
-              )}
             </>
           )}
         </div>

@@ -368,6 +368,18 @@ export default function PosSystem() {
     );
   }
 
+  const getOrderInfo = (table) => {
+    const order = getLatestTableOrder(table);
+    if (!order) return null;
+    const rawId = order.id || order.orderId || order._id || "";
+    const normalizedId = rawId.startsWith("#") ? rawId : rawId ? `#${rawId}` : "";
+    return {
+      orderId: normalizedId,
+      itemCount: Number(order.items || 0),
+      status: order.status || "Pending",
+    };
+  };
+
   function handleTableClick(table) {
     if (table.status === "Occupied") {
       const activeOrder = getLatestTableOrder(table);
@@ -410,7 +422,7 @@ export default function PosSystem() {
   // ── Step 1: Table Picker ──
   if (step === "table") {
     return (
-      <div className="h-[calc(100vh-64px)] flex overflow-hidden bg-paper">
+      <div className="h-[calc(100vh-64px)] flex overflow-hidden bg-paper relative">
         {/* Table Grid */}
         <div className="flex-1 flex flex-col overflow-hidden">
           <div className="p-5 bg-white border-b border-border shadow-sm">
@@ -449,6 +461,7 @@ export default function PosSystem() {
                 {tables.map((table) => {
                   const isActive = detailTable?.id === table.id;
                   const cleaningTimeLabel = getCleaningTimeLabel(table);
+                  const orderInfo = getOrderInfo(table);
                   return (
                     <Motion.button
                       key={table.id}
@@ -478,6 +491,20 @@ export default function PosSystem() {
                           Cleaning: {cleaningTimeLabel}
                         </span>
                       )}
+                      {table.status === "Occupied" && orderInfo && (
+                        <div className="flex flex-col items-center gap-0.5 mt-1">
+                          <span className="text-[11px] text-muted font-medium">
+                            {orderInfo.orderId}
+                          </span>
+                          <span className="text-xs font-bold text-ink bg-saffron/10 px-2 py-0.5 rounded-full">
+                            {orderInfo.itemCount} item
+                            {orderInfo.itemCount !== 1 ? "s" : ""}
+                          </span>
+                          <span className="text-[10px] text-muted">
+                            {orderInfo.status}
+                          </span>
+                        </div>
+                      )}
                       {table.status !== "Occupied" && (
                         <ChevronRight
                           size={14}
@@ -498,14 +525,26 @@ export default function PosSystem() {
         {/* Occupied Table Detail Panel */}
         <AnimatePresence>
           {detailTable && (
-            <Motion.div
-              key="detail-panel"
-              initial={{ x: "100%", opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              exit={{ x: "100%", opacity: 0 }}
-              transition={{ type: "spring", damping: 28, stiffness: 300 }}
-              className="w-full max-w-sm bg-white border-l border-border flex flex-col shadow-xl shrink-0"
-            >
+            <>
+              {/* Backdrop Overlay */}
+              <Motion.div
+                key="backdrop"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                onClick={() => setDetailTable(null)}
+                className="absolute inset-0 bg-black/10 z-40"
+              />
+              {/* Detail Panel */}
+              <Motion.div
+                key="detail-panel"
+                initial={{ x: "100%", opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                exit={{ x: "100%", opacity: 0 }}
+                transition={{ type: "spring", damping: 28, stiffness: 300 }}
+                className="absolute top-0 right-0 h-full w-full max-w-sm bg-white border-l border-border flex flex-col shadow-xl z-50"
+              >
               {/* Panel Header */}
               <div className="p-4 border-b border-border flex items-center justify-between bg-paper">
                 <div className="flex items-center gap-2">
@@ -714,6 +753,7 @@ export default function PosSystem() {
                 )}
               </div>
             </Motion.div>
+            </>
           )}
         </AnimatePresence>
 

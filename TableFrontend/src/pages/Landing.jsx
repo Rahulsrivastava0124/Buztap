@@ -247,7 +247,10 @@ export default function Landing() {
             >
               Start Free <ArrowRight size={16} />
             </button>
-            <button className="border border-[#e0d9ce] text-[#0f0e0b] font-semibold px-7 py-3 rounded-md hover:border-[#e8720c] hover:text-[#e8720c] transition-colors">
+            <button
+              onClick={() => navigate("/demo")}
+              className="border border-[#e0d9ce] text-[#0f0e0b] font-semibold px-7 py-3 rounded-md hover:border-[#e8720c] hover:text-[#e8720c] transition-colors"
+            >
               View Live Demo
             </button>
           </Motion.div>
@@ -748,7 +751,8 @@ export default function Landing() {
               initial="hidden"
               whileInView="show"
               viewport={{ once: true }}
-              className="bg-[#fef0e4] border border-[#e8720c]/30 p-5 rounded-2xl flex items-center gap-5 relative overflow-hidden"
+              onClick={() => navigate("/demo")}
+              className="bg-[#fef0e4] border border-[#e8720c]/30 p-5 rounded-2xl flex items-center gap-5 relative overflow-hidden cursor-pointer"
             >
               {/* Decorative scan line */}
               <div className="absolute top-0 left-6 w-16 h-full bg-gradient-to-b from-transparent via-[#e8720c]/10 to-transparent scan-line" />
@@ -1002,7 +1006,10 @@ export default function Landing() {
               </p>
             </div>
             <div className="flex gap-3 mt-8">
-              <button className="flex items-center gap-2 bg-[#e8720c] hover:bg-[#d4620a] text-white text-sm font-bold px-6 py-3 rounded-md transition-colors">
+              <button
+                onClick={() => navigate("/demo")}
+                className="flex items-center gap-2 bg-[#e8720c] hover:bg-[#d4620a] text-white text-sm font-bold px-6 py-3 rounded-md transition-colors"
+              >
                 View Live Demo
               </button>
             </div>

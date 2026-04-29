@@ -24,6 +24,8 @@ import {
   TicketPercent,
   ChevronLeft,
   ChevronRight,
+  Check,
+  X,
 } from "lucide-react";
 import { motion as Motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
@@ -480,9 +482,7 @@ export default function AdminLayout() {
                             <div>
                               <p className="text-sm font-semibold text-ink">
                                 {order.id}
-                              </p>
-                              <p className="text-xs text-muted mt-0.5">
-                                {order.source}
+                                <span className="text-muted font-medium"> · {order.source}</span>
                               </p>
                               <p className="text-xs font-semibold text-saffron mt-1">
                                 {order.amountLabel}
@@ -493,16 +493,30 @@ export default function AdminLayout() {
                             <button
                               onClick={() => handleApprove(order, null)}
                               disabled={approvingId === order._id}
-                              className="flex-1 text-xs font-semibold px-3 py-1.5 rounded-lg bg-green-50 text-green-700 hover:bg-green-100 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                              className="flex-1 text-xs font-semibold px-3 py-1.5 rounded-lg bg-green-50 text-green-700 hover:bg-green-100 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors inline-flex items-center justify-center gap-1.5"
                             >
-                              {approvingId === order._id ? "..." : "Approve"}
+                              {approvingId === order._id ? (
+                                "..."
+                              ) : (
+                                <>
+                                  <Check size={14} />
+                                  Approve
+                                </>
+                              )}
                             </button>
                             <button
                               onClick={() => handleDecline(order, null)}
                               disabled={approvingId === order._id}
-                              className="flex-1 text-xs font-semibold px-3 py-1.5 rounded-lg bg-red-50 text-red-700 hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                              className="flex-1 text-xs font-semibold px-3 py-1.5 rounded-lg bg-red-50 text-red-700 hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors inline-flex items-center justify-center gap-1.5"
                             >
-                              {approvingId === order._id ? "..." : "Decline"}
+                              {approvingId === order._id ? (
+                                "..."
+                              ) : (
+                                <>
+                                  <X size={14} />
+                                  Decline
+                                </>
+                              )}
                             </button>
                           </div>
                         </div>
