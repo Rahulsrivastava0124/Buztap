@@ -56,19 +56,11 @@ app.get("/", (_req, res) => {
 });
 
 // CORS
-const normalizeOrigin = (value) =>
-  String(value || "")
-    .trim()
-    .replace(/\/+$/, "")
-    .toLowerCase();
-
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || "")
   .split(",")
-  .map((o) => normalizeOrigin(o))
+  .map((o) => o.trim())
   .filter(Boolean);
-
-const allowedOriginsSet = new Set(allowedOrigins);
-const allowAllOrigins = allowedOriginsSet.size === 0;
+const allowAllOrigins = allowedOrigins.length === 0;
 
 app.use(
   cors({
@@ -76,17 +68,14 @@ app.use(
       // Allow requests with no origin (e.g. curl, Postman).
       if (!origin) return cb(null, true);
 
-      const reqOrigin = normalizeOrigin(origin);
-
       // If ALLOWED_ORIGINS is not configured, allow all origins for local dev.
-      if (allowAllOrigins || allowedOriginsSet.has(reqOrigin)) {
+      if (allowAllOrigins || allowedOrigins.includes(origin)) {
         return cb(null, true);
       }
 
       cb(new Error(`CORS: origin ${origin} not allowed`));
     },
     credentials: true,
-    optionsSuccessStatus: 204,
   }),
 );
 
