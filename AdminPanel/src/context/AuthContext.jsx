@@ -13,6 +13,18 @@ const BUSINESS_TYPES = {
   HOTEL: "hotel",
 };
 
+const AUTH_EXPIRES_AT_KEY = "adminAuthExpiresAt";
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+
+function getStoredValue(key) {
+  return localStorage.getItem(key) ?? sessionStorage.getItem(key);
+}
+
+function setStoredValue(key, value) {
+  localStorage.setItem(key, value);
+  sessionStorage.setItem(key, value);
+}
+
 function toSlug(value) {
   return String(value || "")
     .toLowerCase()
@@ -24,23 +36,23 @@ function toSlug(value) {
 
 export function AuthProvider({ children }) {
   const [isAuthenticated, setIsAuthenticated] = useState(
-    () => sessionStorage.getItem("adminAuth") === "true",
+    () => getStoredValue("adminAuth") === "true",
   );
   const [role, setRole] = useState(
-    () => sessionStorage.getItem("adminAuthRole") || "cashier",
+    () => getStoredValue("adminAuthRole") || "cashier",
   );
   const [businessType, setBusinessType] = useState(
-    () => sessionStorage.getItem("adminBusinessType") || BUSINESS_TYPES.RESTRO,
+    () => getStoredValue("adminBusinessType") || BUSINESS_TYPES.RESTRO,
   );
   const [loading, setLoading] = useState(true);
   const [businessName, setBusinessName] = useState(
-    () => sessionStorage.getItem("adminBusinessName") || "",
+    () => getStoredValue("adminBusinessName") || "",
   );
   const [userName, setUserName] = useState(
-    () => sessionStorage.getItem("adminUserName") || "",
+    () => getStoredValue("adminUserName") || "",
   );
   const [subdomain, setSubdomain] = useState(
-    () => sessionStorage.getItem("adminSubdomain") || "",
+    () => getStoredValue("adminSubdomain") || "",
   );
 
   useEffect(() => {
@@ -48,7 +60,14 @@ export function AuthProvider({ children }) {
 
     const bootstrap = async () => {
       try {
-        if (sessionStorage.getItem("adminAuth") !== "true") {
+        const expiresAt = Number(getStoredValue(AUTH_EXPIRES_AT_KEY) || 0);
+        if (!expiresAt || Date.now() > expiresAt) {
+          clearAuthSession();
+          if (mounted) setLoading(false);
+          return;
+        }
+
+        if (getStoredValue("adminAuth") !== "true") {
           if (mounted) setLoading(false);
           return;
         }
@@ -59,24 +78,24 @@ export function AuthProvider({ children }) {
         setIsAuthenticated(true);
         setRole(me.role || "cashier");
         setBusinessType(me.businessType || BUSINESS_TYPES.RESTRO);
-        sessionStorage.setItem("adminAuth", "true");
-        sessionStorage.setItem("adminAuthRole", me.role || "cashier");
-        sessionStorage.setItem(
+        setStoredValue("adminAuth", "true");
+        setStoredValue("adminAuthRole", me.role || "cashier");
+        setStoredValue(
           "adminBusinessType",
           me.businessType || BUSINESS_TYPES.RESTRO,
         );
         if (me.businessName) {
           setBusinessName(me.businessName);
-          sessionStorage.setItem("adminBusinessName", me.businessName);
+          setStoredValue("adminBusinessName", me.businessName);
         }
         if (me.name) {
           setUserName(me.name);
-          sessionStorage.setItem("adminUserName", me.name);
+          setStoredValue("adminUserName", me.name);
         }
         const resolvedSubdomain = me.subdomain || toSlug(me.businessName);
         setSubdomain(resolvedSubdomain);
         if (resolvedSubdomain) {
-          sessionStorage.setItem("adminSubdomain", resolvedSubdomain);
+          setStoredValue("adminSubdomain", resolvedSubdomain);
         }
       } catch {
         clearAuthSession();
@@ -118,24 +137,25 @@ export function AuthProvider({ children }) {
       setIsAuthenticated(true);
       setRole(data.role || "cashier");
       setBusinessType(data.businessType || BUSINESS_TYPES.RESTRO);
-      sessionStorage.setItem("adminAuth", "true");
-      sessionStorage.setItem("adminAuthRole", data.role || "cashier");
-      sessionStorage.setItem(
+      setStoredValue("adminAuth", "true");
+      setStoredValue("adminAuthRole", data.role || "cashier");
+      setStoredValue(
         "adminBusinessType",
         data.businessType || BUSINESS_TYPES.RESTRO,
       );
+      setStoredValue(AUTH_EXPIRES_AT_KEY, String(Date.now() + ONE_DAY_MS));
       if (data.businessName) {
         setBusinessName(data.businessName);
-        sessionStorage.setItem("adminBusinessName", data.businessName);
+        setStoredValue("adminBusinessName", data.businessName);
       }
       if (data.name) {
         setUserName(data.name);
-        sessionStorage.setItem("adminUserName", data.name);
+        setStoredValue("adminUserName", data.name);
       }
       const resolvedSubdomain = data.subdomain || toSlug(data.businessName);
       setSubdomain(resolvedSubdomain);
       if (resolvedSubdomain) {
-        sessionStorage.setItem("adminSubdomain", resolvedSubdomain);
+        setStoredValue("adminSubdomain", resolvedSubdomain);
       }
       return { success: true, subdomain: resolvedSubdomain || "" };
     } catch {

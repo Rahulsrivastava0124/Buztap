@@ -338,10 +338,25 @@ export interface PosOrderResponse {
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 const AUTH_TOKEN_KEY = "adminAuthToken";
+const AUTH_EXPIRES_AT_KEY = "adminAuthExpiresAt";
+
+function getStoredValue(key: string) {
+  return localStorage.getItem(key) ?? sessionStorage.getItem(key);
+}
+
+function setStoredValue(key: string, value: string) {
+  localStorage.setItem(key, value);
+  sessionStorage.setItem(key, value);
+}
+
+function removeStoredValue(key: string) {
+  localStorage.removeItem(key);
+  sessionStorage.removeItem(key);
+}
 
 function getFallbackBusinessProfile(): BusinessProfile {
   const businessType =
-    (sessionStorage.getItem("adminBusinessType") as "restro" | "hotel") ||
+    (getStoredValue("adminBusinessType") as "restro" | "hotel") ||
     "restro";
 
   return {
@@ -384,15 +399,18 @@ function buildApiErrorMessage(payload: any, status: number): string {
 }
 
 function getAuthToken() {
-  return sessionStorage.getItem(AUTH_TOKEN_KEY);
+  return getStoredValue(AUTH_TOKEN_KEY);
 }
 
 export function clearAuthSession() {
-  sessionStorage.removeItem("adminAuth");
-  sessionStorage.removeItem("adminAuthRole");
-  sessionStorage.removeItem("adminBusinessType");
-  sessionStorage.removeItem("adminSubdomain");
-  sessionStorage.removeItem(AUTH_TOKEN_KEY);
+  removeStoredValue("adminAuth");
+  removeStoredValue("adminAuthRole");
+  removeStoredValue("adminBusinessType");
+  removeStoredValue("adminBusinessName");
+  removeStoredValue("adminUserName");
+  removeStoredValue("adminSubdomain");
+  removeStoredValue(AUTH_TOKEN_KEY);
+  removeStoredValue(AUTH_EXPIRES_AT_KEY);
 }
 
 async function request<T>(
@@ -449,7 +467,7 @@ export async function loginAdmin(
     false,
   );
 
-  sessionStorage.setItem(AUTH_TOKEN_KEY, data.token);
+  setStoredValue(AUTH_TOKEN_KEY, data.token);
   return data;
 }
 
