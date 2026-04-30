@@ -6,6 +6,6 @@ const PORT = process.env.PORT || 5000;
 
 connectDB().then(() => {
   app.listen(PORT, () => {
-    console.log(`tableQR API running on http://localhost:${PORT}`);
+    console.log(`Buztap API running on http://localhost:${PORT}`);
   });
 });

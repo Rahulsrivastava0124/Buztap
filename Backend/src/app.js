@@ -42,7 +42,7 @@ if (trustProxyRaw === "false" || trustProxyRaw === "0") {
 app.get("/", (_req, res) => {
   const dbState = ["disconnected", "connected", "connecting", "disconnecting"];
   res.json({
-    name: "tableQR API",
+    name: "BuzTap API",
     version: "1.0.0",
     status: "running",
     database: {
