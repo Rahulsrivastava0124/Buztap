@@ -51,6 +51,16 @@ function normalizeBaseUrl(value) {
   return base.replace(/\/$/, "");
 }
 
+function slugify(value) {
+  return String(value || "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
 function getRequestOrigin(req) {
   const explicitOrigin = normalizeBaseUrl(req.get("origin"));
   if (explicitOrigin) return explicitOrigin;
@@ -100,7 +110,7 @@ function buildMenuUrl({ req, tableId, businessId, subdomain, slug }) {
   if (legacyBase && !isAdminDomain) return makeUrl(legacyBase);
 
   // Final fallback — hardcoded production guest app domain
-  return makeUrl("https://restro.buzingbee.com");
+  return makeUrl("https://buztap.com");
 }
 
 function buildTableIdCandidates(rawTableId) {
@@ -180,12 +190,13 @@ async function getQr(req, res, next) {
             .select("name price isVeg description image category")
             .sort({ category: 1, name: 1 })
             .lean();
+    const resolvedSlug = slugify(business?.subdomain || business?.name || "");
     const menuUrl = buildMenuUrl({
       req,
       tableId: table.tableId,
       businessId: table.businessId,
       subdomain: business?.subdomain || "",
-      slug: business?.subdomain || "",
+      slug: resolvedSlug,
     });
 
     res.set("Cache-Control", "public, max-age=30");

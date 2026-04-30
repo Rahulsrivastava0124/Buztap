@@ -15,7 +15,13 @@ FROM node:20-alpine AS runner
 # Create non-root user for security
 RUN addgroup -S buztap && adduser -S buztap -G buztap
 
+# Ensure proper signal handling in containers (especially under compose)
+RUN apk add --no-cache dumb-init
+
 WORKDIR /app
+
+ENV NODE_ENV=production
+ENV PORT=5000
 
 # Copy installed node_modules from deps stage
 COPY --from=deps /app/node_modules ./node_modules
@@ -38,4 +44,5 @@ EXPOSE 5000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
   CMD wget -qO- http://localhost:5000/api/health || exit 1
 
+ENTRYPOINT ["dumb-init", "--"]
 CMD ["node", "server.js"]
