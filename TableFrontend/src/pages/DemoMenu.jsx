@@ -17,8 +17,33 @@ import {
   LogOut,
 } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import {
+  registerGuestVisitApi,
+  fetchQrTable,
+  fetchPublicOffers,
+  pollOrderStatus as pollOrderStatusApi,
+  placeGuestOrder,
+} from "../services/api";
 
-const API_BASE_URL = import.meta.env.VITE_API_URL;
+// ── In-memory cache (per page load) ─────────────────────────────────────────
+// Prevents redundant network calls on re-renders / React strict-mode double
+// effects without any persistent storage side-effects.
+const _qrCache = new Map(); // key → { payload, ts }
+const _offersCache = new Map(); // key → { rows, ts }
+const CACHE_TTL_MS = 30_000; // 30 s
+
+function getCached(map, key) {
+  const entry = map.get(key);
+  if (!entry) return null;
+  if (Date.now() - entry.ts > CACHE_TTL_MS) {
+    map.delete(key);
+    return null;
+  }
+  return entry.value;
+}
+function setCache(map, key, value) {
+  map.set(key, { value, ts: Date.now() });
+}
 
 const DEFAULT_HERO_IMAGE =
   "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&q=80";
@@ -47,6 +72,37 @@ function getRestaurantScopeKey(restroSlug, businessId) {
 
 function getGuestSessionKey(tableId, restaurantScopeKey) {
   return `demo_guest_session_${restaurantScopeKey}_${tableId || "04"}`;
+}
+
+// Global guest identity — stores ONLY phone + name across all restaurants.
+// Per-restaurant data (orders, visits, rewards) always uses restaurantScopeKey.
+const GUEST_IDENTITY_KEY = "buztap_guest_identity";
+
+function saveGuestIdentity(phone, name) {
+  try {
+    localStorage.setItem(
+      GUEST_IDENTITY_KEY,
+      JSON.stringify({ phone, name: String(name || "Guest") }),
+    );
+  } catch {
+    // storage quota — non-blocking
+  }
+}
+
+function loadGuestIdentity() {
+  try {
+    const raw = localStorage.getItem(GUEST_IDENTITY_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    const phone = String(parsed.phone || "")
+      .replace(/\D/g, "")
+      .slice(-10);
+    const name = String(parsed.name || "Guest");
+    if (phone.length !== 10) return null;
+    return { phone, name };
+  } catch {
+    return null;
+  }
 }
 
 function normalizeGuestPhone(value) {
@@ -484,6 +540,7 @@ export default function DemoMenu() {
   const [orderHistory, setOrderHistory] = useState([]);
   const [selectedItem, setSelectedItem] = useState(null);
   const [showProfile, setShowProfile] = useState(false);
+  const paymentSectionRef = useRef(null);
 
   useEffect(() => {
     if (isForcedDemo) {
@@ -572,52 +629,46 @@ export default function DemoMenu() {
     );
   };
 
-  const registerGuestVisit = async (phoneValue, nameValue) => {
-    const normalizedPhone = normalizeGuestPhone(phoneValue);
-    if (normalizedPhone.length !== 10) return;
-
-    try {
-      const params = new URLSearchParams();
-      if (resolvedBusinessId) params.set("biz", resolvedBusinessId);
-      if (currentRestroSlug) params.set("restro", currentRestroSlug);
-
-      await fetch(
-        `${API_BASE_URL}/guests/register${params.toString() ? `?${params.toString()}` : ""}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            phone: `+91${normalizedPhone}`,
-            name: String(nameValue || "Guest").trim() || "Guest",
-            ...(resolvedBusinessId ? { businessId: resolvedBusinessId } : {}),
-            tableId: currentTableId,
-            source: "QR",
-          }),
-        },
-      );
-    } catch {
-      // Keep menu access non-blocking even if analytics tracking fails.
-    }
+  const registerGuestVisit = (phoneValue, nameValue) => {
+    registerGuestVisitApi(phoneValue, nameValue, {
+      businessId: resolvedBusinessId,
+      restroSlug: currentRestroSlug,
+      tableId: currentTableId,
+    });
   };
 
   useEffect(() => {
+    if (isForcedDemo) return;
+
+    // 1. Try restoring from this restaurant+table session (same table, same visit)
     const savedSession = localStorage.getItem(guestSessionKey);
-    if (!savedSession) return;
-
-    try {
-      const parsed = JSON.parse(savedSession);
-      const restoredPhone = normalizeGuestPhone(parsed.phone);
-
-      if (restoredPhone.length !== 10) return;
-
-      setGuestPhone(restoredPhone);
-      setGuestName(String(parsed.name || ""));
-      setIsJoined(true);
-      registerGuestVisit(restoredPhone, String(parsed.name || "Guest"));
-    } catch {
-      localStorage.removeItem(guestSessionKey);
+    if (savedSession) {
+      try {
+        const parsed = JSON.parse(savedSession);
+        const restoredPhone = normalizeGuestPhone(parsed.phone);
+        if (restoredPhone.length !== 10) throw new Error("bad phone");
+        setGuestPhone(restoredPhone);
+        setGuestName(String(parsed.name || ""));
+        setIsJoined(true);
+        registerGuestVisit(restoredPhone, String(parsed.name || "Guest"));
+        return;
+      } catch {
+        localStorage.removeItem(guestSessionKey);
+      }
     }
-  }, [guestSessionKey]);
+
+    // 2. No session for this restaurant — look up the global identity.
+    //    This carries ONLY phone + name; all per-restaurant data (orders,
+    //    visits, rewards) is isolated under restaurantScopeKey and will start
+    //    fresh for this restaurant.
+    const identity = loadGuestIdentity();
+    if (identity) {
+      setGuestPhone(identity.phone);
+      setGuestName(identity.name);
+      setIsJoined(true);
+      registerGuestVisit(identity.phone, identity.name);
+    }
+  }, [guestSessionKey, isForcedDemo]);
 
   useEffect(() => {
     if (!isJoined || guestPhone.length !== 10) return;
@@ -632,9 +683,9 @@ export default function DemoMenu() {
   }, [guestName, guestPhone, guestSessionKey, isJoined]);
 
   useEffect(() => {
-    let cancelled = false;
+    const ac = new AbortController();
 
-    async function loadQrMenu() {
+    async function loadMenuData() {
       if (!currentTableId) return;
 
       if (isForcedDemo) {
@@ -647,42 +698,45 @@ export default function DemoMenu() {
         return;
       }
 
-      try {
-        const tableIdCandidates = buildTableIdCandidates(currentTableId);
-        let payload = null;
+      const cacheContext = {
+        businessId: currentBusinessId,
+        restroSlug: currentRestroSlug,
+      };
 
-        for (const tableIdCandidate of tableIdCandidates) {
-          const qrParams = new URLSearchParams();
-          if (currentBusinessId) qrParams.set("biz", currentBusinessId);
-          if (currentRestroSlug) qrParams.set("restro", currentRestroSlug);
+      // ── 1. QR table data (menu + business) ──
+      const qrCacheKey = `${currentTableId}|${currentBusinessId}|${currentRestroSlug}`;
+      let payload = getCached(_qrCache, qrCacheKey);
 
-          const qrUrl = qrParams.toString()
-            ? `${API_BASE_URL}/qr/${encodeURIComponent(tableIdCandidate)}?${qrParams.toString()}`
-            : `${API_BASE_URL}/qr/${encodeURIComponent(tableIdCandidate)}`;
-
-          const response = await fetch(qrUrl);
-          if (!response.ok) continue;
-
-          const candidatePayload = await response.json();
-          const payloadBusinessId = String(
-            candidatePayload?.business?.id || "",
-          );
-
-          if (
-            currentBusinessId &&
-            payloadBusinessId &&
-            payloadBusinessId !== String(currentBusinessId)
-          ) {
-            continue;
+      if (!payload) {
+        const candidates = buildTableIdCandidates(currentTableId);
+        for (const candidate of candidates) {
+          if (ac.signal.aborted) return;
+          try {
+            const data = await fetchQrTable(candidate, cacheContext, ac.signal);
+            if (!data) continue;
+            const bizId = String(data?.business?.id || "");
+            if (
+              currentBusinessId &&
+              bizId &&
+              bizId !== String(currentBusinessId)
+            )
+              continue;
+            payload = data;
+            setCache(_qrCache, qrCacheKey, payload);
+            break;
+          } catch {
+            // try next candidate
           }
-
-          payload = candidatePayload;
-          break;
         }
+      }
 
-        if (!payload || cancelled) {
-          return;
-        }
+      if (ac.signal.aborted) return;
+
+      if (payload) {
+        const resolvedBizId = payload.business?.id
+          ? String(payload.business.id)
+          : currentBusinessId;
+        if (payload.business?.id) setResolvedBusinessId(resolvedBizId);
 
         setRestaurantProfile((prev) => ({
           ...prev,
@@ -711,28 +765,48 @@ export default function DemoMenu() {
         const payloadMenuItems = Array.isArray(payload.menuItems)
           ? payload.menuItems
           : [];
+        setLiveMenuItems(
+          payloadMenuItems.length > 0
+            ? payloadMenuItems
+            : isDemoLink
+              ? [...FOOD_ITEMS]
+              : [],
+        );
 
-        if (payloadMenuItems.length > 0) {
-          setLiveMenuItems(payloadMenuItems);
-        } else if (isDemoLink) {
-          setLiveMenuItems([...FOOD_ITEMS]);
-        } else {
-          setLiveMenuItems([]);
+        // ── 2. Offers — fire in parallel after we have the business ID ──
+        const effectiveBizId = payload.business?.id
+          ? String(payload.business.id)
+          : currentBusinessId;
+        if (effectiveBizId || currentRestroSlug) {
+          const offerKey = `${effectiveBizId}|${currentRestroSlug}`;
+          let rows = getCached(_offersCache, offerKey);
+          if (!rows) {
+            rows = await fetchPublicOffers(
+              { businessId: effectiveBizId, restroSlug: currentRestroSlug },
+              ac.signal,
+            ).catch(() => []);
+            if (!ac.signal.aborted && rows.length > 0)
+              setCache(_offersCache, offerKey, rows);
+          }
+          if (!ac.signal.aborted && rows.length > 0) {
+            setOfferOptions(
+              rows.map((row) => ({
+                code: String(row.code || ""),
+                pct: Number(row.discountPct || 0),
+                title: String(row.title || `${row.discountPct}% OFF`),
+                subtitle: String(row.description || `${row.discountPct}% off`),
+                minSubtotal: Number(row.minSubtotal || 0),
+              })),
+            );
+          }
         }
-
-        if (payload.business?.id) {
-          setResolvedBusinessId(String(payload.business.id));
-        }
-      } catch {
+      } else {
         setLiveMenuItems(isDemoLink ? [...FOOD_ITEMS] : []);
       }
     }
 
-    loadQrMenu();
-
-    return () => {
-      cancelled = true;
-    };
+    loadMenuData();
+    return () => ac.abort();
   }, [
     currentBusinessId,
     currentRestroSlug,
@@ -742,45 +816,12 @@ export default function DemoMenu() {
     restroNameFromSlug,
   ]);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadPublicHeaderImage() {
-      const params = new URLSearchParams();
-      if (currentRestroSlug) params.set("restro", currentRestroSlug);
-      if (resolvedBusinessId) params.set("biz", resolvedBusinessId);
-      if (!params.toString()) return;
-
-      try {
-        const response = await fetch(
-          `${API_BASE_URL}/business/public/header-image?${params.toString()}`,
-        );
-        if (!response.ok) return;
-        const payload = await response.json();
-        if (cancelled) return;
-
-        const image = String(payload?.headerImage || "").trim();
-        if (!image) return;
-
-        setRestaurantProfile((prev) => ({
-          ...prev,
-          heroImage: image,
-        }));
-      } catch {
-        // Keep fallback hero image if public header endpoint is unavailable.
-      }
-    }
-
-    loadPublicHeaderImage();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [currentRestroSlug, resolvedBusinessId]);
-
   // Load visit count and order history from localStorage when the guest logs in
   useEffect(() => {
     if (isJoined && guestPhone) {
+      // Update global identity in case name changed
+      saveGuestIdentity(guestPhone, guestName || "Guest");
+      // Per-restaurant scoped keys (used by OrderHistory page)
       localStorage.setItem(
         `current_guest_phone_${restaurantScopeKey}`,
         guestPhone,
@@ -841,47 +882,30 @@ export default function DemoMenu() {
     return () => clearInterval(advance);
   }, [orderPlaced, isForcedDemo]);
 
-  // Real mode: poll backend for live order status
+  // Real mode: poll backend for live order status using the service helper
   useEffect(() => {
     if (!orderPlaced || !guestPhone || !activeOrderDbId || isForcedDemo) return;
 
-    let cancelled = false;
-    const normalizedPhone = normalizeGuestPhone(guestPhone);
-    const phone = `+91${normalizedPhone}`;
+    const ac = new AbortController();
 
-    const pollOrderStatus = async () => {
-      try {
-        const response = await fetch(
-          `${API_BASE_URL}/guests/${encodeURIComponent(phone)}/orders?${new URLSearchParams(
-            {
-              ...(resolvedBusinessId ? { biz: resolvedBusinessId } : {}),
-              ...(currentRestroSlug ? { restro: currentRestroSlug } : {}),
-            },
-          ).toString()}`,
-        );
-        if (!response.ok) return;
-
-        const orders = await response.json();
-        if (cancelled || !Array.isArray(orders)) return;
-
-        const activeOrder = orders.find(
-          (order) => String(order._id) === String(activeOrderDbId),
-        );
-        if (!activeOrder?.status) return;
-
-        setOrderBackendStatus(activeOrder.status);
-        setOrderPaymentStatus(activeOrder.paymentStatus || "Pending");
-        setOrderStatus(mapBackendStatusToStep(activeOrder.status));
-      } catch {
-        // Keep UI stable if polling fails temporarily.
-      }
+    const runPoll = async () => {
+      const result = await pollOrderStatusApi(
+        guestPhone,
+        activeOrderDbId,
+        { businessId: resolvedBusinessId, restroSlug: currentRestroSlug },
+        ac.signal,
+      ).catch(() => null);
+      if (!result || ac.signal.aborted) return;
+      setOrderBackendStatus(result.status);
+      setOrderPaymentStatus(result.paymentStatus);
+      setOrderStatus(mapBackendStatusToStep(result.status));
     };
 
-    pollOrderStatus();
-    const poller = setInterval(pollOrderStatus, 5000);
+    runPoll();
+    const poller = setInterval(runPoll, 6000);
 
     return () => {
-      cancelled = true;
+      ac.abort();
       clearInterval(poller);
     };
   }, [
@@ -993,44 +1017,6 @@ export default function DemoMenu() {
   };
 
   useEffect(() => {
-    let cancelled = false;
-
-    async function loadOffers() {
-      try {
-        const params = new URLSearchParams();
-        if (currentRestroSlug) params.set("restro", currentRestroSlug);
-        if (resolvedBusinessId) params.set("biz", resolvedBusinessId);
-
-        const res = await fetch(
-          `${API_BASE_URL}/offers/public?${params.toString()}`,
-        );
-
-        if (!res.ok) return;
-        const rows = await res.json();
-        if (cancelled || !Array.isArray(rows) || rows.length === 0) return;
-
-        setOfferOptions(
-          rows.map((row) => ({
-            code: String(row.code || ""),
-            pct: Number(row.discountPct || 0),
-            title: String(row.title || `${row.discountPct}% OFF`),
-            subtitle: String(row.description || `${row.discountPct}% off`),
-            minSubtotal: Number(row.minSubtotal || 0),
-          })),
-        );
-      } catch {
-        // Keep fallback offers for resiliency.
-      }
-    }
-
-    loadOffers();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [currentRestroSlug, resolvedBusinessId]);
-
-  useEffect(() => {
     if (selectedOffer) {
       const selected = offerOptions.find(
         (offer) =>
@@ -1061,40 +1047,30 @@ export default function DemoMenu() {
     let backendPaymentStatus = "Pending";
 
     if (!isForcedDemo) {
-      const phone = "+91" + guestPhone;
       if (
         guestPhone.length === 10 &&
         resolvedBusinessId &&
         orderLineItems.length > 0
       ) {
         try {
-          const res = await fetch(
-            `${API_BASE_URL}/guests/${encodeURIComponent(phone)}/orders?${new URLSearchParams(
-              {
-                ...(resolvedBusinessId ? { biz: resolvedBusinessId } : {}),
-                ...(currentRestroSlug ? { restro: currentRestroSlug } : {}),
-              },
-            ).toString()}`,
+          const data = await placeGuestOrder(
+            guestPhone,
             {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                businessId: resolvedBusinessId,
-                tableId: currentTableId || undefined,
-                guestName: guestDisplayName,
-                orderType: "Dine-in",
-                paymentMethod: "Pending",
-                items: orderLineItems.map((i) => ({
-                  menuItemId: i.id,
-                  name: i.name,
-                  quantity: i.qty,
-                  price: i.price,
-                })),
-              }),
+              businessId: resolvedBusinessId,
+              tableId: currentTableId || undefined,
+              guestName: guestDisplayName,
+              orderType: "Dine-in",
+              paymentMethod: "Pending",
+              items: orderLineItems.map((i) => ({
+                menuItemId: i.id,
+                name: i.name,
+                quantity: i.qty,
+                price: i.price,
+              })),
             },
+            { businessId: resolvedBusinessId, restroSlug: currentRestroSlug },
           );
-          if (res.ok) {
-            const data = await res.json();
+          if (data) {
             backendOrderId = data.orderId || null;
             backendOrderDbId = String(data._id || "");
             backendStatus = data.status || "Pending";
@@ -1108,7 +1084,7 @@ export default function DemoMenu() {
 
     const nextOrderNo = backendOrderId
       ? String(backendOrderId).replace(/^#/, "")
-      : String(Math.floor(1000 + Math.random() * 9000));
+      : String(Math.floor(1000 + Math.random() * 9000)); // eslint-disable-line react-hooks/purity
 
     setOrderNo(nextOrderNo);
     setPlacedOrderAmount(grandTotal);
@@ -1183,6 +1159,17 @@ export default function DemoMenu() {
 
   const isPaymentDone = orderPaymentStatus === "Completed";
   const canShowPayment = orderBackendStatus === "Served" && !isPaymentDone;
+  const scrollToPaymentSection = () => {
+    const scrollContainer = scrollRef.current;
+    const paymentSection = paymentSectionRef.current;
+    if (!scrollContainer || !paymentSection) return;
+
+    scrollContainer.scrollTo({
+      top: Math.max(paymentSection.offsetTop - 84, 0),
+      behavior: "smooth",
+    });
+  };
+
   const upiDeepLink = useMemo(() => {
     const upiId = String(restaurantProfile.restroUpi || "").trim();
     if (!upiId || !placedOrderAmount) return "";
@@ -1208,6 +1195,15 @@ export default function DemoMenu() {
         upiDeepLink,
       )}`
     : "";
+
+  const handlePayInvoice = () => {
+    setPaymentMode("Online");
+    if (upiDeepLink) {
+      window.location.href = upiDeepLink;
+      return;
+    }
+    scrollToPaymentSection();
+  };
 
   if (!isJoined) {
     return (
@@ -1259,7 +1255,12 @@ export default function DemoMenu() {
                 if (!guestPhone) return;
                 setJoinLoading(true);
                 setJoinError("");
-                await registerGuestVisit(guestPhone, guestName || "Guest");
+                const normalizedJoinPhone = normalizeGuestPhone(guestPhone);
+                const joinName = String(guestName || "Guest").trim() || "Guest";
+                // Save global identity so subsequent QR scans at other
+                // restaurants auto-join without re-entering details.
+                saveGuestIdentity(normalizedJoinPhone, joinName);
+                await registerGuestVisit(normalizedJoinPhone, joinName);
                 setJoinLoading(false);
                 setIsJoined(true);
               }}
@@ -1321,6 +1322,8 @@ export default function DemoMenu() {
 
   return (
     <div className="bg-gray-50 min-h-screen">
+      {/* Active order banner — visible when POS staff placed an order for this guest phone */}
+
       <div
         ref={scrollRef}
         className="bg-white max-w-md mx-auto min-h-screen relative overflow-y-auto"
@@ -1877,8 +1880,8 @@ export default function DemoMenu() {
               exit={{ y: 100, opacity: 0 }}
               className="fixed bottom-6 left-0 w-full px-4 z-50 pointer-events-none"
             >
-              <div className="max-w-md mx-auto pointer-events-auto">
-                <div className="bg-[#e8720c] rounded-xl shadow-[0_8px_24px_rgba(232,114,12,0.35)] px-3 py-2.5 flex items-center justify-between text-white">
+              <div className="max-w-md mx-auto pointer-events-auto ">
+                <div className="bg-[#e8720c] rounded-xl shadow-[0_8px_24px_rgba(232,114,12,0.35)] px-3 py-2.5 mx-2 flex items-center justify-between text-white">
                   <div className="flex items-center gap-2.5">
                     <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center relative">
                       <ShoppingBag size={16} />
@@ -2498,7 +2501,10 @@ export default function DemoMenu() {
                       </div>
 
                       {canShowPayment ? (
-                        <div className="w-full bg-white rounded-2xl p-5 shadow-[0_8px_30px_rgba(0,0,0,0.06)] border border-[#e0d9ce] mt-4 z-10 relative text-left">
+                        <div
+                          ref={paymentSectionRef}
+                          className="w-full bg-white rounded-2xl p-5 shadow-[0_8px_30px_rgba(0,0,0,0.06)] border border-[#e0d9ce] mt-4 z-10 relative text-left"
+                        >
                           <p className="font-bold text-[#0f0e0b] mb-3 text-[15px]">
                             Payment Option
                           </p>

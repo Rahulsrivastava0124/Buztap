@@ -142,6 +142,9 @@ async function getQr(req, res, next) {
         .select("_id")
         .lean();
       scopedBusinessId = businessFromSlug?._id || null;
+    } else if (req.user?.businessId) {
+      // Admin calling from the dashboard — scope to their own business
+      scopedBusinessId = req.user.businessId;
     }
 
     const tableIdCandidates = buildTableIdCandidates(tableId);

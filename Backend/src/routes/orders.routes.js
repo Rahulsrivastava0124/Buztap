@@ -8,9 +8,13 @@ const {
   updateStatus,
   updatePayment,
   getIncomingQr,
+  getGuestOrders,
 } = require("../controllers/orders.controller");
 
 const router = Router();
+
+// Public guest-facing endpoint — no auth required
+router.get("/guest", getGuestOrders);
 
 router.use(authenticate, requireRole("cashier"));
 

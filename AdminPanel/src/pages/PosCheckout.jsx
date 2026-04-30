@@ -8,11 +8,14 @@ import {
   ChefHat,
   CreditCard,
   FileDown,
+  Loader2,
   Phone,
   ReceiptText,
   TicketPercent,
   Trash2,
   User,
+  UserCheck,
+  UserPlus,
   Utensils,
   X,
 } from "lucide-react";
@@ -22,6 +25,7 @@ import { useAuth } from "../context/AuthContext";
 import {
   createPosOrder,
   fetchBusinessProfile,
+  fetchGuestByPhone,
   updateOrderPayment,
 } from "../services/api";
 import { useQuery } from "@tanstack/react-query";
@@ -55,6 +59,30 @@ export default function PosCheckout() {
   const [guestPhone, setGuestPhone] = useState(
     location.state?.guestPhone || "",
   );
+  const [guestLookupState, setGuestLookupState] = useState("idle"); // "idle" | "loading" | "found" | "new"
+
+  // Auto-lookup when phone reaches 10 digits
+  useEffect(() => {
+    const digits = guestPhone.replace(/\D/g, "");
+    if (digits.length !== 10) {
+      if (guestLookupState !== "idle") setGuestLookupState("idle");
+      return;
+    }
+    let cancelled = false;
+    setGuestLookupState("loading");
+    fetchGuestByPhone(digits).then((guest) => {
+      if (cancelled) return;
+      if (guest?.name) {
+        setGuestName(guest.name);
+        setGuestLookupState("found");
+      } else {
+        setGuestLookupState("new");
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [guestPhone]);
 
   // ── Offers / coupon ──
   const [couponModalOpen, setCouponModalOpen] = useState(false);
@@ -73,6 +101,19 @@ export default function PosCheckout() {
     location.state?.locationLabel || (isHotelMode ? "Room" : "Table");
   const orderType =
     location.state?.orderType || (isHotelMode ? "Room Service" : "Dine-in");
+
+  const resolvedTableId = useMemo(() => {
+    const raw = String(selectedTable || "").trim();
+    if (!raw) return "";
+    if (/^T-\d+$/i.test(raw)) {
+      const digits = raw.replace(/\D/g, "");
+      return `T-${String(Number(digits)).padStart(2, "0")}`;
+    }
+    if (/^\d+$/.test(raw)) {
+      return `T-${raw.padStart(2, "0")}`;
+    }
+    return raw;
+  }, [selectedTable]);
 
   const { subtotal, discount, tax, total, itemCount } = getTotals();
 
@@ -115,13 +156,16 @@ export default function PosCheckout() {
   // ── Send to KOT ──
   const handleSendToKOT = async () => {
     if (!cart.length || submitting) return;
+    const phoneDigits = guestPhone.replace(/\D/g, "");
+    if (phoneDigits.length !== 10) {
+      toast.error("Please enter a valid 10-digit phone number");
+      return;
+    }
     setSubmitting(true);
     setCheckoutError("");
     try {
       const result = await createPosOrder({
-        tableId: isHotelMode
-          ? undefined
-          : `T-${String(selectedTable).padStart(2, "0")}`,
+        tableId: isHotelMode ? undefined : resolvedTableId || undefined,
         roomId: isHotelMode ? String(selectedTable) : undefined,
         guestName: guestName.trim() || undefined,
         guestPhone: guestPhone.trim() || undefined,
@@ -545,19 +589,7 @@ export default function PosCheckout() {
                 Guest Info
               </p>
               <div className="space-y-2">
-                <div className="relative">
-                  <User
-                    size={14}
-                    className="absolute left-3 top-2.5 text-muted2"
-                  />
-                  <input
-                    type="text"
-                    value={guestName}
-                    onChange={(e) => setGuestName(e.target.value)}
-                    placeholder="Guest name (optional)"
-                    className="w-full pl-8 pr-3 py-2 text-sm border border-border rounded-lg bg-paper focus:outline-none focus:ring-2 focus:ring-saffron/30 focus:border-saffron"
-                  />
-                </div>
+                {/* Phone — required */}
                 <div className="relative">
                   <Phone
                     size={14}
@@ -566,11 +598,76 @@ export default function PosCheckout() {
                   <input
                     type="tel"
                     value={guestPhone}
-                    onChange={(e) => setGuestPhone(e.target.value)}
-                    placeholder="Phone number (optional)"
-                    className="w-full pl-8 pr-3 py-2 text-sm border border-border rounded-lg bg-paper focus:outline-none focus:ring-2 focus:ring-saffron/30 focus:border-saffron"
+                    onChange={(e) => {
+                      const raw = e.target.value
+                        .replace(/\D/g, "")
+                        .slice(0, 10);
+                      setGuestPhone(raw);
+                      if (raw.length < 10) {
+                        setGuestName("");
+                        setGuestLookupState("idle");
+                      }
+                    }}
+                    placeholder="Phone number *"
+                    maxLength={10}
+                    className={`w-full pl-8 pr-8 py-2 text-sm border rounded-lg bg-paper focus:outline-none focus:ring-2 focus:ring-saffron/30 focus:border-saffron ${
+                      guestPhone.replace(/\D/g, "").length === 10
+                        ? "border-sage"
+                        : "border-border"
+                    }`}
                   />
+                  {guestLookupState === "loading" && (
+                    <Loader2
+                      size={15}
+                      className="absolute right-3 top-2.5 text-muted2 animate-spin"
+                    />
+                  )}
+                  {guestLookupState === "found" && (
+                    <UserCheck
+                      size={15}
+                      className="absolute right-3 top-2.5 text-sage"
+                    />
+                  )}
+                  {guestLookupState === "new" && (
+                    <UserPlus
+                      size={15}
+                      className="absolute right-3 top-2.5 text-saffron"
+                    />
+                  )}
                 </div>
+
+                {/* Name — shows once phone is 10 digits */}
+                {(guestLookupState === "found" ||
+                  guestLookupState === "new") && (
+                  <div className="relative">
+                    <User
+                      size={14}
+                      className="absolute left-3 top-2.5 text-muted2"
+                    />
+                    <input
+                      type="text"
+                      value={guestName}
+                      onChange={(e) => setGuestName(e.target.value)}
+                      placeholder={
+                        guestLookupState === "new"
+                          ? "Guest name (new customer)"
+                          : "Guest name"
+                      }
+                      autoFocus={guestLookupState === "new"}
+                      className="w-full pl-8 pr-3 py-2 text-sm border border-border rounded-lg bg-paper focus:outline-none focus:ring-2 focus:ring-saffron/30 focus:border-saffron"
+                    />
+                    {guestLookupState === "found" && (
+                      <p className="text-[10px] text-sage mt-0.5 pl-1 flex items-center gap-1">
+                        <UserCheck size={10} /> Returning customer
+                      </p>
+                    )}
+                    {guestLookupState === "new" && (
+                      <p className="text-[10px] text-saffron mt-0.5 pl-1 flex items-center gap-1">
+                        <UserPlus size={10} /> New customer — enter name
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 

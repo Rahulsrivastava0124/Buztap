@@ -1,5 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
+  ChevronLeft,
+  ChevronRight,
   Clock3,
   CookingPot,
   CreditCard,
@@ -25,6 +27,7 @@ import PageShell from "../components/layout/PageShell";
 function OrderDetailDrawer({ orderId, onClose }) {
   const queryClient = useQueryClient();
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [selectedStatus, setSelectedStatus] = useState("");
   const [paymentMode, setPaymentMode] = useState("UPI");
   const [transactionId, setTransactionId] = useState("");
 
@@ -48,6 +51,13 @@ function OrderDetailDrawer({ orderId, onClose }) {
   const isServed = order?.status === "Served";
   const isPaymentDone = order?.paymentStatus === "Completed";
   const upiId = businessProfile?.restroUpi || "";
+
+  const formatTableLabel = (raw) => {
+    const value = String(raw || "").trim();
+    const digits = value.replace(/\D/g, "");
+    if (!digits) return value || "-";
+    return `T-${String(Number(digits)).padStart(2, "0")}`;
+  };
 
   const upiPaymentLink = useMemo(() => {
     if (!order || !upiId) return "";
@@ -133,7 +143,7 @@ function OrderDetailDrawer({ orderId, onClose }) {
             <div style="text-align:right;">
               <p class="title">INVOICE</p>
               <p class="muted">Order: ${order.orderId || "-"}</p>
-              <p class="muted">Table: ${order.tableId || "-"}</p>
+              <p class="muted">Table: ${formatTableLabel(order.tableId)}</p>
               <p class="muted">GST No: ${businessProfile?.gstNo || "-"}</p>
               <p class="muted">Date: ${new Date(order.createdAt).toLocaleString("en-IN")}</p>
             </div>
@@ -163,30 +173,23 @@ function OrderDetailDrawer({ orderId, onClose }) {
     popup.document.close();
   };
 
-  const nextStatus =
-    order?.status === "Preparing"
-      ? "Ready"
-      : order?.status === "Ready"
-        ? "Served"
-        : null;
-
-  const nextStatusLabel =
-    nextStatus === "Ready"
-      ? "Mark Ready to Serve"
-      : nextStatus === "Served"
-        ? "Mark Served"
-        : "";
+  useEffect(() => {
+    if (order?.status) {
+      setSelectedStatus(order.status);
+    }
+  }, [order?.status]);
 
   const handleStatusUpdate = async () => {
-    if (!order || !nextStatus || isUpdatingStatus) return;
+    if (!order || !selectedStatus || isUpdatingStatus) return;
+    if (selectedStatus === order.status) return;
     setIsUpdatingStatus(true);
     try {
-      await updateOrderStatus(order._id, nextStatus);
+      await updateOrderStatus(order._id, selectedStatus);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["orders"] }),
         queryClient.invalidateQueries({ queryKey: ["order", orderId] }),
       ]);
-      toast.success(`Order ${order.orderId} marked ${nextStatus}`);
+      toast.success(`Order ${order.orderId} marked ${selectedStatus}`);
     } catch {
       toast.error("Failed to update order status");
     } finally {
@@ -239,7 +242,9 @@ function OrderDetailDrawer({ orderId, onClose }) {
                 {order.tableId && (
                   <div>
                     <p className="text-xs text-muted uppercase mb-0.5">Table</p>
-                    <p className="font-medium text-ink">{order.tableId}</p>
+                    <p className="font-medium text-ink">
+                      {formatTableLabel(order.tableId)}
+                    </p>
                   </div>
                 )}
                 {order.roomId && (
@@ -275,69 +280,94 @@ function OrderDetailDrawer({ orderId, onClose }) {
                 </div>
               </div>
 
-              {nextStatus ? (
-                <button
-                  onClick={handleStatusUpdate}
-                  disabled={isUpdatingStatus}
-                  className="w-full rounded-lg bg-saffron text-white text-sm font-semibold py-2.5 hover:brightness-95 disabled:opacity-60 disabled:cursor-not-allowed transition"
-                >
-                  {isUpdatingStatus ? "Updating..." : nextStatusLabel}
-                </button>
-              ) : null}
-
-              {/* Items */}
-              <div>
-                <p className="text-xs text-muted uppercase mb-2">Items</p>
-                <div className="space-y-2">
-                  {order.items.map((item, i) => (
-                    <div
-                      key={i}
-                      className="flex justify-between items-start gap-2 text-sm"
-                    >
-                      <div>
-                        <p className="font-medium text-ink">
-                          {item.quantity}× {item.name}
-                        </p>
-                        {item.notes && (
-                          <p className="text-xs text-muted">{item.notes}</p>
-                        )}
+              <div className="space-y-2">
+                <p className="text-xs text-muted uppercase">Status</p>
+                {/* Quick step navigation */}
+                {(() => {
+                  const STATUS_STEPS = [
+                    "Pending",
+                    "Preparing",
+                    "Ready",
+                    "Served",
+                  ];
+                  const currentIdx = STATUS_STEPS.indexOf(order.status);
+                  const canGoBack = currentIdx > 0;
+                  const canGoForward =
+                    currentIdx >= 0 && currentIdx < STATUS_STEPS.length - 1;
+                  const stepTo = async (status) => {
+                    if (isUpdatingStatus) return;
+                    setIsUpdatingStatus(true);
+                    try {
+                      await updateOrderStatus(order._id, status);
+                      queryClient.invalidateQueries({ queryKey: ["orders"] });
+                      queryClient.invalidateQueries({
+                        queryKey: ["order", orderId],
+                      });
+                      setSelectedStatus(status);
+                      toast.success(`Order ${order.orderId} → ${status}`);
+                    } catch {
+                      toast.error("Failed to update status");
+                    } finally {
+                      setIsUpdatingStatus(false);
+                    }
+                  };
+                  return (
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => stepTo(STATUS_STEPS[currentIdx - 1])}
+                        disabled={!canGoBack || isUpdatingStatus}
+                        title={
+                          canGoBack
+                            ? `Back to ${STATUS_STEPS[currentIdx - 1]}`
+                            : "Already at first step"
+                        }
+                        className="px-4 py-2 rounded-lg border border-border text-muted hover:text-ink hover:bg-paper disabled:opacity-40 disabled:cursor-not-allowed transition"
+                      >
+                        <ChevronLeft size={18} />
+                      </button>
+                      <div className="flex-1 flex justify-center">
+                        <OrderStatusBadge status={order.status} />
                       </div>
-                      <p className="font-semibold text-ink shrink-0">
-                        ₹{item.total.toLocaleString()}
-                      </p>
+                      <button
+                        onClick={() => stepTo(STATUS_STEPS[currentIdx + 1])}
+                        disabled={!canGoForward || isUpdatingStatus}
+                        title={
+                          canGoForward
+                            ? `Advance to ${STATUS_STEPS[currentIdx + 1]}`
+                            : "Already at last step"
+                        }
+                        className="px-4 py-2 rounded-lg border border-border text-muted hover:text-ink hover:bg-paper disabled:opacity-40 disabled:cursor-not-allowed transition"
+                      >
+                        <ChevronRight size={16} />
+                      </button>
                     </div>
-                  ))}
+                  );
+                })()}
+                <div className="flex items-center gap-2">
+                  <select
+                    value={selectedStatus}
+                    onChange={(e) => setSelectedStatus(e.target.value)}
+                    className="flex-1 rounded-lg border border-border bg-white px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-saffron/30 focus:border-saffron"
+                  >
+                    <option value="Pending">Pending</option>
+                    <option value="Preparing">Preparing</option>
+                    <option value="Ready">Ready to Serve</option>
+                    <option value="Served">Served</option>
+                    <option value="Cancelled">Cancelled</option>
+                  </select>
+                  <button
+                    onClick={handleStatusUpdate}
+                    disabled={
+                      isUpdatingStatus ||
+                      !selectedStatus ||
+                      selectedStatus === order.status
+                    }
+                    className="rounded-lg bg-saffron text-white text-sm font-semibold px-4 py-2.5 hover:brightness-95 disabled:opacity-60 disabled:cursor-not-allowed transition"
+                  >
+                    {isUpdatingStatus ? "Updating..." : "Update"}
+                  </button>
                 </div>
               </div>
-
-              {/* Totals */}
-              <div className="border-t border-border pt-3 space-y-1 text-sm">
-                <div className="flex justify-between text-muted">
-                  <span>Subtotal</span>
-                  <span>₹{order.subtotal.toLocaleString()}</span>
-                </div>
-                {order.discount > 0 && (
-                  <div className="flex justify-between text-green-600">
-                    <span>Discount</span>
-                    <span>−₹{order.discount.toLocaleString()}</span>
-                  </div>
-                )}
-                <div className="flex justify-between text-muted">
-                  <span>GST</span>
-                  <span>₹{order.tax.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between font-bold text-ink text-base pt-1 border-t border-border">
-                  <span>Total</span>
-                  <span>₹{order.total.toLocaleString()}</span>
-                </div>
-              </div>
-
-              {order.cancelReason && (
-                <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-sm text-red-700">
-                  <span className="font-medium">Cancel reason: </span>
-                  {order.cancelReason}
-                </div>
-              )}
 
               {/* Payment section — shown once order is Served */}
               {isServed && (
@@ -405,6 +435,60 @@ function OrderDetailDrawer({ orderId, onClose }) {
                       </button>
                     </>
                   )}
+                </div>
+              )}
+
+              {/* Items */}
+              <div>
+                <p className="text-xs text-muted uppercase mb-2">Items</p>
+                <div className="space-y-2">
+                  {order.items.map((item, i) => (
+                    <div
+                      key={i}
+                      className="flex justify-between items-start gap-2 text-sm"
+                    >
+                      <div>
+                        <p className="font-medium text-ink">
+                          {item.quantity}× {item.name}
+                        </p>
+                        {item.notes && (
+                          <p className="text-xs text-muted">{item.notes}</p>
+                        )}
+                      </div>
+                      <p className="font-semibold text-ink shrink-0">
+                        ₹{item.total.toLocaleString()}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Totals */}
+              <div className="border-t border-border pt-3 space-y-1 text-sm">
+                <div className="flex justify-between text-muted">
+                  <span>Subtotal</span>
+                  <span>₹{order.subtotal.toLocaleString()}</span>
+                </div>
+                {order.discount > 0 && (
+                  <div className="flex justify-between text-green-600">
+                    <span>Discount</span>
+                    <span>−₹{order.discount.toLocaleString()}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-muted">
+                  <span>GST</span>
+                  <span>₹{order.tax.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between font-bold text-ink text-base pt-1 border-t border-border">
+                  <span>Total</span>
+                  <span>₹{order.total.toLocaleString()}</span>
+                </div>
+              </div>
+
+              {order.cancelReason && (
+                <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-sm text-red-700">
+                  <span className="font-medium">Cancel reason: </span>
+                  {order.cancelReason}
                 </div>
               )}
 

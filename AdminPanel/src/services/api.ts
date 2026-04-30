@@ -642,12 +642,32 @@ export async function declineQrOrder(orderId: string): Promise<void> {
 }
 
 export async function fetchTableQr(tableId: string): Promise<TableQrPayload> {
-  return request(`/qr/${encodeURIComponent(tableId)}`, {}, false);
+  // useAuth=true so the backend can scope the lookup to this admin's business
+  return request(`/qr/${encodeURIComponent(tableId)}`);
+}
+
+export async function fetchGuestByPhone(
+  phone: string,
+): Promise<{ name: string; phone: string } | null> {
+  try {
+    return await request<{ name: string; phone: string }>(
+      `/guests/lookup?phone=${encodeURIComponent(phone)}`,
+    );
+  } catch {
+    return null; // 404 = new guest, any other error = graceful no-op
+  }
 }
 
 export async function fetchOrders(): Promise<OrderQueueItem[]> {
   const data = await request<{ orders: Array<any> }>("/orders?limit=100");
   const now = Date.now();
+  const normalizeTableId = (raw: any) => {
+    const value = String(raw || "").trim();
+    if (!value) return null;
+    const digits = value.replace(/\D/g, "");
+    if (!digits) return value;
+    return `T-${String(Number(digits)).padStart(2, "0")}`;
+  };
   return (data.orders || []).map((order) => {
     const minutes = Math.max(
       1,
@@ -668,7 +688,7 @@ export async function fetchOrders(): Promise<OrderQueueItem[]> {
       _id: String(order._id),
       id: order.orderId,
       channel: order.source === "QR" ? "QR" : "POS",
-      tableId: order.tableId || null,
+      tableId: normalizeTableId(order.tableId),
       roomId: order.roomId || null,
       source: sourceLabel,
       guestName: order.guestName || "Guest",

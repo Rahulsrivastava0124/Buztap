@@ -47,6 +47,19 @@ const TABLE_STATUS_DOT = {
   Cleaning: "bg-muted2",
 };
 
+const ORDER_STATUS_BADGE = {
+  Pending: "bg-warning text-ink border border-warning/50",
+  Preparing: "bg-saffron text-white border border-saffron",
+  Ready: "bg-sage text-white border border-sage",
+  Served: "bg-muted2 text-white border border-muted2",
+  Cancelled: "bg-red-500 text-white border border-red-500",
+};
+
+function getOrderStatusLabel(status) {
+  if (status === "Ready") return "Ready to Serve";
+  return status || "Pending";
+}
+
 const CLEANING_WINDOW_MS = 15 * 60 * 1000;
 
 function buildTableIdCandidates(rawTableId) {
@@ -471,13 +484,27 @@ export default function PosSystem() {
                       key={table.id}
                       onClick={() => handleTableClick(table)}
                       whileTap={{ scale: 0.96 }}
-                      className={`relative flex flex-col items-center justify-center gap-1.5 p-4 rounded-xl border-2 font-semibold transition-all hover:shadow-md ${
+                      className={`relative flex flex-col items-center justify-center gap-1.5 rounded-xl border font-semibold transition-all hover:shadow-md min-h-[110px] ${
+                        table.status === "Occupied" && orderInfo
+                          ? "pt-8 pb-4 px-4"
+                          : "p-4"
+                      } ${
                         isActive
                           ? "border-saffron ring-2 ring-saffron/30 shadow-md"
                           : TABLE_STATUS_STYLES[table.status] ||
                             "border-border bg-white text-ink"
                       }`}
                     >
+                      {table.status === "Occupied" && orderInfo && (
+                        <span
+                          className={`absolute top-2 left-2 text-[10px] px-2 py-0.5 rounded-full font-semibold ${
+                            ORDER_STATUS_BADGE[orderInfo.status] ||
+                            "bg-warning text-ink border border-warning/50"
+                          }`}
+                        >
+                          {getOrderStatusLabel(orderInfo.status)}
+                        </span>
+                      )}
                       <span className="text-2xl font-black">{table.id}</span>
                       <span className="flex items-center gap-1.5 text-xs font-medium">
                         <span
@@ -485,27 +512,20 @@ export default function PosSystem() {
                         />
                         {table.status}
                       </span>
-                      {table.seats > 0 && (
-                        <span className="text-xs text-muted">
-                          {table.seats} seats
-                        </span>
-                      )}
                       {cleaningTimeLabel && (
                         <span className="text-[11px] font-semibold text-muted">
                           Cleaning: {cleaningTimeLabel}
                         </span>
                       )}
                       {table.status === "Occupied" && orderInfo && (
-                        <div className="flex flex-col items-center gap-0.5 mt-1">
+                        <div className="flex items-center gap-1.5 mt-1 text-xs font-semibold text-ink bg-saffron/10 px-2 py-0.5 rounded-full">
                           <span className="text-[11px] text-muted font-medium">
                             {orderInfo.orderId}
                           </span>
-                          <span className="text-xs font-bold text-ink bg-saffron/10 px-2 py-0.5 rounded-full">
+                          <span className="text-muted">•</span>
+                          <span className="font-bold text-ink">
                             {orderInfo.itemCount} item
                             {orderInfo.itemCount !== 1 ? "s" : ""}
-                          </span>
-                          <span className="text-[10px] text-muted">
-                            {orderInfo.status}
                           </span>
                         </div>
                       )}
@@ -592,8 +612,13 @@ export default function PosSystem() {
                             {detailOrderSummary.id ||
                               `#${detailOrderSummary._id?.slice(-6)}`}
                           </span>
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-warning/20 text-warning font-medium">
-                            {detailOrderSummary.status}
+                          <span
+                            className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                              ORDER_STATUS_BADGE[detailOrderSummary.status] ||
+                              "bg-warning text-ink border border-warning/50"
+                            }`}
+                          >
+                            {getOrderStatusLabel(detailOrderSummary.status)}
                           </span>
                         </div>
                         <div className="divide-y divide-border">

@@ -1,22 +1,49 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { ArrowLeft, Download, History, Search } from "lucide-react";
+import { fetchGuestOrders } from "../services/api";
 
 const formatCurrency = (value = 0) => `₹${Number(value || 0)}`;
 
-const normalizeOrder = (order, fallbackGuestName) => ({
-  ...order,
-  subtotal: order.subtotal ?? order.total ?? 0,
-  discount: order.discount ?? 0,
-  tax: order.tax ?? 0,
-  taxableAmount:
-    order.taxableAmount ??
-    Math.max((order.subtotal ?? order.total ?? 0) - (order.discount ?? 0), 0),
-  itemList: Array.isArray(order.itemList) ? order.itemList : [],
-  restaurantName: order.restaurantName || "Spice Garden",
-  tableName: order.tableName || "Table 04",
-  guestName: order.guestName || fallbackGuestName || "Guest",
-});
+function normalizeGuestPhone(value) {
+  return String(value || "")
+    .replace(/\D/g, "")
+    .slice(-10);
+}
+
+function getRestaurantScopeKey(restroSlug, businessId) {
+  const restro = String(restroSlug || "")
+    .trim()
+    .toLowerCase();
+  const biz = String(businessId || "").trim();
+  if (restro) return `restro_${restro}`;
+  if (biz) return `biz_${biz}`;
+  return "";
+}
+
+const normalizeOrder = (order, fallbackGuestName) => {
+  // Local orders (DemoMenu) store items as an array in `order.items`
+  // Remote orders store items as a count; item details are in `order.itemList`
+  const normItemList = Array.isArray(order.itemList)
+    ? order.itemList
+    : Array.isArray(order.items)
+      ? order.items
+      : [];
+  return {
+    ...order,
+    subtotal: order.subtotal ?? order.total ?? 0,
+    discount: order.discount ?? 0,
+    tax: order.tax ?? 0,
+    taxableAmount:
+      order.taxableAmount ??
+      Math.max((order.subtotal ?? order.total ?? 0) - (order.discount ?? 0), 0),
+    itemList: normItemList,
+    items: typeof order.items === "number" ? order.items : normItemList.length,
+    restaurantName: order.restaurantName || "Spice Garden",
+    tableName: order.tableName || "Table 04",
+    guestName: order.guestName || fallbackGuestName || "Guest",
+  };
+};
 
 const buildInvoiceDocument = (order) => {
   const itemRows = order.itemList.length
@@ -101,28 +128,218 @@ const buildInvoiceDocument = (order) => {
   `;
 };
 
+/**
+ * Find the guest phone from any scoped or legacy key in localStorage.
+ * DemoMenu writes `current_guest_phone_{scopeKey}` per restaurant.
+ */
+function resolveGuestPhone(scopeKey = "") {
+  if (scopeKey) {
+    const scoped = localStorage.getItem(`current_guest_phone_${scopeKey}`);
+    if (scoped) return normalizeGuestPhone(scoped);
+  }
+  const legacy = localStorage.getItem("current_guest_phone");
+  if (legacy) return normalizeGuestPhone(legacy);
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && key.startsWith("current_guest_phone_")) {
+      return normalizeGuestPhone(localStorage.getItem(key) || "");
+    }
+  }
+  return null;
+}
+
+/**
+ * Find the guest name from any scoped or legacy key in localStorage.
+ */
+function resolveGuestName(scopeKey = "") {
+  if (scopeKey) {
+    const scoped = localStorage.getItem(`current_guest_name_${scopeKey}`);
+    if (scoped) return scoped;
+  }
+  const legacy = localStorage.getItem("current_guest_name");
+  if (legacy) return legacy;
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && key.startsWith("current_guest_name_")) {
+      return localStorage.getItem(key) || null;
+    }
+  }
+  return null;
+}
+
+/**
+ * Collect all order_history entries across every scoped key, deduplicating
+ * by order ID and sorting newest-first.
+ */
+function collectAllOrders(phone, scopeKey = "") {
+  const seenIds = new Set();
+  const all = [];
+
+  const normalizedPhone = normalizeGuestPhone(phone);
+  if (!normalizedPhone) return all;
+
+  if (scopeKey) {
+    const scopedKey = `order_history_${scopeKey}_${normalizedPhone}`;
+    try {
+      const parsed = JSON.parse(localStorage.getItem(scopedKey) || "[]");
+      if (Array.isArray(parsed)) {
+        for (const order of parsed) {
+          if (order.id && !seenIds.has(order.id)) {
+            seenIds.add(order.id);
+            all.push(order);
+          }
+        }
+      }
+    } catch {
+      // ignore malformed scoped history
+    }
+  }
+
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (!key) continue;
+    // Match both legacy `order_history_{phone}` and scoped `order_history_{scope}_{phone}`
+    const isHistory =
+      key === `order_history_${normalizedPhone}` ||
+      (key.startsWith(`order_history_`) &&
+        key.endsWith(`_${normalizedPhone}`) &&
+        (!scopeKey || key.includes(`order_history_${scopeKey}_`)));
+    if (!isHistory) continue;
+    try {
+      const parsed = JSON.parse(localStorage.getItem(key) || "[]");
+      if (Array.isArray(parsed)) {
+        for (const order of parsed) {
+          if (order.id && !seenIds.has(order.id)) {
+            seenIds.add(order.id);
+            all.push(order);
+          }
+        }
+      }
+    } catch {
+      // corrupted entry — skip
+    }
+  }
+
+  // Sort newest first by date string (ISO or locale)
+  all.sort((a, b) => new Date(b.date) - new Date(a.date));
+  return all;
+}
+
 export default function OrderHistory() {
+  const location = useLocation();
   const navigate = useNavigate();
-  const [orders, setOrders] = useState([]);
-  const [guestName, setGuestName] = useState("Guest");
+  const queryParams = useMemo(
+    () => new URLSearchParams(location.search),
+    [location.search],
+  );
+  const currentBusinessId = queryParams.get("biz") || "";
+  const currentRestroSlug = queryParams.get("restro") || "";
+  const restaurantScopeKey = useMemo(
+    () => getRestaurantScopeKey(currentRestroSlug, currentBusinessId),
+    [currentRestroSlug, currentBusinessId],
+  );
+
+  const [orders, setOrders] = useState(() => {
+    const phone = resolveGuestPhone(restaurantScopeKey);
+    return phone ? collectAllOrders(phone, restaurantScopeKey) : [];
+  });
+  const [guestName] = useState(
+    () => resolveGuestName(restaurantScopeKey) || "Guest",
+  );
   const [selectedOrderId, setSelectedOrderId] = useState(null);
 
   useEffect(() => {
-    const currentPhone = localStorage.getItem("current_guest_phone");
-    const currentName = localStorage.getItem("current_guest_name");
+    const phone = resolveGuestPhone(restaurantScopeKey);
+    if (!phone) return;
 
-    if (currentName) {
-      setGuestName(currentName);
-    }
+    const bizMatch =
+      currentBusinessId ||
+      (() => {
+        if (restaurantScopeKey.startsWith("biz_")) {
+          return restaurantScopeKey.slice(4);
+        }
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (!k) continue;
+          const m = k.match(new RegExp(`^order_history_biz_([^_]+)_${phone}$`));
+          if (m) return m[1];
+        }
+        return null;
+      })();
 
-    if (currentPhone) {
-      const savedHistory = localStorage.getItem(
-        `order_history_${currentPhone}`,
-      );
-      const parsedOrders = savedHistory ? JSON.parse(savedHistory) : [];
-      setOrders(parsedOrders);
-    }
-  }, []);
+    if (!bizMatch) return;
+
+    fetchGuestOrders(phone, bizMatch)
+      .then(({ orders: remote = [] }) => {
+        if (!remote.length) return;
+        // Normalize remote orders to match local shape
+        const remoteNorm = remote.map((o) => {
+          const rawId = o.orderId ?? o._id ?? "";
+          const cleanId = String(rawId).replace(/^#+/, "");
+          const itemList = (o.items || []).map((it) => ({
+            name: it.name,
+            qty: it.quantity ?? it.qty ?? 1,
+            price: it.price ?? 0,
+            total: it.total ?? (it.price ?? 0) * (it.quantity ?? it.qty ?? 1),
+          }));
+          return {
+            id: cleanId,
+            orderId: cleanId,
+            date: o.createdAt
+              ? new Date(o.createdAt).toLocaleString()
+              : "Unknown date",
+            tableId: o.tableId,
+            tableName: o.tableId || null,
+            restaurantName: null,
+            status: o.status,
+            guestName:
+              o.guestName || resolveGuestName(restaurantScopeKey) || "Guest",
+            itemList,
+            items: itemList.length,
+            subtotal: o.total ?? 0,
+            discount: 0,
+            tax: 0,
+            taxableAmount: o.total ?? 0,
+            total: o.total ?? 0,
+            paymentMethod: o.paymentMethod ?? "Pending",
+            paymentStatus: o.paymentStatus ?? "Pending",
+            source: "backend",
+          };
+        });
+
+        setOrders((prev) => {
+          const normalizeId = (id) => String(id || "").replace(/^#+/, "");
+          const remoteMap = new Map(
+            remoteNorm.map((r) => [normalizeId(r.id), r]),
+          );
+
+          const updated = prev.map((p) => {
+            const nid = normalizeId(p.id);
+            const remoteOrder = remoteMap.get(nid);
+            if (!remoteOrder) return p;
+
+            remoteMap.delete(nid);
+            return {
+              ...p,
+              status: remoteOrder.status ?? p.status,
+              paymentStatus: remoteOrder.paymentStatus ?? p.paymentStatus,
+              itemList: p.itemList?.length ? p.itemList : remoteOrder.itemList,
+              items: p.itemList?.length ? p.items : remoteOrder.items,
+            };
+          });
+
+          for (const r of remoteMap.values()) {
+            updated.push(r);
+          }
+
+          updated.sort((a, b) => new Date(b.date) - new Date(a.date));
+          return updated;
+        });
+      })
+      .catch(() => {
+        /* silent */
+      });
+  }, [currentBusinessId, restaurantScopeKey]);
 
   const normalizedOrders = useMemo(
     () => orders.map((order) => normalizeOrder(order, guestName)),
@@ -146,212 +363,223 @@ export default function OrderHistory() {
     URL.revokeObjectURL(invoiceUrl);
   };
 
+  const statusStyle = (status) => {
+    switch (status) {
+      case "Served":
+      case "Paid":
+        return "bg-[#eaf4ea] text-[#2e6b45]";
+      case "Cancelled":
+        return "bg-[#faeaea] text-[#8c2e2e]";
+      case "Ready":
+        return "bg-[#fff8e6] text-[#9a6200]";
+      default:
+        return "bg-[#f0ebe0] text-[#7a6040]";
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-[#faf7f2] font-body">
-      <div className="max-w-md mx-auto min-h-screen px-4 py-6">
-        <div className="flex items-center justify-between mb-6">
-          <button
-            type="button"
-            onClick={() => navigate(-1)}
-            className="w-11 h-11 rounded-full bg-white shadow-md flex items-center justify-center border border-[#e0d9ce] text-[#0f0e0b]"
-          >
-            <ArrowLeft size={20} />
-          </button>
-          <div className="text-center">
-            <p className="text-[11px] uppercase tracking-[0.2em] text-[#857c6e] font-bold">
-              Order History
-            </p>
-            <h1 className="text-lg font-bold text-[#0f0e0b]">
-              {guestName ? guestName.split(" ")[0] : "Guest"}
-            </h1>
-          </div>
-          <Link
-            to="/search"
-            className="w-11 h-11 rounded-full bg-white shadow-md border border-[#e0d9ce] flex items-center justify-center text-[#0f0e0b]"
-          >
-            <Search size={20} />
-          </Link>
-        </div>
-
-        <div className="bg-white rounded-3xl p-5 shadow-sm border border-[#e0d9ce] mb-4">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-12 h-12 rounded-2xl bg-[#f5f0e8] flex items-center justify-center text-[#857c6e]">
-              <History size={22} />
-            </div>
-            <div>
-              <h2 className="text-[#0f0e0b] font-bold text-lg">Past Orders</h2>
-              <p className="text-sm text-[#857c6e]">
-                {orders.length} saved order{orders.length === 1 ? "" : "s"}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {normalizedOrders.length > 0 ? (
-          <div className="space-y-4">
-            {normalizedOrders.map((order) => (
-              <div
-                key={order.id}
-                className="bg-white rounded-3xl shadow-sm border border-[#e0d9ce] p-4"
-              >
-                <button
-                  type="button"
-                  onClick={() => setSelectedOrderId(order.id)}
-                  className="w-full text-left"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-bold text-lg text-[#0f0e0b]">
-                        Order #{order.id}
-                      </p>
-                      <p className="text-sm text-[#857c6e] mt-1">
-                        {order.date}
-                      </p>
-                    </div>
-                    <span className="text-2xl font-bold text-[#3a6348]">
-                      ₹{order.total}
-                    </span>
-                  </div>
-                  <div className="mt-4 flex items-center justify-between text-sm text-[#857c6e]">
-                    <span>
-                      {order.items} item{order.items === 1 ? "" : "s"}
-                    </span>
-                    <span className="px-3 py-1.5 rounded-full bg-[#eaf4ea] text-[#3a6348] font-semibold">
-                      {order.status}
-                    </span>
-                  </div>
-                  <p className="mt-3 text-xs font-bold text-[#857c6e] uppercase tracking-wider">
-                    Tap to open order details & invoice
-                  </p>
-                </button>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="bg-white rounded-3xl shadow-sm border border-[#e0d9ce] p-8 text-center">
-            <div className="w-16 h-16 rounded-full bg-[#f5f0e8] text-[#857c6e] flex items-center justify-center mx-auto mb-4">
-              <History size={28} />
-            </div>
-            <h2 className="text-xl font-bold text-[#0f0e0b] mb-2">
-              No order history yet
-            </h2>
-            <p className="text-sm text-[#857c6e] mb-5">
-              Place your first order from the menu and it will appear here.
-            </p>
+    <div className="min-h-screen bg-[#f6f4f0]">
+      <div className="max-w-md mx-auto min-h-screen">
+        {/* Header */}
+        <div className="sticky top-0 z-10 bg-[#f6f4f0] px-4 pt-12 pb-3">
+          <div className="flex items-center justify-between">
             <button
               type="button"
               onClick={() => navigate(-1)}
-              className="inline-flex items-center justify-center px-5 py-3 rounded-2xl bg-[#e8720c] text-white font-bold"
+              className="w-9 h-9 rounded-full bg-white border border-[#e8e2d8] flex items-center justify-center text-[#1a1814]"
             >
-              Go to Menu
+              <ArrowLeft size={17} strokeWidth={2} />
             </button>
+            <div className="text-center">
+              <p className="text-[10px] uppercase tracking-[0.22em] text-[#a09080] font-semibold">
+                Order History
+              </p>
+              <h1 className="text-base font-bold text-[#1a1814] leading-tight">
+                {guestName ? guestName.split(" ")[0] : "Guest"}
+              </h1>
+            </div>
+            <Link
+              to="/search"
+              className="w-9 h-9 rounded-full bg-white border border-[#e8e2d8] flex items-center justify-center text-[#1a1814]"
+            >
+              <Search size={17} strokeWidth={2} />
+            </Link>
           </div>
-        )}
+        </div>
 
-        {selectedOrder ? (
-          <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center p-4">
-            <div className="w-full max-w-md bg-white rounded-[28px] p-5 shadow-2xl max-h-[90vh] overflow-y-auto">
-              <div className="flex items-start justify-between gap-3 mb-5">
-                <div>
-                  <p className="text-[11px] uppercase tracking-[0.18em] text-[#857c6e] font-bold mb-1">
-                    Order Details
-                  </p>
-                  <h2 className="text-2xl font-bold text-[#0f0e0b]">
-                    Order #{selectedOrder.id}
-                  </h2>
-                  <p className="text-sm text-[#857c6e] mt-1">
-                    {selectedOrder.date}
-                  </p>
-                </div>
+        {/* Content */}
+        <div className="px-4 pb-10 pt-2">
+          <p className="text-xs text-[#a09080] mb-4">
+            {orders.length} order{orders.length !== 1 ? "s" : ""}
+          </p>
+
+          {normalizedOrders.length > 0 ? (
+            <div className="space-y-2.5">
+              {normalizedOrders.map((order) => (
                 <button
+                  key={order.id}
                   type="button"
-                  onClick={() => setSelectedOrderId(null)}
-                  className="w-10 h-10 rounded-full bg-[#f5f0e8] text-[#0f0e0b] font-bold"
+                  onClick={() => setSelectedOrderId(order.id)}
+                  className="w-full text-left bg-white rounded-2xl px-4 py-4 border border-[#ece7de] active:scale-[0.99] transition-transform"
                 >
-                  ×
-                </button>
-              </div>
-
-              <div className="bg-[#faf7f2] rounded-3xl p-4 border border-[#eee7db] space-y-4">
-                {selectedOrder.itemList.length > 0 ? (
-                  <div className="space-y-2">
-                    <p className="text-[11px] uppercase tracking-[0.18em] text-[#857c6e] font-bold">
-                      Items You Ordered
+                  {order.restaurantName ? (
+                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#c4602a] mb-2">
+                      {order.restaurantName}
                     </p>
-                    {selectedOrder.itemList.map((item) => (
-                      <div
-                        key={`invoice-${selectedOrder.id}-${item.id}`}
-                        className="flex items-center justify-between gap-3 bg-white rounded-2xl px-4 py-3"
-                      >
-                        <div>
-                          <p className="font-semibold text-[#0f0e0b]">
-                            {item.name}
-                          </p>
-                          <p className="text-xs text-[#857c6e]">
-                            {item.qty} × {formatCurrency(item.price)}
-                          </p>
-                        </div>
-                        <span className="font-bold text-[#0f0e0b]">
-                          {formatCurrency(item.total)}
-                        </span>
-                      </div>
-                    ))}
+                  ) : null}
+                  <div className="flex items-start justify-between gap-2 mb-3">
+                    <div>
+                      <p className="font-bold text-[#1a1814] text-[15px]">
+                        #{order.id}
+                      </p>
+                      <p className="text-[11px] text-[#a09080] mt-0.5">
+                        {order.date}
+                      </p>
+                    </div>
+                    <p className="font-bold text-[#1a1814] text-[15px]">
+                      ₹{order.total}
+                    </p>
                   </div>
-                ) : (
-                  <div className="bg-white rounded-2xl px-4 py-3 text-sm text-[#857c6e]">
-                    Itemized details are unavailable for this older order.
-                  </div>
-                )}
-
-                <div className="bg-white rounded-2xl px-4 py-4 space-y-2">
-                  <p className="text-[11px] uppercase tracking-[0.18em] text-[#857c6e] font-bold">
-                    Bill Details
-                  </p>
-                  <div className="flex items-center justify-between text-sm text-[#857c6e]">
-                    <span>Subtotal</span>
-                    <span>{formatCurrency(selectedOrder.subtotal)}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm text-[#857c6e]">
-                    <span>
-                      Discount{" "}
-                      {selectedOrder.offerPercent
-                        ? `(${selectedOrder.offerPercent}%)`
-                        : ""}
+                  <div className="flex items-center justify-between pt-3 border-t border-[#f0ebe0]">
+                    <p className="text-xs text-[#a09080]">
+                      {order.items} item{order.items !== 1 ? "s" : ""}
+                      {order.tableName ? ` · ${order.tableName}` : ""}
+                    </p>
+                    <span
+                      className={`text-[11px] font-semibold px-2.5 py-1 rounded-full ${statusStyle(order.status)}`}
+                    >
+                      {order.status}
                     </span>
-                    <span>-{formatCurrency(selectedOrder.discount)}</span>
                   </div>
-                  <div className="flex items-center justify-between text-sm text-[#857c6e]">
-                    <span>Tax</span>
-                    <span>{formatCurrency(selectedOrder.tax)}</span>
-                  </div>
-                  <div className="border-t border-dashed border-[#e0d9ce] pt-3 mt-3 flex items-center justify-between text-lg font-bold text-[#0f0e0b]">
-                    <span>Grand Total</span>
-                    <span>{formatCurrency(selectedOrder.total)}</span>
-                  </div>
-                </div>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-16">
+              <div className="w-12 h-12 rounded-full bg-[#edeae3] flex items-center justify-center mx-auto mb-4">
+                <History size={22} className="text-[#a09080]" />
               </div>
+              <p className="font-semibold text-[#1a1814] mb-1">No orders yet</p>
+              <p className="text-sm text-[#a09080] mb-6">
+                Your orders will appear here.
+              </p>
+              <button
+                type="button"
+                onClick={() => navigate(-1)}
+                className="px-5 py-2.5 rounded-xl bg-[#e8720c] text-white text-sm font-semibold"
+              >
+                Go to Menu
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
 
-              <div className="grid grid-cols-2 gap-3 mt-5">
-                <button
-                  type="button"
-                  onClick={() => setSelectedOrderId(null)}
-                  className="px-4 py-3 rounded-2xl bg-[#f5f0e8] text-[#0f0e0b] font-semibold"
-                >
-                  Close
-                </button>
-                <button
-                  type="button"
-                  onClick={() => downloadInvoice(selectedOrder)}
-                  className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-[#e8720c] text-white font-semibold"
-                >
-                  <Download size={16} />
-                  Download
-                </button>
+      {/* Order Detail Sheet */}
+      {selectedOrder ? (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center">
+          <div className="w-full max-w-md bg-white rounded-t-3xl sm:rounded-3xl px-5 pt-5 pb-8 max-h-[88vh] overflow-y-auto">
+            {/* Pull handle */}
+            <div className="w-10 h-1 rounded-full bg-[#ddd8d0] mx-auto mb-5 sm:hidden" />
+
+            <div className="flex items-start justify-between gap-3 mb-5">
+              <div>
+                <p className="text-[10px] uppercase tracking-[0.2em] text-[#a09080] font-semibold mb-1">
+                  Receipt
+                </p>
+                <h2 className="text-xl font-bold text-[#1a1814]">
+                  #{selectedOrder.id}
+                </h2>
+                <p className="text-xs text-[#a09080] mt-0.5">
+                  {selectedOrder.date}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedOrderId(null)}
+                className="w-8 h-8 rounded-full bg-[#f0ebe0] text-[#1a1814] flex items-center justify-center text-base font-bold leading-none"
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Items */}
+            {selectedOrder.itemList.length > 0 ? (
+              <div className="mb-4">
+                {selectedOrder.itemList.map((item, idx) => (
+                  <div
+                    key={`${selectedOrder.id}-item-${idx}`}
+                    className="flex items-center justify-between py-3 border-b border-[#f0ebe0] last:border-0"
+                  >
+                    <div>
+                      <p className="text-sm font-medium text-[#1a1814]">
+                        {item.name}
+                      </p>
+                      <p className="text-xs text-[#a09080] mt-0.5">
+                        {item.qty} × {formatCurrency(item.price)}
+                      </p>
+                    </div>
+                    <p className="text-sm font-semibold text-[#1a1814]">
+                      {formatCurrency(item.total)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-[#a09080] mb-4">
+                Item details unavailable for this order.
+              </p>
+            )}
+
+            {/* Bill summary */}
+            <div className="border-t border-[#f0ebe0] pt-4 space-y-2">
+              <div className="flex justify-between text-sm text-[#a09080]">
+                <span>Subtotal</span>
+                <span>{formatCurrency(selectedOrder.subtotal)}</span>
+              </div>
+              {selectedOrder.discount > 0 && (
+                <div className="flex justify-between text-sm text-[#a09080]">
+                  <span>
+                    Discount
+                    {selectedOrder.offerPercent
+                      ? ` (${selectedOrder.offerPercent}%)`
+                      : ""}
+                  </span>
+                  <span>-{formatCurrency(selectedOrder.discount)}</span>
+                </div>
+              )}
+              {selectedOrder.tax > 0 && (
+                <div className="flex justify-between text-sm text-[#a09080]">
+                  <span>Tax</span>
+                  <span>{formatCurrency(selectedOrder.tax)}</span>
+                </div>
+              )}
+              <div className="flex justify-between font-bold text-[#1a1814] pt-3 border-t border-[#f0ebe0]">
+                <span>Total</span>
+                <span>{formatCurrency(selectedOrder.total)}</span>
               </div>
             </div>
+
+            <div className="grid grid-cols-2 gap-3 mt-6">
+              <button
+                type="button"
+                onClick={() => setSelectedOrderId(null)}
+                className="py-3 rounded-xl bg-[#f0ebe0] text-[#1a1814] text-sm font-semibold"
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                onClick={() => downloadInvoice(selectedOrder)}
+                className="flex items-center justify-center gap-2 py-3 rounded-xl bg-[#e8720c] text-white text-sm font-semibold"
+              >
+                <Download size={14} />
+                Download
+              </button>
+            </div>
           </div>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
     </div>
   );
 }

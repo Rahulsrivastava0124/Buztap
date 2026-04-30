@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion as Motion, AnimatePresence } from "framer-motion";
 import {
   X,
@@ -73,6 +73,7 @@ function AccountStep({
   sendingOtp,
   verifyingOtp,
   otpVerified,
+  cooldownSecs,
 }) {
   const [showPw, setShowPw] = useState(false);
   return (
@@ -162,31 +163,49 @@ function AccountStep({
               Click Next to send OTP automatically.
             </p>
           ) : (
-            <div className="flex gap-2 mt-2">
-              <input
-                value={otp}
-                onChange={onOtpChange}
-                inputMode="numeric"
-                placeholder="Enter 6-digit OTP"
-                className="flex-1 px-3 py-2.5 bg-[#faf7f2] border border-[#e0d9ce] rounded-lg text-sm text-[#0f0e0b] placeholder-[#b0a898] focus:outline-none focus:border-[#e8720c] focus:ring-1 focus:ring-[#e8720c]"
-              />
-              <button
-                type="button"
-                onClick={onSendOtp}
-                disabled={sendingOtp}
-                className="px-3 py-2.5 rounded-lg text-xs font-semibold border border-[#e0d9ce] bg-white hover:bg-[#faf7f2] disabled:opacity-60"
-              >
-                {sendingOtp ? "Sending..." : "Resend"}
-              </button>
-              <button
-                type="button"
-                onClick={onVerifyOtp}
-                disabled={verifyingOtp || String(otp).length !== 6}
-                className="px-3 py-2.5 rounded-lg text-xs font-semibold bg-[#e8720c] text-white hover:bg-[#d4620a] disabled:opacity-60"
-              >
-                {verifyingOtp ? "Submitting..." : "Submit OTP"}
-              </button>
-            </div>
+            <>
+              {cooldownSecs > 0 && (
+                <div className="flex items-center gap-2 mt-2 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200">
+                  <span className="text-base">⏳</span>
+                  <p className="text-xs text-amber-700 font-medium">
+                    Too many attempts. Try again in{" "}
+                    <span className="font-bold">{cooldownSecs}s</span>.
+                  </p>
+                </div>
+              )}
+              <div className="flex gap-2 mt-2">
+                <input
+                  value={otp}
+                  onChange={onOtpChange}
+                  inputMode="numeric"
+                  placeholder="Enter 6-digit OTP"
+                  disabled={cooldownSecs > 0}
+                  className="flex-1 px-3 py-2.5 bg-[#faf7f2] border border-[#e0d9ce] rounded-lg text-sm text-[#0f0e0b] placeholder-[#b0a898] focus:outline-none focus:border-[#e8720c] focus:ring-1 focus:ring-[#e8720c] disabled:opacity-50"
+                />
+                <button
+                  type="button"
+                  onClick={onSendOtp}
+                  disabled={sendingOtp || cooldownSecs > 0}
+                  className="px-3 py-2.5 rounded-lg text-xs font-semibold border border-[#e0d9ce] bg-white hover:bg-[#faf7f2] disabled:opacity-60"
+                >
+                  {sendingOtp
+                    ? "Sending..."
+                    : cooldownSecs > 0
+                      ? `${cooldownSecs}s`
+                      : "Resend"}
+                </button>
+                <button
+                  type="button"
+                  onClick={onVerifyOtp}
+                  disabled={
+                    verifyingOtp || String(otp).length !== 6 || cooldownSecs > 0
+                  }
+                  className="px-3 py-2.5 rounded-lg text-xs font-semibold bg-[#e8720c] text-white hover:bg-[#d4620a] disabled:opacity-60"
+                >
+                  {verifyingOtp ? "Submitting..." : "Submit OTP"}
+                </button>
+              </div>
+            </>
           )}
           {otpVerified ? (
             <p className="text-xs text-green-600 mt-1">Email OTP verified.</p>
@@ -410,10 +429,34 @@ export default function RegistrationModal({ isOpen, onClose, onComplete }) {
   const [otpRequested, setOtpRequested] = useState(false);
   const [sendingOtp, setSendingOtp] = useState(false);
   const [verifyingOtp, setVerifyingOtp] = useState(false);
+  const [otpSendCount, setOtpSendCount] = useState(0);
+  const [otpWrongCount, setOtpWrongCount] = useState(0);
+  const [cooldownEnd, setCooldownEnd] = useState(0);
+  const [cooldownSecs, setCooldownSecs] = useState(0);
+  const cooldownTimer = useRef(null);
   const [profile, setProfile] = useState(EMPTY_PROFILE);
   const [menuImage, setMenuImage] = useState(null);
   const [aiMenuJson, setAiMenuJson] = useState(null);
   const [completedBusinessName, setCompletedBusinessName] = useState("");
+
+  useEffect(() => {
+    if (cooldownEnd <= Date.now()) {
+      setCooldownSecs(0);
+      return;
+    }
+    const update = () => {
+      const remaining = Math.ceil((cooldownEnd - Date.now()) / 1000);
+      if (remaining <= 0) {
+        setCooldownSecs(0);
+        clearInterval(cooldownTimer.current);
+      } else {
+        setCooldownSecs(remaining);
+      }
+    };
+    update();
+    cooldownTimer.current = setInterval(update, 1000);
+    return () => clearInterval(cooldownTimer.current);
+  }, [cooldownEnd]);
 
   const previewUrl = useMemo(() => {
     if (!menuImage) return "";
@@ -429,6 +472,11 @@ export default function RegistrationModal({ isOpen, onClose, onComplete }) {
     setAccountOtp("");
     setOtpVerifiedToken("");
     setOtpRequested(false);
+    setOtpSendCount(0);
+    setOtpWrongCount(0);
+    setCooldownEnd(0);
+    setCooldownSecs(0);
+    clearInterval(cooldownTimer.current);
     setProfile(EMPTY_PROFILE);
     setMenuImage(null);
     setAiMenuJson(null);
@@ -443,11 +491,16 @@ export default function RegistrationModal({ isOpen, onClose, onComplete }) {
       setAccountOtp("");
       setOtpVerifiedToken("");
       setOtpRequested(false);
+      setOtpSendCount(0);
+      setOtpWrongCount(0);
+      setCooldownEnd(0);
+      clearInterval(cooldownTimer.current);
     }
     setFieldErrors((prev) => ({ ...prev, [name]: undefined }));
   }
 
   async function handleSendOtp() {
+    if (cooldownSecs > 0) return;
     const emailValue = account.email.trim().toLowerCase();
     if (!/\S+@\S+\.\S+/.test(emailValue)) {
       setFieldErrors((prev) => ({ ...prev, email: "Valid email required" }));
@@ -461,6 +514,13 @@ export default function RegistrationModal({ isOpen, onClose, onComplete }) {
       setOtpVerifiedToken("");
       setFieldErrors((prev) => ({ ...prev, otp: undefined }));
       toast.success("OTP sent to your email");
+      setOtpSendCount((prev) => {
+        const next = prev + 1;
+        if (next >= 3) {
+          setCooldownEnd(Date.now() + 2 * 60 * 1000);
+        }
+        return next;
+      });
     } catch (err) {
       toast.error(err.message || "Unable to send OTP");
     } finally {
@@ -469,6 +529,7 @@ export default function RegistrationModal({ isOpen, onClose, onComplete }) {
   }
 
   async function handleVerifyOtp() {
+    if (cooldownSecs > 0) return;
     const emailValue = account.email.trim().toLowerCase();
     const otpValue = accountOtp.trim();
 
@@ -481,11 +542,19 @@ export default function RegistrationModal({ isOpen, onClose, onComplete }) {
       setVerifyingOtp(true);
       const res = await verifyEmailOtp(emailValue, "register", otpValue);
       setOtpVerifiedToken(res.otpToken);
+      setOtpWrongCount(0);
       setFieldErrors((prev) => ({ ...prev, otp: undefined }));
       toast.success("Email verified");
     } catch (err) {
       setOtpVerifiedToken("");
       toast.error(err.message || "OTP verification failed");
+      setOtpWrongCount((prev) => {
+        const next = prev + 1;
+        if (next >= 3) {
+          setCooldownEnd(Date.now() + 2 * 60 * 1000);
+        }
+        return next;
+      });
     } finally {
       setVerifyingOtp(false);
     }
@@ -712,6 +781,7 @@ export default function RegistrationModal({ isOpen, onClose, onComplete }) {
                   sendingOtp={sendingOtp}
                   verifyingOtp={verifyingOtp}
                   otpVerified={Boolean(otpVerifiedToken)}
+                  cooldownSecs={cooldownSecs}
                 />
               </Motion.div>
             )}

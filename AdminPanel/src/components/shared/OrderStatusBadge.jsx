@@ -19,12 +19,17 @@ const STATUS_CONFIG = {
 export default function OrderStatusBadge({ status }) {
   const config = STATUS_CONFIG[status] ?? { cls: "bg-cream text-ink" };
   const Icon = config.icon ?? null;
+  const normalizedStatus = String(status || "Pending");
+  const label =
+    normalizedStatus === "Ready" || normalizedStatus === "ready"
+      ? "Ready to Serve"
+      : normalizedStatus.charAt(0).toUpperCase() + normalizedStatus.slice(1);
   return (
     <span
       className={`text-xs font-semibold px-2 py-0.5 rounded flex items-center gap-1 w-fit ${config.cls}`}
     >
       {Icon && <Icon size={12} />}
-      {status.charAt(0).toUpperCase() + status.slice(1)}
+      {label}
     </span>
   );
 }

@@ -24,6 +24,13 @@ function buildTableIdCandidates(rawTableId) {
   return Array.from(set);
 }
 
+function normalizeGuestPhone(value) {
+  const digits = String(value || "").replace(/\D/g, "");
+  if (!digits) return null;
+  const last10 = digits.slice(-10);
+  return last10.length === 10 ? last10 : null;
+}
+
 /**
  * Sync table status after an order status change.
  * Called after Order.findOneAndUpdate completes.
@@ -156,6 +163,7 @@ async function create(req, res, next) {
   try {
     const data = createOrderSchema.parse(req.body);
     const { discountPct = 0 } = data;
+    const normalizedGuestPhone = normalizeGuestPhone(data.guestPhone);
 
     const business = await Business.findById(req.user.businessId)
       .select("gstPct taxPct")
@@ -185,7 +193,7 @@ async function create(req, res, next) {
       tableId: data.tableId || null,
       roomId: data.roomId || null,
       guestName: data.guestName || "Guest",
-      guestPhone: data.guestPhone || null,
+      guestPhone: normalizedGuestPhone,
       orderType: data.orderType || "Dine-in",
       source: data.source || "POS",
       items,
@@ -309,6 +317,49 @@ async function getIncomingQr(req, res, next) {
   }
 }
 
+async function getGuestOrders(req, res, next) {
+  try {
+    const { phone, businessId } = req.query;
+    if (!phone || !businessId) {
+      return res
+        .status(400)
+        .json({ message: "phone and businessId are required" });
+    }
+    const normalizedPhone = normalizeGuestPhone(phone);
+    if (!normalizedPhone) {
+      return res.status(400).json({ message: "Invalid phone number" });
+    }
+    // Support both normalized phone and older stored variants (+91..., 91...)
+    const phoneRegex = new RegExp(`(?:\\+?91[\\s-]*)?${normalizedPhone}$`);
+    const candidates = [
+      normalizedPhone,
+      `+91${normalizedPhone}`,
+      `91${normalizedPhone}`,
+    ];
+
+    const rawOrders = await Order.find({
+      businessId,
+      $or: [
+        { guestPhone: { $in: candidates } },
+        { guestPhone: { $regex: phoneRegex } },
+      ],
+    })
+      .sort({ createdAt: -1 })
+      .select(
+        "orderId status items tableId createdAt total guestName guestPhone paymentStatus paymentMethod",
+      )
+      .lean();
+
+    const orders = rawOrders
+      .filter((o) => normalizeGuestPhone(o.guestPhone) === normalizedPhone)
+      .slice(0, 20);
+
+    return res.json({ orders });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   getAll,
   getOne,
@@ -316,4 +367,5 @@ module.exports = {
   updateStatus,
   updatePayment,
   getIncomingQr,
+  getGuestOrders,
 };

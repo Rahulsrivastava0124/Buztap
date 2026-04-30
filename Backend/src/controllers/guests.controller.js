@@ -133,6 +133,25 @@ async function getOrders(req, res, next) {
   }
 }
 
+async function lookupGuest(req, res, next) {
+  try {
+    const rawPhone = String(req.query.phone || "").trim();
+    if (!rawPhone) return res.status(400).json({ error: "phone is required" });
+
+    // Accept both 10-digit and +91-prefixed numbers
+    const phone = rawPhone.startsWith("+")
+      ? rawPhone
+      : `+91${rawPhone.replace(/\D/g, "").slice(-10)}`;
+
+    const guest = await Guest.findOne({ phone }).select("name phone").lean();
+    if (!guest) return res.status(404).json({ error: "Guest not found" });
+
+    res.json({ name: guest.name, phone: guest.phone });
+  } catch (err) {
+    next(err);
+  }
+}
+
 async function placeOrder(req, res, next) {
   try {
     const data = guestOrderSchema.parse(req.body);
@@ -222,4 +241,4 @@ async function placeOrder(req, res, next) {
   }
 }
 
-module.exports = { register, getOrders, placeOrder };
+module.exports = { register, getOrders, placeOrder, lookupGuest };
