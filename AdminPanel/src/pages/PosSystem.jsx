@@ -184,9 +184,8 @@ export default function PosSystem() {
   // Table status mutation (Occupied → Cleaning → Free)
   const statusMutation = useMutation({
     mutationFn: ({ tableId, status }) => updateTableStatus(tableId, status),
-    onSuccess: (updated) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tables"] });
-      toast.success(`${updated.id} marked ${updated.status}`);
     },
     onError: () => toast.error("Unable to update table status"),
   });

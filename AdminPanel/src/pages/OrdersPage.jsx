@@ -1,22 +1,20 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ChevronLeft,
   ChevronRight,
   Clock3,
   CookingPot,
-  CreditCard,
   PackageCheck,
   Printer,
   Truck,
   X,
 } from "lucide-react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import {
   fetchBusinessProfile,
   fetchOrderById,
   fetchOrders,
-  updateOrderPayment,
   updateOrderStatus,
 } from "../services/api";
 import StatCard from "../components/shared/StatCard";
@@ -28,8 +26,6 @@ function OrderDetailDrawer({ orderId, onClose }) {
   const queryClient = useQueryClient();
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState("");
-  const [paymentMode, setPaymentMode] = useState("UPI");
-  const [transactionId, setTransactionId] = useState("");
 
   const {
     data: order,
@@ -48,55 +44,11 @@ function OrderDetailDrawer({ orderId, onClose }) {
     staleTime: 300_000,
   });
 
-  const isServed = order?.status === "Served";
-  const isPaymentDone = order?.paymentStatus === "Completed";
-  const upiId = businessProfile?.restroUpi || "";
-
   const formatTableLabel = (raw) => {
     const value = String(raw || "").trim();
     const digits = value.replace(/\D/g, "");
     if (!digits) return value || "-";
     return `T-${String(Number(digits)).padStart(2, "0")}`;
-  };
-
-  const upiPaymentLink = useMemo(() => {
-    if (!order || !upiId) return "";
-    const params = new URLSearchParams({
-      pa: upiId,
-      pn: businessProfile?.name || "Restaurant",
-      am: String(Number(order.total || 0).toFixed(2)),
-      cu: "INR",
-      tn: order.orderId || "Order Payment",
-    });
-    return `upi://pay?${params.toString()}`;
-  }, [businessProfile, order, upiId]);
-
-  const upiQrUrl = upiPaymentLink
-    ? `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(upiPaymentLink)}`
-    : "";
-
-  const paymentMutation = useMutation({
-    mutationFn: ({ id, payload }) => updateOrderPayment(id, payload),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["orders"] });
-      queryClient.invalidateQueries({ queryKey: ["order", orderId] });
-      toast.success("Payment recorded.");
-      setTransactionId("");
-    },
-    onError: (err) => toast.error(err?.message || "Unable to update payment."),
-  });
-
-  const markPayment = () => {
-    if (!order?._id) return;
-    const payload = {
-      paymentMethod: paymentMode === "UPI" ? "Card/UPI" : "Cash",
-      paymentStatus: "Completed",
-      transactionId:
-        paymentMode === "UPI"
-          ? transactionId.trim() || `UPI-${Date.now()}`
-          : transactionId.trim() || undefined,
-    };
-    paymentMutation.mutate({ id: order._id, payload });
   };
 
   const printInvoice = () => {
@@ -368,75 +320,6 @@ function OrderDetailDrawer({ orderId, onClose }) {
                   </button>
                 </div>
               </div>
-
-              {/* Payment section — shown once order is Served */}
-              {isServed && (
-                <div className="rounded-lg border border-border p-3 bg-white space-y-3">
-                  <p className="text-xs font-semibold text-ink">Payment</p>
-                  {isPaymentDone ? (
-                    <p className="text-xs text-green-700 font-semibold">
-                      Payment completed.
-                    </p>
-                  ) : (
-                    <>
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setPaymentMode("UPI")}
-                          className={`text-xs px-2.5 py-1 rounded-md border ${paymentMode === "UPI" ? "bg-saffron text-white border-saffron" : "border-border text-muted"}`}
-                        >
-                          UPI
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setPaymentMode("Cash")}
-                          className={`text-xs px-2.5 py-1 rounded-md border ${paymentMode === "Cash" ? "bg-saffron text-white border-saffron" : "border-border text-muted"}`}
-                        >
-                          Cash
-                        </button>
-                      </div>
-                      {paymentMode === "UPI" ? (
-                        <div>
-                          {upiId ? (
-                            <div className="rounded-md border border-border bg-paper p-2 flex justify-center">
-                              <img
-                                src={upiQrUrl}
-                                alt="UPI payment QR"
-                                className="w-28 h-28 object-contain"
-                              />
-                            </div>
-                          ) : (
-                            <p className="text-xs text-error">
-                              Set Restaurant UPI ID in Settings to generate UPI
-                              QR.
-                            </p>
-                          )}
-                        </div>
-                      ) : null}
-                      <input
-                        value={transactionId}
-                        onChange={(e) => setTransactionId(e.target.value)}
-                        placeholder="Transaction ID (optional)"
-                        className="w-full rounded-lg border border-border px-3 py-2 text-xs outline-none"
-                      />
-                      <button
-                        type="button"
-                        onClick={markPayment}
-                        disabled={
-                          paymentMutation.isPending ||
-                          (paymentMode === "UPI" && !upiId)
-                        }
-                        className="w-full bg-saffron hover:brightness-95 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-lg py-2 text-xs font-bold flex items-center justify-center gap-1.5"
-                      >
-                        <CreditCard size={14} />
-                        {paymentMutation.isPending
-                          ? "Updating..."
-                          : "Mark Payment Completed"}
-                      </button>
-                    </>
-                  )}
-                </div>
-              )}
 
               {/* Items */}
               <div>

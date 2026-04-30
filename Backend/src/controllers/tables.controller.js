@@ -25,13 +25,17 @@ function buildTableIdCandidates(rawTableId) {
 }
 
 async function reconcileTableOccupancy(businessId) {
+  // Include Served+unpaid orders: table must stay Occupied until payment is done
   const activeOrders = await Order.find({
     businessId,
     tableId: { $ne: null },
-    status: { $in: ["Pending", "Preparing", "Ready"] },
+    $or: [
+      { status: { $in: ["Pending", "Preparing", "Ready"] } },
+      { status: "Served", paymentStatus: { $ne: "Completed" } },
+    ],
   })
     .sort({ createdAt: -1 })
-    .select("tableId guestName guestPhone")
+    .select("tableId guestName guestPhone status paymentStatus")
     .lean();
 
   if (activeOrders.length === 0) return;

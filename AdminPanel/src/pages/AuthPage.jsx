@@ -111,6 +111,7 @@ export default function AuthPage() {
         setSubmitting(false);
         return;
       }
+      toast.dismiss();
       toast.success("Signed in successfully");
       setShowOtpModal(false);
       navigate(`/${targetSlug}/dashboard/overview`);

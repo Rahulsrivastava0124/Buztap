@@ -1,33 +1,47 @@
 import { useEffect, useState } from "react";
-import { UtensilsCrossed } from "lucide-react";
+import { ClipboardList, Flame, BellRing, Receipt } from "lucide-react";
 import { fetchGuestOrders } from "../../services/api";
 
 const ACTIVE_STATUSES = ["Pending", "Preparing", "Ready"];
 const POLL_INTERVAL = 8000;
 
-const THEME = {
-  progress: {
-    bg: "#30473d",
-    glow: "rgba(232, 167, 86, 0.28)",
-    ring: "#f4dfb7",
-    surface: "rgba(255, 248, 239, 0.12)",
-    surfaceStrong: "rgba(255, 248, 239, 0.16)",
-    text: "#fffaf4",
-    muted: "rgba(255, 250, 244, 0.72)",
-    line: "rgba(255, 248, 239, 0.18)",
+// Per-status config
+const STATUS_CONFIG = {
+  Pending: {
+    label: "Order Received",
+    sublabel: "Sent to kitchen",
+    Icon: ClipboardList,
+    accentBar: "linear-gradient(90deg,#e8720c,#f4a84a)",
+    iconBg: "#fff7ed",
+    iconColor: "#e8720c",
+    pulse: true,
   },
-  payable: {
-    bg: "#1f2522",
-    glow: "rgba(255, 194, 92, 0.3)",
-    ring: "#ffc25c",
-    surface: "rgba(255, 248, 239, 0.1)",
-    surfaceStrong: "#fffaf4",
-    text: "#fffaf4",
-    muted: "rgba(255, 250, 244, 0.72)",
-    soft: "rgba(255, 250, 244, 0.48)",
-    line: "rgba(255, 248, 239, 0.16)",
-    ctaBg: "#ffc25c",
-    ctaText: "#1f2522",
+  Preparing: {
+    label: "Being Prepared",
+    sublabel: "Chef is cooking your order",
+    Icon: Flame,
+    accentBar: "linear-gradient(90deg,#e8720c,#f4a84a)",
+    iconBg: "#fff7ed",
+    iconColor: "#e8720c",
+    pulse: true,
+  },
+  Ready: {
+    label: "Ready to Serve",
+    sublabel: "Your order is at the counter",
+    Icon: BellRing,
+    accentBar: "linear-gradient(90deg,#3a6348,#5a9e72)",
+    iconBg: "#edf7f2",
+    iconColor: "#3a6348",
+    pulse: true,
+  },
+  Served: {
+    label: "Invoice Ready",
+    sublabel: "Please complete payment",
+    Icon: Receipt,
+    accentBar: "linear-gradient(90deg,#e8720c,#f4a84a)",
+    iconBg: "#fff7ed",
+    iconColor: "#e8720c",
+    pulse: false,
   },
 };
 
@@ -39,7 +53,12 @@ function stripHash(id) {
   return String(id || "").replace(/^#+/, "");
 }
 
-export default function ActiveOrderBanner({ phone, businessId, onPayInvoice }) {
+export default function ActiveOrderBanner({
+  phone,
+  businessId,
+  onPayInvoice,
+  onOpenOrder,
+}) {
   const [orders, setOrders] = useState([]);
   const [visible, setVisible] = useState(false);
 
@@ -79,79 +98,101 @@ export default function ActiveOrderBanner({ phone, businessId, onPayInvoice }) {
 
   const topOrder = orders[0];
   const isPayable = isPayableOrder(topOrder);
-  const theme = isPayable ? THEME.payable : THEME.progress;
+  const cfg = STATUS_CONFIG[topOrder.status] || STATUS_CONFIG.Pending;
+  const { Icon } = cfg;
 
   return (
-    <div className="fixed bottom-6 left-0 right-0 z-50 flex justify-center px-4 pointer-events-none">
+    <div className="fixed bottom-5 left-0 right-0 z-50 flex justify-center px-4 pointer-events-none">
       <div
-        className="pointer-events-auto w-full max-w-sm overflow-hidden rounded-2xl shadow-[0_18px_40px_rgba(36,32,24,0.18)]"
+        className="pointer-events-auto w-full max-w-sm rounded-2xl overflow-hidden"
         style={{
-          animation: "slideUp 0.25s ease",
-          background: theme.bg,
+          animation: "slideUp 0.28s cubic-bezier(0.34,1.56,0.64,1)",
+          background: "#fff",
+          border: "1.5px solid #f0e6da",
+          boxShadow:
+            "0 8px 32px rgba(232,114,12,0.12), 0 2px 8px rgba(0,0,0,0.06)",
         }}
       >
-        <div className="px-3.5 py-3">
-          <div className="flex items-center gap-2.5">
-            <div className="relative flex h-8 w-8 items-center justify-center shrink-0">
-              <span
-                className="absolute inset-0 rounded-full animate-ping opacity-30"
-                style={{ background: theme.glow }}
-              />
-              <span
-                className="relative w-8 h-8 rounded-full flex items-center justify-center bg-white/20"
-                style={{
-                  background:
-                    theme.surfaceStrong === "#fffaf4"
-                      ? "rgba(255, 248, 239, 0.14)"
-                      : theme.surfaceStrong,
-                }}
-              >
-                <UtensilsCrossed size={14} style={{ color: theme.text }} />
-              </span>
+        {/* Coloured top accent bar */}
+        <div className="h-[3px] w-full" style={{ background: cfg.accentBar }} />
+
+        <div className="px-4 pt-3 pb-3">
+          {/* Row 1: icon + text + CTA */}
+          <div className="flex items-center gap-3">
+            {/* Status icon */}
+            <div
+              className="relative shrink-0 w-10 h-10 rounded-xl flex items-center justify-center"
+              style={{ background: cfg.iconBg }}
+            >
+              {cfg.pulse && (
+                <span
+                  className="absolute inset-0 rounded-xl animate-ping opacity-20"
+                  style={{ background: cfg.iconColor }}
+                />
+              )}
+              <Icon size={18} style={{ color: cfg.iconColor }} />
             </div>
 
-            <div className="flex-1 text-left min-w-0">
+            {/* Labels */}
+            <div className="flex-1 min-w-0">
               <p
-                className="text-[9px] font-bold uppercase tracking-wide leading-none mb-0.5"
-                style={{ color: theme.muted }}
+                className="text-[10px] font-bold uppercase tracking-widest leading-none mb-0.5"
+                style={{ color: cfg.iconColor }}
               >
-                {isPayable ? "Invoice ready" : "Order in progress"}
+                {cfg.label}
               </p>
-              <p
-                className="font-bold text-[13px] leading-none"
-                style={{ color: theme.text }}
-              >
+              <p className="font-bold text-[14px] leading-tight text-[#0f0e0b]">
                 #{stripHash(topOrder.orderId)}
                 {topOrder.tableId && (
-                  <span
-                    className="ml-1.5 font-normal text-[11px]"
-                    style={{ color: theme.muted }}
-                  >
+                  <span className="ml-1.5 font-normal text-[12px] text-[#857c6e]">
                     · Table {topOrder.tableId.replace(/^T-0?/, "")}
                   </span>
                 )}
               </p>
+              <p className="text-[11px] text-[#857c6e] mt-0.5 leading-none">
+                {cfg.sublabel}
+              </p>
+            </div>
+
+            {/* CTA */}
+            <div className="flex items-center gap-1.5 shrink-0">
+              {isPayable ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => onOpenOrder?.(topOrder)}
+                    className="rounded-xl px-3 py-2 text-[11px] font-bold transition"
+                    style={{ background: "#f5f0e8", color: "#0f0e0b" }}
+                  >
+                    Status
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onPayInvoice?.(topOrder)}
+                    className="rounded-xl px-3 py-2 text-[11px] font-bold transition hover:brightness-95"
+                    style={{ background: "#e8720c", color: "#fff" }}
+                  >
+                    Pay
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => onOpenOrder?.(topOrder)}
+                  className="rounded-xl px-3 py-2 text-[11px] font-bold transition hover:brightness-95"
+                  style={{ background: "#e8720c", color: "#fff" }}
+                >
+                  Track
+                </button>
+              )}
             </div>
           </div>
-
-          {isPayable ? (
-            <div className="mt-2 flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => onPayInvoice?.()}
-                className="shrink-0 rounded-lg px-2.5 py-1.5 text-[11px] font-bold shadow-sm transition hover:brightness-95"
-                style={{ background: theme.ctaBg, color: theme.ctaText }}
-              >
-                Pay Invoice
-              </button>
-            </div>
-          ) : null}
         </div>
       </div>
 
       <style>{`
         @keyframes slideUp {
-          from { transform: translateY(16px); opacity: 0; }
+          from { transform: translateY(20px); opacity: 0; }
           to   { transform: translateY(0);    opacity: 1; }
         }
       `}</style>

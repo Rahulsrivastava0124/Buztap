@@ -84,6 +84,31 @@ async function syncTableStatus(order, newStatus) {
   }
 
   if (newStatus === "Served") {
+    // Only move to Cleaning once payment is also done.
+    // If payment is still pending, keep the table Occupied so the guest can pay.
+    const servedUnpaid = await Order.findOne({
+      businessId,
+      tableId: { $in: tableIdCandidates },
+      status: "Served",
+      paymentStatus: { $ne: "Completed" },
+    })
+      .select("_id")
+      .lean();
+
+    if (servedUnpaid) {
+      await Table.findOneAndUpdate(
+        { tableId: { $in: tableIdCandidates }, businessId },
+        {
+          $set: {
+            status: "Occupied",
+            guestName: guestName || null,
+            guestPhone: guestPhone || null,
+          },
+        },
+      );
+      return;
+    }
+
     await Table.findOneAndUpdate(
       { tableId: { $in: tableIdCandidates }, businessId },
       { $set: { status: "Cleaning", guestName: null, guestPhone: null } },
@@ -296,16 +321,37 @@ async function updatePayment(req, res, next) {
     );
     if (!order) return res.status(404).json({ error: "Order not found" });
 
-    // Start cleaning automatically once payment is completed for table orders.
+    // When payment is completed, decide table state properly:
+    // only move to Cleaning if no other active or unpaid-served orders remain on the table.
     if (data.paymentStatus === "Completed" && order.tableId) {
       const tableIdCandidates = buildTableIdCandidates(order.tableId);
       if (tableIdCandidates.length > 0) {
+        const remainingActive = await Order.findOne({
+          businessId: req.user.businessId,
+          tableId: { $in: tableIdCandidates },
+          _id: { $ne: order._id },
+          $or: [
+            { status: { $in: ["Pending", "Preparing", "Ready"] } },
+            { status: "Served", paymentStatus: { $ne: "Completed" } },
+          ],
+        })
+          .select("_id")
+          .lean();
+
+        const newTableStatus = remainingActive ? "Occupied" : "Cleaning";
         await Table.findOneAndUpdate(
           {
             tableId: { $in: tableIdCandidates },
             businessId: req.user.businessId,
           },
-          { $set: { status: "Cleaning", guestName: null, guestPhone: null } },
+          {
+            $set: {
+              status: newTableStatus,
+              ...(newTableStatus === "Cleaning"
+                ? { guestName: null, guestPhone: null }
+                : {}),
+            },
+          },
         );
       }
     }

@@ -25,6 +25,7 @@ import {
   pollOrderStatus as pollOrderStatusApi,
   placeGuestOrder,
 } from "../services/api";
+import ActiveOrderBanner from "../components/shared/ActiveOrderBanner";
 
 // ── In-memory cache (per page load) ─────────────────────────────────────────
 // Prevents redundant network calls on re-renders / React strict-mode double
@@ -543,6 +544,25 @@ export default function DemoMenu() {
   const [showProfile, setShowProfile] = useState(false);
   const paymentSectionRef = useRef(null);
 
+  const hydrateOrderFromBackend = (order, { openSheet = true } = {}) => {
+    if (!order) return;
+
+    const backendStatus = String(order.status || "Pending");
+    const paymentStatus = String(order.paymentStatus || "Pending");
+    const restoredOrderNo = String(order.orderId || order._id || "")
+      .replace(/^#/, "")
+      .trim();
+
+    setActiveOrderDbId(String(order._id || ""));
+    setOrderNo(restoredOrderNo);
+    setPlacedOrderAmount(Number(order.total || 0));
+    setOrderBackendStatus(backendStatus);
+    setOrderPaymentStatus(paymentStatus);
+    setOrderStatus(mapBackendStatusToStep(backendStatus));
+    setOrderPlaced(true);
+    if (openSheet) setShowCart(true);
+  };
+
   useEffect(() => {
     if (isForcedDemo) {
       sessionStorage.removeItem(ORDER_QUERY_CACHE_KEY);
@@ -893,7 +913,14 @@ export default function DemoMenu() {
         setOrderHistory(backendHistory);
         saveOrderHistory(guestPhone, backendHistory);
 
+        // Priority: Served+unpaid (needs payment) → active (Preparing/Ready/Pending) → any non-cancelled
         const latestRelevant =
+          orders.find(
+            (o) => o.status === "Served" && o.paymentStatus !== "Completed",
+          ) ||
+          orders.find((o) =>
+            ["Pending", "Preparing", "Ready"].includes(String(o.status || "")),
+          ) ||
           orders.find((o) => String(o.status || "") !== "Cancelled") ||
           orders[0];
         if (!latestRelevant) return;
@@ -905,20 +932,8 @@ export default function DemoMenu() {
           return;
         }
 
-        const restoredOrderNo = String(
-          latestRelevant.orderId || latestRelevant._id || "",
-        )
-          .replace(/^#/, "")
-          .trim();
-
-        setActiveOrderDbId(String(latestRelevant._id || ""));
-        setOrderNo(restoredOrderNo);
-        setPlacedOrderAmount(Number(latestRelevant.total || 0));
-        setOrderBackendStatus(backendStatus);
-        setOrderPaymentStatus(paymentStatus);
-        setOrderStatus(mapBackendStatusToStep(backendStatus));
-        setOrderPlaced(true);
-        setShowCart(true);
+        // Restore state silently — banner handles visibility; don't auto-open the modal
+        hydrateOrderFromBackend(latestRelevant, { openSheet: false });
       } catch {
         // Non-blocking restore attempt
       }
@@ -1280,7 +1295,8 @@ export default function DemoMenu() {
       )}`
     : "";
 
-  const handlePayInvoice = () => {
+  const handlePayInvoice = (order) => {
+    if (order) hydrateOrderFromBackend(order);
     setPaymentMode("Online");
     if (upiDeepLink) {
       window.location.href = upiDeepLink;
@@ -1406,7 +1422,15 @@ export default function DemoMenu() {
 
   return (
     <div className="bg-gray-50 min-h-screen">
-      {/* Active order banner — visible when POS staff placed an order for this guest phone */}
+      {/* Active order banner — visible for active POS/QR orders on this phone */}
+      {!isForcedDemo && isJoined && guestPhone.length === 10 ? (
+        <ActiveOrderBanner
+          phone={guestPhone}
+          businessId={resolvedBusinessId || currentBusinessId}
+          onPayInvoice={handlePayInvoice}
+          onOpenOrder={(order) => hydrateOrderFromBackend(order)}
+        />
+      ) : null}
 
       <div
         ref={scrollRef}
@@ -1461,7 +1485,7 @@ export default function DemoMenu() {
         </AnimatePresence>
 
         {/* ── Hero image ────────────────────────────────────────────────── */}
-        <div className="relative h-40 w-full bg-gray-900 shrink-0">
+        <div className="relative h-40 w-full bg-gray-900 shrink-0 rounded-b-3xl overflow-hidden">
           <img
             src={restaurantProfile.heroImage}
             alt={restaurantDisplayName}
@@ -1470,13 +1494,14 @@ export default function DemoMenu() {
           {/* gradient: dark at top for buttons, dark at bottom for social row */}
           <div className="absolute inset-0 bg-linear-to-b from-black/40 via-transparent to-black/65" />
 
-          {/* Top controls */}
-          <button
-            onClick={goBackPreservingOrderUrl}
-            className="absolute top-4 left-4 w-9 h-9 rounded-full bg-black/55 backdrop-blur-sm flex items-center justify-center text-white"
-          >
-            <ArrowLeft size={18} />
-          </button>
+          {/* Restaurant name overlay — bottom-left above social row */}
+          <div className="absolute top-4 left-4 right-20 backdrop-blur-sm bg-black/35 rounded-xl px-3.5 py-2 inline-flex items-center max-w-fit">
+            <span className="text-white font-bold text-xl leading-tight drop-shadow-sm truncate">
+              {restaurantDisplayName}
+            </span>
+          </div>
+
+          {/* Top-right controls */}
           <div className="absolute top-4 right-4 flex items-center gap-2">
             <button
               onClick={() =>
@@ -1485,21 +1510,21 @@ export default function DemoMenu() {
                   url: window.location.href,
                 })
               }
-              className="w-9 h-9 rounded-full bg-black/55 backdrop-blur-sm flex items-center justify-center text-white"
+              className="w-8 h-8 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center text-white/90"
             >
-              <Share2 size={18} />
+              <Share2 size={15} />
             </button>
             <button
               onClick={() => setShowProfile(true)}
-              className="w-9 h-9 rounded-full bg-black/55 backdrop-blur-sm flex items-center justify-center text-white"
+              className="w-8 h-8 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center text-white/90"
               aria-label="Open guest profile"
             >
-              <User size={16} />
+              <User size={14} />
             </button>
           </div>
 
           {/* Bottom row: social icons + Google review */}
-          <div className="absolute bottom-0 left-0 right-0 px-4 pb-3 flex items-center justify-between">
+          <div className="absolute bottom-0 left-0 right-0 px-4 pb-3 pt-6 flex items-center justify-between bg-linear-to-t from-black/70 via-black/30 to-transparent backdrop-blur-[1px]">
             {/* Social icons */}
             <div className="flex items-center gap-2">
               {/* Instagram */}
@@ -1591,15 +1616,8 @@ export default function DemoMenu() {
         <div className="bg-white px-4 pt-4 pb-3 border-b border-gray-100">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900 leading-tight">
-                {restaurantDisplayName}
-              </h1>
-              <p className="text-gray-500 text-sm mt-0.5">
-                {restaurantProfile.eta} &nbsp;|&nbsp;{" "}
+              <p className="text-gray-700 text-xl font-medium mt-0.5">
                 {restaurantProfile.tableLabel}
-                {restaurantProfile.totalTables
-                  ? ` • ${restaurantProfile.totalTables} tables`
-                  : ""}
               </p>
             </div>
             <div className="flex items-center gap-2">
