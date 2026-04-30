@@ -542,7 +542,9 @@ export default function DemoMenu() {
   const [orderHistory, setOrderHistory] = useState([]);
   const [selectedItem, setSelectedItem] = useState(null);
   const [showProfile, setShowProfile] = useState(false);
+  const [showBanner, setShowBanner] = useState(true);
   const paymentSectionRef = useRef(null);
+  const lastScrollRef = useRef(0);
 
   const hydrateOrderFromBackend = (order, { openSheet = true } = {}) => {
     if (!order) return;
@@ -1423,7 +1425,7 @@ export default function DemoMenu() {
   return (
     <div className="bg-gray-50 min-h-screen">
       {/* Active order banner — visible for active POS/QR orders on this phone */}
-      {!isForcedDemo && isJoined && guestPhone.length === 10 ? (
+      {!isForcedDemo && isJoined && guestPhone.length === 10 && showBanner ? (
         <ActiveOrderBanner
           phone={guestPhone}
           businessId={resolvedBusinessId || currentBusinessId}
@@ -1436,6 +1438,12 @@ export default function DemoMenu() {
         ref={scrollRef}
         className="bg-white max-w-md mx-auto min-h-screen relative overflow-y-auto"
         style={{ height: "100dvh" }}
+        onScroll={(e) => {
+          const scrollTop = e.target.scrollTop;
+          const isScrollingDown = scrollTop > lastScrollRef.current;
+          lastScrollRef.current = scrollTop;
+          setShowBanner(!isScrollingDown);
+        }}
       >
         {/* ── Sticky compact header (appears on scroll) ────────────────── */}
         <AnimatePresence>
@@ -1485,7 +1493,7 @@ export default function DemoMenu() {
         </AnimatePresence>
 
         {/* ── Hero image ────────────────────────────────────────────────── */}
-        <div className="relative h-40 w-full bg-gray-900 shrink-0 rounded-b-3xl overflow-hidden">
+        <div className="relative h-56 w-full bg-gray-900 shrink-0 rounded-b-3xl overflow-hidden">
           <img
             src={restaurantProfile.heroImage}
             alt={restaurantDisplayName}
