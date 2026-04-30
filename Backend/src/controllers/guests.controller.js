@@ -6,6 +6,18 @@ const Business = require("../models/Business");
 
 const GST_RATE = 0.05;
 
+/**
+ * Canonical phone format: +91XXXXXXXXXX
+ * Accepts 10-digit, +91-prefixed, or 91-prefixed inputs.
+ * Returns null for anything that doesn't resolve to 10 digits.
+ */
+function normalizePhone(value) {
+  const digits = String(value || "").replace(/\D/g, "");
+  const last10 = digits.slice(-10);
+  if (last10.length !== 10) return null;
+  return `+91${last10}`;
+}
+
 function buildTableIdCandidates(rawTableId) {
   const value = String(rawTableId || "").trim();
   if (!value) return [];
@@ -74,16 +86,18 @@ async function resolveScopedBusinessId(req, fallbackBusinessId = "") {
 async function register(req, res, next) {
   try {
     const data = registerSchema.parse(req.body);
+    const phone = normalizePhone(data.phone);
+    if (!phone) return res.status(400).json({ error: "Invalid phone number" });
     const scopedBusinessId = await resolveScopedBusinessId(
       req,
       data.businessId || "",
     );
     const now = new Date();
     const guest = await Guest.findOneAndUpdate(
-      { phone: data.phone },
+      { phone },
       {
         $setOnInsert: {
-          phone: data.phone,
+          phone,
           firstSeenAt: now,
           visitCount: 1,
         },
@@ -116,11 +130,14 @@ async function getOrders(req, res, next) {
         .json({ error: "biz or restro query parameter is required" });
     }
 
-    const guest = await Guest.findOne({ phone: req.params.phone }).lean();
+    const phone = normalizePhone(req.params.phone);
+    if (!phone) return res.status(400).json({ error: "Invalid phone number" });
+
+    const guest = await Guest.findOne({ phone }).lean();
     if (!guest) return res.status(404).json({ error: "Guest not found" });
 
     const orders = await Order.find({
-      guestPhone: req.params.phone,
+      guestPhone: phone,
       businessId: scopedBusinessId,
     })
       .sort({ createdAt: -1 })
@@ -138,10 +155,8 @@ async function lookupGuest(req, res, next) {
     const rawPhone = String(req.query.phone || "").trim();
     if (!rawPhone) return res.status(400).json({ error: "phone is required" });
 
-    // Accept both 10-digit and +91-prefixed numbers
-    const phone = rawPhone.startsWith("+")
-      ? rawPhone
-      : `+91${rawPhone.replace(/\D/g, "").slice(-10)}`;
+    const phone = normalizePhone(rawPhone);
+    if (!phone) return res.status(400).json({ error: "Invalid phone number" });
 
     const guest = await Guest.findOne({ phone }).select("name phone").lean();
     if (!guest) return res.status(404).json({ error: "Guest not found" });
@@ -172,9 +187,14 @@ async function placeOrder(req, res, next) {
 
     const requestedGuestName = String(data.guestName || "").trim();
 
+    const guestPhone = normalizePhone(req.params.phone);
+    if (!guestPhone) {
+      return res.status(400).json({ error: "Invalid phone number" });
+    }
+
     let resolvedGuestName = requestedGuestName;
     if (!resolvedGuestName) {
-      const guestProfile = await Guest.findOne({ phone: req.params.phone })
+      const guestProfile = await Guest.findOne({ phone: guestPhone })
         .select("name")
         .lean();
       resolvedGuestName =
@@ -194,7 +214,7 @@ async function placeOrder(req, res, next) {
       businessId: scopedBusinessId,
       tableId: data.tableId || null,
       guestName: resolvedGuestName,
-      guestPhone: req.params.phone,
+      guestPhone,
       orderType: data.orderType || "Dine-in",
       source: "QR",
       status: "Pending",
@@ -219,7 +239,7 @@ async function placeOrder(req, res, next) {
           $set: {
             status: "Occupied",
             guestName: resolvedGuestName,
-            guestPhone: req.params.phone,
+            guestPhone,
           },
         },
       );
@@ -227,7 +247,7 @@ async function placeOrder(req, res, next) {
 
     // Update guest stats
     await Guest.findOneAndUpdate(
-      { phone: req.params.phone },
+      { phone: guestPhone },
       {
         $push: { orderHistory: order._id },
         $inc: { visitCount: 1, totalSpent: total },

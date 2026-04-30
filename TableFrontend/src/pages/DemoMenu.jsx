@@ -146,7 +146,7 @@ function buildTableIdCandidates(tableId) {
 const VegIcon = ({ size = 14 }) => (
   <span
     style={{ width: size, height: size, borderColor: "#16a34a" }}
-    className="border-2 rounded-[3px] flex items-center justify-center flex-shrink-0"
+    className="border-2 rounded-[3px] flex items-center justify-center shrink-0"
   >
     <span
       style={{
@@ -161,7 +161,7 @@ const VegIcon = ({ size = 14 }) => (
 const NonVegIcon = ({ size = 14 }) => (
   <span
     style={{ width: size, height: size, borderColor: "#dc2626" }}
-    className="border-2 rounded-[3px] flex items-center justify-center flex-shrink-0"
+    className="border-2 rounded-[3px] flex items-center justify-center shrink-0"
   >
     <span
       className="w-0 h-0"
@@ -445,13 +445,13 @@ const ScratchCard = ({
       <div className="mt-2.5">
         <div className="w-full bg-gray-200 rounded-full h-2">
           <motion.div
-            className="bg-[#e8720c] h-2 rounded-full"
+            className="bg-saffron h-2 rounded-full"
             initial={{ width: 0 }}
             animate={{ width: `${Math.min(scratchedPercent, 100)}%` }}
             transition={{ duration: 0.3 }}
           />
         </div>
-        <div className="text-center text-[11px] text-[#857c6e] mt-1.5">
+        <div className="text-center text-[11px] text-muted mt-1.5">
           {isComplete
             ? "🎉 Reward Revealed!"
             : `Scratch Progress: ${Math.round(scratchedPercent)}%`}
@@ -1207,7 +1207,7 @@ export default function DemoMenu() {
 
   if (!isJoined) {
     return (
-      <div className="relative min-h-[100dvh] bg-[#0f0e0b]">
+      <div className="relative min-h-dvh bg-ink">
         {/* Hero image — top portion only */}
         <div className="absolute top-0 left-0 right-0 h-[42vh] overflow-hidden">
           <img
@@ -1218,7 +1218,7 @@ export default function DemoMenu() {
           <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(12,11,9,0.18)_0%,rgba(12,11,9,0.55)_60%,rgba(12,11,9,1)_100%)]" />
         </div>
 
-        <div className="relative z-10 flex min-h-[100dvh] flex-col justify-between p-5 sm:p-8">
+        <div className="relative z-10 flex min-h-dvh flex-col justify-between p-5 sm:p-8">
           <div className="flex items-start justify-between gap-4 text-white">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-white/70">
@@ -1237,8 +1237,8 @@ export default function DemoMenu() {
             </div>
           </div>
 
-          <div className="w-full max-w-md rounded-[2rem] border border-white/15 bg-white/92 p-6 shadow-[0_24px_90px_rgba(0,0,0,0.28)] backdrop-blur-md sm:p-7">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#e8720c]">
+          <div className="w-full max-w-md rounded-4xl border border-white/15 bg-white/92 p-6 shadow-[0_24px_90px_rgba(0,0,0,0.28)] backdrop-blur-md sm:p-7">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-saffron">
               Guest Entry
             </p>
             <h2 className="mt-3 text-2xl font-bold text-gray-900 sm:text-3xl">
@@ -1270,7 +1270,7 @@ export default function DemoMenu() {
                 <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-gray-500">
                   Phone Number
                 </label>
-                <div className="flex overflow-hidden rounded-2xl border border-gray-200 bg-white focus-within:border-[#e8720c] focus-within:ring-1 focus-within:ring-[#e8720c] transition-all">
+                <div className="flex overflow-hidden rounded-2xl border border-gray-200 bg-white focus-within:border-saffron focus-within:ring-1 focus-within:ring-saffron transition-all">
                   <div className="flex items-center border-r border-gray-200 bg-gray-50 px-4 py-4 text-sm font-semibold text-gray-500">
                     +91
                   </div>
@@ -1296,7 +1296,7 @@ export default function DemoMenu() {
               <button
                 type="submit"
                 disabled={joinLoading || guestPhone.length < 10}
-                className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#e8720c] py-4 font-bold text-white shadow-lg transition-colors hover:bg-[#d4620a] disabled:opacity-60"
+                className="flex w-full items-center justify-center gap-2 rounded-2xl bg-saffron py-4 font-bold text-white shadow-lg transition-colors hover:bg-saffron2 disabled:opacity-60"
               >
                 {joinLoading ? (
                   <span className="h-5 w-5 rounded-full border-2 border-white border-t-transparent animate-spin" />
@@ -1308,7 +1308,7 @@ export default function DemoMenu() {
               </button>
             </form>
 
-            <div className="mt-5 flex items-center justify-between rounded-2xl bg-[#faf7f2] px-4 py-3 text-xs text-gray-500">
+            <div className="mt-5 flex items-center justify-between rounded-2xl bg-paper px-4 py-3 text-xs text-gray-500">
               <span>Session saved for this table</span>
               <span className="font-semibold text-gray-700">
                 {restaurantProfile.tableLabel}
@@ -1377,14 +1377,14 @@ export default function DemoMenu() {
         </AnimatePresence>
 
         {/* ── Hero image ────────────────────────────────────────────────── */}
-        <div className="relative h-40 w-full bg-gray-900 flex-shrink-0">
+        <div className="relative h-40 w-full bg-gray-900 shrink-0">
           <img
             src={restaurantProfile.heroImage}
             alt={restaurantDisplayName}
             className="w-full h-full object-cover"
           />
           {/* gradient: dark at top for buttons, dark at bottom for social row */}
-          <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/65" />
+          <div className="absolute inset-0 bg-linear-to-b from-black/40 via-transparent to-black/65" />
 
           {/* Top controls */}
           <button
@@ -1553,7 +1553,7 @@ export default function DemoMenu() {
               </span>
               <div className="flex-1 h-1.5 bg-orange-100 rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-[#e8720c] rounded-full transition-all"
+                  className="h-full bg-saffron rounded-full transition-all"
                   style={{ width: `${(visitCount / 5) * 100}%` }}
                 />
               </div>
@@ -1562,7 +1562,7 @@ export default function DemoMenu() {
               `reward_claimed_${restaurantScopeKey}_${guestPhone}`,
             ) ? (
             <div className="mt-3 bg-orange-50 rounded-xl px-3 py-2 flex items-center gap-2">
-              <Star size={14} className="text-[#e8720c] fill-[#e8720c]" />
+              <Star size={14} className="text-saffron fill-saffron" />
               <span className="text-xs text-orange-600 font-semibold">
                 Reward unlocked! Place an order to claim.
               </span>
@@ -1573,7 +1573,7 @@ export default function DemoMenu() {
         {/* ── Search bar ────────────────────────────────────────────────── */}
         <div className="bg-white px-4 py-3 border-b border-gray-100">
           <div className="flex items-center gap-2 bg-gray-100 rounded-full px-4 py-2.5">
-            <Search size={15} className="text-gray-400 flex-shrink-0" />
+            <Search size={15} className="text-gray-400 shrink-0" />
             <input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -1664,7 +1664,7 @@ export default function DemoMenu() {
                             alt={item.name}
                             loading="lazy"
                             decoding="async"
-                            className="w-full aspect-[4/3] object-cover cursor-pointer"
+                            className="w-full aspect-4/3 object-cover cursor-pointer"
                             onClick={() => setSelectedItem(item)}
                           />
                           {item.popular && (
@@ -1688,7 +1688,7 @@ export default function DemoMenu() {
                               >
                                 <Minus size={13} strokeWidth={2.5} />
                               </button>
-                              <span className="text-sm font-bold text-gray-800 min-w-[16px] text-center">
+                              <span className="text-sm font-bold text-gray-800 min-w-4 text-center">
                                 {cart[item.id]}
                               </span>
                               <button
@@ -1754,7 +1754,7 @@ export default function DemoMenu() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[70] bg-black/60 backdrop-blur-[2px]"
+              className="fixed inset-0 z-70 bg-black/60 backdrop-blur-[2px]"
               onClick={() => setSelectedItem(null)}
             />
           )}
@@ -1765,7 +1765,7 @@ export default function DemoMenu() {
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 28, stiffness: 220 }}
-              className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md z-[71] bg-white rounded-t-3xl overflow-hidden shadow-2xl"
+              className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md z-71 bg-white rounded-t-3xl overflow-hidden shadow-2xl"
             >
               {/* Close pill */}
               <button
@@ -1881,11 +1881,11 @@ export default function DemoMenu() {
               className="fixed bottom-6 left-0 w-full px-4 z-50 pointer-events-none"
             >
               <div className="max-w-md mx-auto pointer-events-auto ">
-                <div className="bg-[#e8720c] rounded-xl shadow-[0_8px_24px_rgba(232,114,12,0.35)] px-3 py-2.5 mx-2 flex items-center justify-between text-white">
+                <div className="bg-saffron rounded-xl shadow-[0_8px_24px_rgba(232,114,12,0.35)] px-3 py-2.5 mx-2 flex items-center justify-between text-white">
                   <div className="flex items-center gap-2.5">
                     <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center relative">
                       <ShoppingBag size={16} />
-                      <span className="absolute -top-1 -right-1 w-4 h-4 bg-[#0f0e0b] rounded-full flex items-center justify-center text-[9px] font-bold">
+                      <span className="absolute -top-1 -right-1 w-4 h-4 bg-ink rounded-full flex items-center justify-center text-[9px] font-bold">
                         {totalItems}
                       </span>
                     </div>
@@ -1900,7 +1900,7 @@ export default function DemoMenu() {
                   </div>
                   <button
                     onClick={() => setShowCart(true)}
-                    className="flex items-center gap-1.5 font-bold text-xs bg-[#faf7f2] text-[#e8720c] px-4 py-2 rounded-lg hover:bg-white transition-colors shadow-sm"
+                    className="flex items-center gap-1.5 font-bold text-xs bg-paper text-saffron px-4 py-2 rounded-lg hover:bg-white transition-colors shadow-sm"
                   >
                     View Cart
                     <ArrowLeft size={13} className="rotate-180" />
@@ -1919,11 +1919,11 @@ export default function DemoMenu() {
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="fixed inset-0 z-[60] flex justify-center bg-black/60 backdrop-blur-sm"
+              className="fixed inset-0 z-60 flex justify-center bg-black/60 backdrop-blur-sm"
             >
-              <div className="w-full max-w-md h-[100dvh] bg-[#faf7f2] flex flex-col relative overflow-hidden shadow-2xl">
+              <div className="w-full max-w-md h-dvh bg-paper flex flex-col relative overflow-hidden shadow-2xl">
                 {/* Checkout Header */}
-                <div className="px-4 py-4 border-b border-[#e0d9ce] bg-white flex items-center gap-3 shrink-0">
+                <div className="px-4 py-4 border-b border-border bg-white flex items-center gap-3 shrink-0">
                   <button
                     onClick={() => {
                       if (orderPlaced) {
@@ -1937,11 +1937,11 @@ export default function DemoMenu() {
                         setShowCart(false);
                       }
                     }}
-                    className="w-10 h-10 rounded-full bg-[#f5f0e8] flex items-center justify-center text-[#0f0e0b] hover:bg-[#e0d9ce] transition-colors"
+                    className="w-10 h-10 rounded-full bg-cream flex items-center justify-center text-ink hover:bg-border transition-colors"
                   >
                     <ArrowLeft size={20} />
                   </button>
-                  <h2 className="font-bold text-xl text-[#0f0e0b]">
+                  <h2 className="font-bold text-xl text-ink">
                     Your Order {guestName ? `• ${guestName.split(" ")[0]}` : ""}
                   </h2>
                 </div>
@@ -1956,7 +1956,7 @@ export default function DemoMenu() {
                     >
                       <div className="bg-white/70 backdrop-blur-md rounded-2xl p-3 shadow-sm border border-white/60 space-y-2">
                         <div>
-                          <label className="block text-[10px] font-bold text-[#857c6e] uppercase tracking-wide mb-1.5">
+                          <label className="block text-[10px] font-bold text-muted uppercase tracking-wide mb-1.5">
                             Your Name
                           </label>
                           <input
@@ -1964,10 +1964,10 @@ export default function DemoMenu() {
                             value={guestName}
                             onChange={(e) => setGuestName(e.target.value)}
                             placeholder="E.g. Rahul"
-                            className="w-full px-3 py-2.5 text-base bg-[#faf7f2] border border-[#e0d9ce] rounded-xl focus:outline-none focus:border-[#e8720c]"
+                            className="w-full px-3 py-2.5 text-base bg-paper border border-border rounded-xl focus:outline-none focus:border-saffron"
                           />
                         </div>
-                        <p className="text-[11px] text-[#857c6e]">
+                        <p className="text-[11px] text-muted">
                           Name will be used in order and invoice details.
                         </p>
                       </div>
@@ -1983,7 +1983,7 @@ export default function DemoMenu() {
                               className="flex justify-between items-center gap-3"
                             >
                               <div className="flex items-center gap-3 flex-1 min-w-0 pr-2">
-                                <div className="w-14 h-14 rounded-xl overflow-hidden shrink-0 border border-[#e0d9ce] bg-[#faf7f2]">
+                                <div className="w-14 h-14 rounded-xl overflow-hidden shrink-0 border border-border bg-paper">
                                   <img
                                     src={item.img}
                                     alt={item.name}
@@ -2009,28 +2009,28 @@ export default function DemoMenu() {
                                         }}
                                       />
                                     </span>
-                                    <h4 className="font-bold text-[#0f0e0b] text-sm leading-tight truncate">
+                                    <h4 className="font-bold text-ink text-sm leading-tight truncate">
                                       {item.name}
                                     </h4>
                                   </div>
-                                  <p className="font-semibold text-xs text-[#857c6e]">
+                                  <p className="font-semibold text-xs text-muted">
                                     ₹{item.price} x {qty}
                                   </p>
                                 </div>
                               </div>
-                              <div className="flex items-center gap-3 bg-[#f5f0e8] rounded-lg p-1 px-2 border border-[#e0d9ce]">
+                              <div className="flex items-center gap-3 bg-cream rounded-lg p-1 px-2 border border-border">
                                 <button
                                   onClick={() => removeFromCart(item.id)}
-                                  className="text-[#e8720c] p-1"
+                                  className="text-saffron p-1"
                                 >
                                   <Minus size={14} />
                                 </button>
-                                <span className="font-bold text-sm text-[#0f0e0b] w-4 text-center">
+                                <span className="font-bold text-sm text-ink w-4 text-center">
                                   {qty}
                                 </span>
                                 <button
                                   onClick={() => addToCart(item.id)}
-                                  className="text-[#e8720c] p-1"
+                                  className="text-saffron p-1"
                                 >
                                   <Plus size={14} />
                                 </button>
@@ -2041,12 +2041,12 @@ export default function DemoMenu() {
                       </div>
 
                       {recommendedItems.length > 0 ? (
-                        <div className="bg-white rounded-2xl p-4 shadow-sm border border-[#e0d9ce]">
+                        <div className="bg-white rounded-2xl p-4 shadow-sm border border-border">
                           <div className="flex items-center justify-between mb-3">
-                            <h3 className="font-bold text-[#0f0e0b]">
+                            <h3 className="font-bold text-ink">
                               Recommended Order
                             </h3>
-                            <span className="text-[11px] font-semibold text-[#857c6e]">
+                            <span className="text-[11px] font-semibold text-muted">
                               Add more
                             </span>
                           </div>
@@ -2054,7 +2054,7 @@ export default function DemoMenu() {
                             {recommendedItems.map((item) => (
                               <div
                                 key={item.id}
-                                className="w-[148px] min-w-[148px] rounded-xl border border-[#e0d9ce] bg-[#faf7f2] p-2.5 shrink-0 snap-start"
+                                className="w-[148px] min-w-[148px] rounded-xl border border-border bg-paper p-2.5 shrink-0 snap-start"
                               >
                                 <div className="w-full h-20 rounded-lg overflow-hidden mb-2">
                                   <img
@@ -2081,17 +2081,17 @@ export default function DemoMenu() {
                                       }}
                                     />
                                   </span>
-                                  <p className="text-xs font-bold text-[#0f0e0b] truncate">
+                                  <p className="text-xs font-bold text-ink truncate">
                                     {item.name}
                                   </p>
                                 </div>
                                 <div className="flex items-center justify-between gap-2 mt-2">
-                                  <span className="text-xs font-semibold text-[#857c6e]">
+                                  <span className="text-xs font-semibold text-muted">
                                     ₹{item.price}
                                   </span>
                                   <button
                                     onClick={() => addToCart(item.id)}
-                                    className="px-2.5 py-1 rounded-md bg-[#e8720c] text-white text-[11px] font-bold"
+                                    className="px-2.5 py-1 rounded-md bg-saffron text-white text-[11px] font-bold"
                                   >
                                     Add
                                   </button>
@@ -2102,9 +2102,9 @@ export default function DemoMenu() {
                         </div>
                       ) : null}
 
-                      <div className="bg-white rounded-2xl p-3 shadow-sm border border-[#e0d9ce] space-y-3">
+                      <div className="bg-white rounded-2xl p-3 shadow-sm border border-border space-y-3">
                         <div>
-                          <h3 className="font-bold text-[15px] text-[#0f0e0b] mb-1.5">
+                          <h3 className="font-bold text-[15px] text-ink mb-1.5">
                             Offers
                           </h3>
                           <div className="space-y-2">
@@ -2116,13 +2116,13 @@ export default function DemoMenu() {
                               return (
                                 <div
                                   key={offer.code || offer.title}
-                                  className={`rounded-xl border px-2.5 py-2 flex items-center justify-between gap-2.5 ${isSelected ? "bg-[#fef0e4] border-[#e8720c]/40" : "bg-[#faf7f2] border-[#e0d9ce]"}`}
+                                  className={`rounded-xl border px-2.5 py-2 flex items-center justify-between gap-2.5 ${isSelected ? "bg-saffron-lt border-saffron/40" : "bg-paper border-border"}`}
                                 >
                                   <div className="min-w-0">
-                                    <p className="font-bold text-[13px] text-[#0f0e0b] leading-tight">
+                                    <p className="font-bold text-[13px] text-ink leading-tight">
                                       {offer.title}
                                     </p>
-                                    <p className="text-[10px] text-[#857c6e] leading-tight mt-0.5">
+                                    <p className="text-[10px] text-muted leading-tight mt-0.5">
                                       {offer.subtitle} • Min ₹
                                       {offer.minSubtotal}
                                     </p>
@@ -2140,7 +2140,7 @@ export default function DemoMenu() {
                                       }
                                     }}
                                     disabled={!eligible && !isSelected}
-                                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold whitespace-nowrap ${isSelected ? "bg-[#e8720c] text-white" : "bg-[#0f0e0b] text-white"} disabled:bg-[#e0d9ce] disabled:text-[#857c6e]`}
+                                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold whitespace-nowrap ${isSelected ? "bg-saffron text-white" : "bg-ink text-white"} disabled:bg-border disabled:text-muted`}
                                   >
                                     {isSelected ? "Remove" : "Apply"}
                                   </button>
@@ -2151,7 +2151,7 @@ export default function DemoMenu() {
                         </div>
 
                         <div>
-                          <h3 className="font-bold text-[15px] text-[#0f0e0b] mb-2">
+                          <h3 className="font-bold text-[15px] text-ink mb-2">
                             Coupon Code
                           </h3>
                           <div className="flex gap-1.5">
@@ -2162,17 +2162,17 @@ export default function DemoMenu() {
                                 if (couponError) setCouponError("");
                               }}
                               placeholder="Enter code"
-                              className="flex-1 px-2.5 py-2 text-sm bg-[#faf7f2] border border-[#e0d9ce] rounded-lg focus:outline-none focus:border-[#e8720c]"
+                              className="flex-1 px-2.5 py-2 text-sm bg-paper border border-border rounded-lg focus:outline-none focus:border-saffron"
                             />
                             <button
                               onClick={applyCouponCode}
-                              className="px-3 py-2 rounded-lg bg-[#0f0e0b] text-white font-bold text-xs"
+                              className="px-3 py-2 rounded-lg bg-ink text-white font-bold text-xs"
                             >
                               Apply
                             </button>
                           </div>
                           {appliedCoupon ? (
-                            <p className="text-xs font-bold text-[#3a6348] mt-2">
+                            <p className="text-xs font-bold text-sage mt-2">
                               Applied: {appliedCoupon}
                             </p>
                           ) : null}
@@ -2185,27 +2185,27 @@ export default function DemoMenu() {
                       </div>
 
                       {/* Bill Summary */}
-                      <div className="bg-white rounded-2xl p-4 shadow-sm border border-[#e0d9ce]">
-                        <h3 className="font-bold text-[#0f0e0b] mb-3">
+                      <div className="bg-white rounded-2xl p-4 shadow-sm border border-border">
+                        <h3 className="font-bold text-ink mb-3">
                           Bill Details
                         </h3>
                         <div className="space-y-2 text-sm">
-                          <div className="flex justify-between font-medium text-[#857c6e]">
+                          <div className="flex justify-between font-medium text-muted">
                             <span>Item Total</span>
                             <span>₹{totalPrice}</span>
                           </div>
-                          <div className="flex justify-between font-medium text-[#857c6e]">
+                          <div className="flex justify-between font-medium text-muted">
                             <span>
                               Discount{" "}
                               {selectedOffer ? `(${selectedOffer}%)` : ""}
                             </span>
                             <span>-₹{discountAmount}</span>
                           </div>
-                          <div className="flex justify-between font-medium text-[#857c6e]">
+                          <div className="flex justify-between font-medium text-muted">
                             <span>Taxes & Fees (5%)</span>
                             <span>₹{taxAmount}</span>
                           </div>
-                          <div className="border-t border-dashed border-[#e0d9ce] my-2 pt-3 flex justify-between font-black text-lg text-[#0f0e0b]">
+                          <div className="border-t border-dashed border-border my-2 pt-3 flex justify-between font-black text-lg text-ink">
                             <span>Grand Total</span>
                             <span>₹{grandTotal}</span>
                           </div>
@@ -2230,12 +2230,12 @@ export default function DemoMenu() {
                         }}
                         className={`w-14 h-14 rounded-full flex items-center justify-center mb-2 ${
                           canShowPayment
-                            ? "bg-[#fff7ed] text-[#e8720c] shadow-[0_4px_30px_rgba(232,114,12,0.2)]"
+                            ? "bg-[#fff7ed] text-saffron shadow-[0_4px_30px_rgba(232,114,12,0.2)]"
                             : orderStatus >= 2
-                              ? "bg-[#e8f2eb] text-[#3a6348] shadow-[0_4px_30px_rgba(58,99,72,0.2)]"
+                              ? "bg-sage-lt text-sage shadow-[0_4px_30px_rgba(58,99,72,0.2)]"
                               : orderStatus === 1
-                                ? "bg-[#fff7ed] text-[#e8720c] shadow-[0_4px_30px_rgba(232,114,12,0.2)]"
-                                : "bg-[#e8f2eb] text-[#3a6348] shadow-[0_4px_30px_rgba(58,99,72,0.2)]"
+                                ? "bg-[#fff7ed] text-saffron shadow-[0_4px_30px_rgba(232,114,12,0.2)]"
+                                : "bg-sage-lt text-sage shadow-[0_4px_30px_rgba(58,99,72,0.2)]"
                         }`}
                       >
                         {canShowPayment ? (
@@ -2333,7 +2333,7 @@ export default function DemoMenu() {
                         initial={{ opacity: 0, y: 6 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.3 }}
-                        className="text-xl font-display font-bold text-[#0f0e0b] mt-1"
+                        className="text-xl font-display font-bold text-ink mt-1"
                       >
                         {isPaymentDone
                           ? `Payment Received${guestName ? `, ${guestName.split(" ")[0]}` : ""}!`
@@ -2345,14 +2345,14 @@ export default function DemoMenu() {
                                 ? `Almost Ready${guestName ? `, ${guestName.split(" ")[0]}` : ""}!`
                                 : `Order Placed${guestName ? `, ${guestName.split(" ")[0]}` : ""}!`}
                       </motion.h2>
-                      <p className="font-bold text-[#e8720c] bg-[#fef0e4] px-4 py-1.5 rounded-md text-sm inline-block tracking-wider">
+                      <p className="font-bold text-saffron bg-saffron-lt px-4 py-1.5 rounded-md text-sm inline-block tracking-wider">
                         ORDER #{orderNo}
                       </p>
-                      <div className="w-full bg-white rounded-3xl shadow-sm border border-[#e0d9ce] mt-2 text-left relative overflow-hidden">
+                      <div className="w-full bg-white rounded-3xl shadow-sm border border-border mt-2 text-left relative overflow-hidden">
                         {/* Top progress bar */}
-                        <div className="absolute top-0 left-0 w-full h-1 bg-[#f5f0e8]">
+                        <div className="absolute top-0 left-0 w-full h-1 bg-cream">
                           <motion.div
-                            className="h-full bg-[#e8720c]"
+                            className="h-full bg-saffron"
                             initial={{ width: "0%" }}
                             animate={{
                               width:
@@ -2384,10 +2384,10 @@ export default function DemoMenu() {
                               </svg>
                             </div>
                             <div>
-                              <p className="font-bold text-base text-[#0f0e0b]">
+                              <p className="font-bold text-base text-ink">
                                 Payment Completed
                               </p>
-                              <p className="text-xs text-[#857c6e] mt-0.5 leading-relaxed">
+                              <p className="text-xs text-muted mt-0.5 leading-relaxed">
                                 This order is already paid at counter.
                               </p>
                             </div>
@@ -2411,17 +2411,17 @@ export default function DemoMenu() {
                               </svg>
                             </div>
                             <div>
-                              <p className="font-bold text-base text-[#0f0e0b]">
+                              <p className="font-bold text-base text-ink">
                                 Order Served 🎉
                               </p>
-                              <p className="text-xs text-[#857c6e] mt-0.5 leading-relaxed">
+                              <p className="text-xs text-muted mt-0.5 leading-relaxed">
                                 Your food is on the table. Scroll down to pay.
                               </p>
                             </div>
                           </div>
                         ) : (
                           <div className="p-6">
-                            <p className="text-[10px] font-bold text-[#857c6e] uppercase tracking-wider mb-5 mt-1">
+                            <p className="text-[10px] font-bold text-muted uppercase tracking-wider mb-5 mt-1">
                               Live Status
                             </p>
 
@@ -2442,11 +2442,11 @@ export default function DemoMenu() {
                                 <div key={step} className="relative pl-9">
                                   {/* Connector line */}
                                   {step < 2 && (
-                                    <div className="absolute left-[7px] top-[22px] w-[2px] h-[calc(100%+4px)] bg-[#f5f0e8]" />
+                                    <div className="absolute left-[7px] top-[22px] w-[2px] h-[calc(100%+4px)] bg-cream" />
                                   )}
                                   {/* Dot */}
                                   {done ? (
-                                    <div className="absolute left-0 top-1 w-4 h-4 rounded-full bg-[#3a6348] flex items-center justify-center">
+                                    <div className="absolute left-0 top-1 w-4 h-4 rounded-full bg-sage flex items-center justify-center">
                                       <svg
                                         viewBox="0 0 24 24"
                                         fill="none"
@@ -2478,10 +2478,10 @@ export default function DemoMenu() {
                                       style={{ backgroundColor: activeColor }}
                                     />
                                   ) : (
-                                    <div className="absolute left-0 top-1 w-4 h-4 rounded-full bg-[#e0d9ce]" />
+                                    <div className="absolute left-0 top-1 w-4 h-4 rounded-full bg-border" />
                                   )}
                                   <h4
-                                    className={`font-semibold text-base transition-colors duration-500 mb-5 ${done || active ? "text-[#0f0e0b]" : "text-[#b5afa6]"}`}
+                                    className={`font-semibold text-base transition-colors duration-500 mb-5 ${done || active ? "text-ink" : "text-[#b5afa6]"}`}
                                   >
                                     {label}
                                     {active && (
@@ -2503,32 +2503,32 @@ export default function DemoMenu() {
                       {canShowPayment ? (
                         <div
                           ref={paymentSectionRef}
-                          className="w-full bg-white rounded-2xl p-5 shadow-[0_8px_30px_rgba(0,0,0,0.06)] border border-[#e0d9ce] mt-4 z-10 relative text-left"
+                          className="w-full bg-white rounded-2xl p-5 shadow-[0_8px_30px_rgba(0,0,0,0.06)] border border-border mt-4 z-10 relative text-left"
                         >
-                          <p className="font-bold text-[#0f0e0b] mb-3 text-[15px]">
+                          <p className="font-bold text-ink mb-3 text-[15px]">
                             Payment Option
                           </p>
 
                           <div className="flex items-center gap-2 mb-3">
                             <button
                               onClick={() => setPaymentMode("Online")}
-                              className={`px-3 py-1.5 rounded-lg text-xs font-bold border ${paymentMode === "Online" ? "bg-[#e8720c] text-white border-[#e8720c]" : "bg-[#faf7f2] text-[#0f0e0b] border-[#e0d9ce]"}`}
+                              className={`px-3 py-1.5 rounded-lg text-xs font-bold border ${paymentMode === "Online" ? "bg-saffron text-white border-saffron" : "bg-paper text-ink border-border"}`}
                             >
                               Online
                             </button>
                             <button
                               onClick={() => setPaymentMode("Cash")}
-                              className={`px-3 py-1.5 rounded-lg text-xs font-bold border ${paymentMode === "Cash" ? "bg-[#e8720c] text-white border-[#e8720c]" : "bg-[#faf7f2] text-[#0f0e0b] border-[#e0d9ce]"}`}
+                              className={`px-3 py-1.5 rounded-lg text-xs font-bold border ${paymentMode === "Cash" ? "bg-saffron text-white border-saffron" : "bg-paper text-ink border-border"}`}
                             >
                               Cash
                             </button>
                           </div>
 
-                          <div className="rounded-xl border border-[#e0d9ce] bg-[#faf7f2] px-3 py-2.5 mb-3">
-                            <p className="text-[11px] text-[#857c6e] font-semibold uppercase tracking-wide">
+                          <div className="rounded-xl border border-border bg-paper px-3 py-2.5 mb-3">
+                            <p className="text-[11px] text-muted font-semibold uppercase tracking-wide">
                               Amount to Pay
                             </p>
-                            <p className="text-xl font-black text-[#0f0e0b] mt-0.5">
+                            <p className="text-xl font-black text-ink mt-0.5">
                               ₹{placedOrderAmount}
                             </p>
                           </div>
@@ -2536,13 +2536,13 @@ export default function DemoMenu() {
                           {paymentMode === "Online" ? (
                             <>
                               {upiDeepLink ? (
-                                <div className="rounded-xl border border-[#e0d9ce] bg-white p-3 text-center">
+                                <div className="rounded-xl border border-border bg-white p-3 text-center">
                                   <img
                                     src={upiQrImage}
                                     alt="UPI QR"
                                     className="w-36 h-36 mx-auto object-contain"
                                   />
-                                  <p className="text-[11px] text-[#857c6e] mt-2">
+                                  <p className="text-[11px] text-muted mt-2">
                                     Scan QR or tap Pay button to open UPI app
                                   </p>
                                 </div>
@@ -2554,13 +2554,13 @@ export default function DemoMenu() {
 
                               <a
                                 href={upiDeepLink || undefined}
-                                className={`mt-3 w-full inline-flex items-center justify-center text-sm font-bold px-4 py-3 rounded-xl ${upiDeepLink ? "bg-[#0f0e0b] text-white hover:bg-[#25231f]" : "bg-[#e0d9ce] text-[#857c6e] pointer-events-none"}`}
+                                className={`mt-3 w-full inline-flex items-center justify-center text-sm font-bold px-4 py-3 rounded-xl ${upiDeepLink ? "bg-ink text-white hover:bg-[#25231f]" : "bg-border text-muted pointer-events-none"}`}
                               >
                                 Pay with UPI App
                               </a>
                             </>
                           ) : (
-                            <p className="text-xs text-[#857c6e] font-semibold">
+                            <p className="text-xs text-muted font-semibold">
                               Please pay this amount at the counter.
                             </p>
                           )}
@@ -2576,9 +2576,9 @@ export default function DemoMenu() {
                             stiffness: 300,
                             damping: 20,
                           }}
-                          className="w-full bg-white rounded-2xl p-5 shadow-[0_8px_30px_rgba(0,0,0,0.06)] border border-[#e0d9ce] mt-4 z-10 relative"
+                          className="w-full bg-white rounded-2xl p-5 shadow-[0_8px_30px_rgba(0,0,0,0.06)] border border-border mt-4 z-10 relative"
                         >
-                          <p className="font-bold text-[#0f0e0b] mb-4 text-[15px]">
+                          <p className="font-bold text-ink mb-4 text-[15px]">
                             Rate your experience ✨
                           </p>
                           <div className="flex justify-center gap-2 mb-2">
@@ -2589,7 +2589,7 @@ export default function DemoMenu() {
                                 className="focus:outline-none transition-transform hover:scale-125 active:scale-90"
                               >
                                 <Star
-                                  className={`transition-colors duration-300 ${rating >= star ? "fill-[#e8720c] text-[#e8720c]" : "text-[#d4cbb8]"}`}
+                                  className={`transition-colors duration-300 ${rating >= star ? "fill-saffron text-saffron" : "text-[#d4cbb8]"}`}
                                   size={32}
                                   strokeWidth={1.5}
                                 />
@@ -2600,7 +2600,7 @@ export default function DemoMenu() {
                             <motion.p
                               initial={{ opacity: 0, y: 5 }}
                               animate={{ opacity: 1, y: 0 }}
-                              className="text-xs text-[#3a6348] font-bold mt-3 bg-[#e8f2eb] inline-block px-3 py-1.5 rounded-md"
+                              className="text-xs text-sage font-bold mt-3 bg-sage-lt inline-block px-3 py-1.5 rounded-md"
                             >
                               Thanks for your feedback! ❤️
                             </motion.p>
@@ -2619,7 +2619,7 @@ export default function DemoMenu() {
                           setShowCart(false);
                           setRating(0);
                         }}
-                        className="mt-4 w-full text-[#e8720c] font-bold text-sm bg-[#fef0e4] px-6 py-3.5 rounded-xl transition-colors hover:bg-[#fde8e8] hover:shadow-sm"
+                        className="mt-4 w-full text-saffron font-bold text-sm bg-saffron-lt px-6 py-3.5 rounded-xl transition-colors hover:bg-[#fde8e8] hover:shadow-sm"
                       >
                         Start New Order
                       </button>
@@ -2629,11 +2629,11 @@ export default function DemoMenu() {
 
                 {/* Sticky Bottom Place Order */}
                 {!orderPlaced && (
-                  <div className="absolute bottom-0 left-0 w-full p-4 bg-white border-t border-[#e0d9ce] shrink-0 text-center">
+                  <div className="absolute bottom-0 left-0 w-full p-4 bg-white border-t border-border shrink-0 text-center">
                     <button
                       onClick={handlePlaceOrder}
                       disabled={!guestName.trim()}
-                      className="w-full bg-[#e8720c] disabled:bg-[#e0d9ce] disabled:text-[#857c6e] text-white py-3.5 rounded-xl font-bold text-sm shadow-[0_4px_20px_rgba(232,114,12,0.3)] hover:bg-[#d4620a] transition-colors flex items-center justify-center gap-2"
+                      className="w-full bg-saffron disabled:bg-border disabled:text-muted text-white py-3.5 rounded-xl font-bold text-sm shadow-[0_4px_20px_rgba(232,114,12,0.3)] hover:bg-saffron2 transition-colors flex items-center justify-center gap-2"
                     >
                       Place Order • ₹{grandTotal}{" "}
                       <ArrowLeft size={18} className="rotate-180" />
@@ -2653,7 +2653,7 @@ export default function DemoMenu() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="fixed inset-0 bg-black/40 z-[75]"
+                className="fixed inset-0 bg-black/40 z-75"
                 onClick={() => setShowProfile(false)}
               />
               <motion.div
@@ -2661,7 +2661,7 @@ export default function DemoMenu() {
                 animate={{ y: 0 }}
                 exit={{ y: "100%" }}
                 transition={{ type: "spring", damping: 24, stiffness: 210 }}
-                className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-white rounded-t-3xl z-[76] border-t border-gray-200"
+                className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-white rounded-t-3xl z-76 border-t border-gray-200"
               >
                 <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
                   <p className="text-sm font-bold text-gray-900">
@@ -2677,7 +2677,7 @@ export default function DemoMenu() {
 
                 <div className="p-4 space-y-3 max-h-[70vh] overflow-y-auto">
                   <div className="rounded-2xl border border-gray-200 p-3 flex items-center gap-3 bg-gray-50">
-                    <div className="w-11 h-11 rounded-full bg-[#e8720c] text-white font-bold flex items-center justify-center text-lg">
+                    <div className="w-11 h-11 rounded-full bg-saffron text-white font-bold flex items-center justify-center text-lg">
                       {guestInitial}
                     </div>
                     <div className="min-w-0">
@@ -2797,15 +2797,15 @@ export default function DemoMenu() {
               className="bg-white rounded-3xl max-w-sm w-full p-6 text-center relative"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="w-20 h-20 bg-gradient-to-br from-[#e8720c] to-[#d4620a] rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
+              <div className="w-20 h-20 bg-linear-to-br from-[#e8720c] to-[#d4620a] rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
                 <Star className="w-10 h-10 text-white fill-white" />
               </div>
 
-              <h3 className="text-2xl font-bold text-[#0f0e0b] mb-2 font-display">
+              <h3 className="text-2xl font-bold text-ink mb-2 font-display">
                 🎉 Congratulations!
               </h3>
 
-              <p className="text-[#857c6e] text-sm mb-6 leading-relaxed">
+              <p className="text-muted text-sm mb-6 leading-relaxed">
                 You've visited us {visitCount} times! Scratch to reveal your
                 FREE reward!
               </p>
@@ -2828,7 +2828,7 @@ export default function DemoMenu() {
                 }}
               >
                 {/* Scratch Layer */}
-                <div className="w-full h-full bg-gradient-to-br from-[#e8720c] via-[#f97316] to-[#d4620a] rounded-xl flex items-center justify-center relative overflow-hidden">
+                <div className="w-full h-full bg-linear-to-br from-[#e8720c] via-[#f97316] to-[#d4620a] rounded-xl flex items-center justify-center relative overflow-hidden">
                   <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse"></div>
                   <div className="text-white text-center z-10">
                     <div className="text-3xl">🎁</div>
@@ -2836,7 +2836,7 @@ export default function DemoMenu() {
                 </div>
 
                 {/* Reward Layer */}
-                <div className="w-full h-full bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex flex-col items-center justify-center text-white relative overflow-hidden">
+                <div className="w-full h-full bg-linear-to-br from-green-500 to-green-600 rounded-xl flex flex-col items-center justify-center text-white relative overflow-hidden">
                   <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
                   <div className="text-center z-10">
                     <div className="text-3xl mb-2">🎉</div>
@@ -2851,14 +2851,14 @@ export default function DemoMenu() {
                 </div>
               </ScratchCard>
 
-              <p className="text-[#857c6e] text-xs mt-4 leading-relaxed">
+              <p className="text-muted text-xs mt-4 leading-relaxed">
                 Scratch the card above to claim your free{" "}
                 {rewardItem?.name || "dish"}!
               </p>
 
               <button
                 onClick={() => setShowReward(false)}
-                className="absolute top-4 right-4 w-8 h-8 rounded-full bg-[#faf7f2] flex items-center justify-center text-[#857c6e] hover:bg-[#f0ebe0] transition-colors"
+                className="absolute top-4 right-4 w-8 h-8 rounded-full bg-paper flex items-center justify-center text-muted hover:bg-[#f0ebe0] transition-colors"
               >
                 ✕
               </button>

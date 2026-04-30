@@ -484,7 +484,7 @@ export default function PosSystem() {
                       key={table.id}
                       onClick={() => handleTableClick(table)}
                       whileTap={{ scale: 0.96 }}
-                      className={`relative flex flex-col items-center justify-center gap-1.5 rounded-xl border font-semibold transition-all hover:shadow-md min-h-[110px] ${
+                      className={`relative flex flex-col items-center justify-center gap-1.5 rounded-xl border font-semibold transition-all hover:shadow-md min-h-27.5 ${
                         table.status === "Occupied" && orderInfo
                           ? "pt-8 pb-4 px-4"
                           : "p-4"

@@ -10,6 +10,7 @@ const { sendOtpEmail } = require("../utils/mailer");
 
 const OTP_EXPIRY_MINUTES = 10;
 const OTP_MAX_ATTEMPTS = 5;
+const OTP_HASH_ROUNDS = 6;
 
 function normalizePhone(value) {
   return String(value || "").replace(/\D/g, "");
@@ -23,6 +24,29 @@ function normalizeEmail(value) {
 
 function generateOtpCode() {
   return String(Math.floor(100000 + Math.random() * 900000));
+}
+
+async function issueEmailOtp(email, purpose) {
+  const otp = generateOtpCode();
+  const otpHash = await bcrypt.hash(otp, OTP_HASH_ROUNDS);
+  const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
+
+  await EmailOtp.create({
+    email,
+    purpose,
+    otpHash,
+    expiresAt,
+  });
+
+  setImmediate(() => {
+    sendOtpEmail({ to: email, otp, purpose }).catch((err) => {
+      console.error(`OTP email send failed for ${email}:`, err.message);
+    });
+  });
+
+  return {
+    expiresInSeconds: OTP_EXPIRY_MINUTES * 60,
+  };
 }
 
 function assertOtpVerifiedToken(token, expectedPurpose, expectedEmail) {
@@ -123,34 +147,17 @@ async function requestEmailOtp(req, res, next) {
       const waitMs =
         60000 - (Date.now() - new Date(recentOtp.createdAt).getTime());
       const retryAfterSeconds = Math.max(1, Math.ceil(waitMs / 1000));
-      return res
-        .status(429)
-        .json({
-          error: "Please wait before requesting another OTP",
-          retryAfterSeconds,
-        });
+      return res.status(429).json({
+        error: "Please wait before requesting another OTP",
+        retryAfterSeconds,
+      });
     }
 
-    const otp = generateOtpCode();
-    const otpHash = await bcrypt.hash(otp, 10);
-    const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
-
-    await EmailOtp.create({
-      email: normalizedEmail,
-      purpose,
-      otpHash,
-      expiresAt,
-    });
-
-    await sendOtpEmail({
-      to: normalizedEmail,
-      otp,
-      purpose,
-    });
+    const { expiresInSeconds } = await issueEmailOtp(normalizedEmail, purpose);
 
     res.json({
       success: true,
-      expiresInSeconds: OTP_EXPIRY_MINUTES * 60,
+      expiresInSeconds,
     });
   } catch (err) {
     next(err);
@@ -441,35 +448,18 @@ async function requestLoginOtp(req, res, next) {
       const waitMs =
         60000 - (Date.now() - new Date(recentOtp.createdAt).getTime());
       const retryAfterSeconds = Math.max(1, Math.ceil(waitMs / 1000));
-      return res
-        .status(429)
-        .json({
-          error: "Please wait before requesting another OTP",
-          retryAfterSeconds,
-        });
+      return res.status(429).json({
+        error: "Please wait before requesting another OTP",
+        retryAfterSeconds,
+      });
     }
 
-    const otp = generateOtpCode();
-    const otpHash = await bcrypt.hash(otp, 10);
-    const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
-
-    await EmailOtp.create({
-      email: normalizedEmail,
-      purpose: "login",
-      otpHash,
-      expiresAt,
-    });
-
-    await sendOtpEmail({
-      to: normalizedEmail,
-      otp,
-      purpose: "login",
-    });
+    const { expiresInSeconds } = await issueEmailOtp(normalizedEmail, "login");
 
     res.json({
       success: true,
       resolvedEmail: normalizedEmail,
-      expiresInSeconds: OTP_EXPIRY_MINUTES * 60,
+      expiresInSeconds,
     });
   } catch (err) {
     next(err);
@@ -673,30 +663,18 @@ async function requestPhoneLoginOtp(req, res, next) {
       const waitMs =
         60000 - (Date.now() - new Date(recentOtp.createdAt).getTime());
       const retryAfterSeconds = Math.max(1, Math.ceil(waitMs / 1000));
-      return res
-        .status(429)
-        .json({
-          error: "Please wait before requesting another OTP",
-          retryAfterSeconds,
-        });
+      return res.status(429).json({
+        error: "Please wait before requesting another OTP",
+        retryAfterSeconds,
+      });
     }
 
-    const otp = generateOtpCode();
-    const otpHash = await bcrypt.hash(otp, 10);
-    const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
-
-    await EmailOtp.create({
-      email: normalizedEmail,
-      purpose: "login",
-      otpHash,
-      expiresAt,
-    });
-    await sendOtpEmail({ to: normalizedEmail, otp, purpose: "login" });
+    const { expiresInSeconds } = await issueEmailOtp(normalizedEmail, "login");
 
     res.json({
       success: true,
       resolvedEmail: normalizedEmail,
-      expiresInSeconds: OTP_EXPIRY_MINUTES * 60,
+      expiresInSeconds,
     });
   } catch (err) {
     next(err);

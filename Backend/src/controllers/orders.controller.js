@@ -24,11 +24,26 @@ function buildTableIdCandidates(rawTableId) {
   return Array.from(set);
 }
 
+function normalizeTableId(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return null;
+
+  const digits = raw.replace(/\D/g, "");
+  if (!digits) return raw;
+
+  const n = Number(digits);
+  if (!Number.isFinite(n) || n <= 0) return raw;
+  return `T-${String(n).padStart(2, "0")}`;
+}
+
+/**
+ * Canonical phone format: +91XXXXXXXXXX — must stay in sync with guests.controller.js
+ */
 function normalizeGuestPhone(value) {
   const digits = String(value || "").replace(/\D/g, "");
-  if (!digits) return null;
   const last10 = digits.slice(-10);
-  return last10.length === 10 ? last10 : null;
+  if (last10.length !== 10) return null;
+  return `+91${last10}`;
 }
 
 /**
@@ -139,8 +154,13 @@ async function getAll(req, res, next) {
       .limit(Number(limit))
       .lean();
 
+    const normalizedOrders = orders.map((order) => ({
+      ...order,
+      tableId: normalizeTableId(order.tableId),
+    }));
+
     const total = await Order.countDocuments(query);
-    res.json({ orders, total });
+    res.json({ orders: normalizedOrders, total });
   } catch (err) {
     next(err);
   }
@@ -153,7 +173,10 @@ async function getOne(req, res, next) {
       businessId: req.user.businessId,
     }).lean();
     if (!order) return res.status(404).json({ error: "Order not found" });
-    res.json(order);
+    res.json({
+      ...order,
+      tableId: normalizeTableId(order.tableId),
+    });
   } catch (err) {
     next(err);
   }
@@ -164,6 +187,7 @@ async function create(req, res, next) {
     const data = createOrderSchema.parse(req.body);
     const { discountPct = 0 } = data;
     const normalizedGuestPhone = normalizeGuestPhone(data.guestPhone);
+    const normalizedTableId = normalizeTableId(data.tableId);
 
     const business = await Business.findById(req.user.businessId)
       .select("gstPct taxPct")
@@ -190,7 +214,7 @@ async function create(req, res, next) {
     const order = await Order.create({
       businessId: req.user.businessId,
       userId: req.user.userId,
-      tableId: data.tableId || null,
+      tableId: normalizedTableId,
       roomId: data.roomId || null,
       guestName: data.guestName || "Guest",
       guestPhone: normalizedGuestPhone,

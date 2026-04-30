@@ -66,6 +66,9 @@ function getTransporter() {
   }
 
   cachedTransporter = nodemailer.createTransport({
+    pool: true,
+    maxConnections: 5,
+    maxMessages: 100,
     host: cfg.host,
     port: cfg.port,
     secure: cfg.secure,

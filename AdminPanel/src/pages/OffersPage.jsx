@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Plus,
@@ -8,7 +8,7 @@ import {
   Trash2,
   PencilLine,
 } from "lucide-react";
-import DatePicker from "react-datepicker";
+const DatePicker = lazy(() => import("react-datepicker"));
 import "react-datepicker/dist/react-datepicker.css";
 import {
   createOffer,
@@ -242,24 +242,36 @@ export default function OffersPage() {
             </div>
 
             <label className="block text-sm">
-              <span className="block text-muted mb-1">Expiry Date</span>
-              <DatePicker
-                selected={form.expiresAt}
-                onChange={(date) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    expiresAt: date,
-                  }))
+              <span className="block text-muted mb-1">Expiry Date</span>{" "}
+              <Suspense
+                fallback={
+                  <input
+                    type="text"
+                    placeholder="Select expiry date"
+                    className="w-full rounded-lg border border-border bg-white px-3 py-2.5 text-sm"
+                    disabled
+                  />
                 }
-                minDate={new Date()}
-                isClearable
-                placeholderText="Select expiry date"
-                dateFormat="dd MMM yyyy"
-                wrapperClassName="w-full"
-                popperClassName="z-[80]"
-                popperPlacement="bottom-start"
-                className="w-full rounded-lg border border-border bg-white px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-saffron/30"
-              />
+              >
+                {" "}
+                <DatePicker
+                  selected={form.expiresAt}
+                  onChange={(date) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      expiresAt: date,
+                    }))
+                  }
+                  minDate={new Date()}
+                  isClearable
+                  placeholderText="Select expiry date"
+                  dateFormat="dd MMM yyyy"
+                  wrapperClassName="w-full"
+                  popperClassName="z-80"
+                  popperPlacement="bottom-start"
+                  className="w-full rounded-lg border border-border bg-white px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-saffron/30"
+                />
+              </Suspense>
             </label>
           </div>
 

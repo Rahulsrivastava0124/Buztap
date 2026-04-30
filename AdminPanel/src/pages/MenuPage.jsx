@@ -10,6 +10,7 @@ import {
   Flame,
   Clock,
   Tag,
+  Star,
   X,
   ToggleLeft,
   ToggleRight,
@@ -279,7 +280,7 @@ function ItemModal({ item, categories, onClose, onSave, saving }) {
             </label>
             <div className="flex items-center gap-3">
               {/* Preview */}
-              <div className="w-20 h-20 rounded-xl border border-border bg-paper flex items-center justify-center overflow-hidden flex-shrink-0">
+              <div className="w-20 h-20 rounded-xl border border-border bg-paper flex items-center justify-center overflow-hidden shrink-0">
                 {form.image ? (
                   <img
                     src={form.image}
@@ -369,15 +370,15 @@ function ItemModal({ item, categories, onClose, onSave, saving }) {
             <button
               type="button"
               onClick={() => set("isVeg", !form.isVeg)}
-              className="flex items-center gap-2 text-sm font-medium"
+              className="flex items-center gap-2.5 text-sm font-medium"
             >
               {form.isVeg ? (
-                <ToggleRight size={22} className="text-green-500" />
+                <ToggleRight size={28} className="text-green-500" />
               ) : (
-                <ToggleLeft size={22} className="text-muted" />
+                <ToggleLeft size={28} className="text-muted" />
               )}
               <Leaf
-                size={14}
+                size={16}
                 className={form.isVeg ? "text-green-500" : "text-muted"}
               />
               Vegetarian
@@ -385,12 +386,12 @@ function ItemModal({ item, categories, onClose, onSave, saving }) {
             <button
               type="button"
               onClick={() => set("isAvailable", !form.isAvailable)}
-              className="flex items-center gap-2 text-sm font-medium"
+              className="flex items-center gap-2.5 text-sm font-medium"
             >
               {form.isAvailable ? (
-                <ToggleRight size={22} className="text-saffron" />
+                <ToggleRight size={28} className="text-saffron" />
               ) : (
-                <ToggleLeft size={22} className="text-muted" />
+                <ToggleLeft size={28} className="text-muted" />
               )}
               Available
             </button>
@@ -496,6 +497,7 @@ export default function MenuPage() {
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
   const [modal, setModal] = useState(null); // null | { mode: 'add'|'edit'|'delete', item? }
+  const [favoriteItemIds, setFavoriteItemIds] = useState(new Set());
 
   const categories = useMemo(() => {
     const cats = [...new Set(items.map((i) => i.category))].sort();
@@ -558,6 +560,15 @@ export default function MenuPage() {
     updateMut.mutate({
       id: item.id,
       payload: { isAvailable: !item.isAvailable },
+    });
+  }
+
+  function toggleFavorite(itemId) {
+    setFavoriteItemIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(itemId)) next.delete(itemId);
+      else next.add(itemId);
+      return next;
     });
   }
 
@@ -653,7 +664,7 @@ export default function MenuPage() {
               }`}
             >
               {/* Image */}
-              <div className="relative h-24 rounded-t-xl overflow-hidden bg-paper">
+              <div className="relative h-32 rounded-t-xl overflow-hidden bg-paper">
                 {item.image ? (
                   <img
                     src={item.image}
@@ -670,16 +681,35 @@ export default function MenuPage() {
                 )}
                 {/* Veg badge */}
                 <span
-                  className={`absolute top-1.5 left-1.5 w-4 h-4 rounded border-2 flex items-center justify-center ${
+                  className={`absolute top-1.5 left-1.5 w-5 h-5 rounded border-2 flex items-center justify-center ${
                     item.isVeg
                       ? "border-green-600 bg-white"
                       : "border-red-600 bg-white"
                   }`}
                 >
                   <span
-                    className={`w-1.5 h-1.5 rounded-full ${item.isVeg ? "bg-green-600" : "bg-red-600"}`}
+                    className={`w-2 h-2 rounded-full ${item.isVeg ? "bg-green-600" : "bg-red-600"}`}
                   />
                 </span>
+                {/* Favorite toggle */}
+                <button
+                  title={
+                    favoriteItemIds.has(item.id)
+                      ? "Remove from favorites"
+                      : "Add to favorites"
+                  }
+                  onClick={() => toggleFavorite(item.id)}
+                  className="absolute top-1.5 right-9 p-1 rounded-lg bg-white/90 shadow-sm hover:bg-white transition-colors"
+                >
+                  <Star
+                    size={13}
+                    className={
+                      favoriteItemIds.has(item.id)
+                        ? "fill-saffron text-saffron"
+                        : "text-muted"
+                    }
+                  />
+                </button>
                 {/* Availability toggle */}
                 <button
                   title={
@@ -706,10 +736,6 @@ export default function MenuPage() {
                     ₹{item.price.toLocaleString()}
                   </span>
                 </div>
-
-                <span className="inline-block px-1.5 py-0.5 bg-paper rounded-full text-[10px] text-muted font-medium mb-1.5">
-                  {item.category}
-                </span>
 
                 <div className="flex items-center gap-2 text-[10px] text-muted">
                   <span className="flex items-center gap-0.5">

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { lazy, Suspense, useMemo, useState } from "react";
 import {
   Clock,
   Banknote,
@@ -21,17 +21,9 @@ import {
   ArrowUpRight,
   ArrowDownRight,
 } from "lucide-react";
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Filler,
-} from "chart.js";
-import { Line } from "react-chartjs-2";
+const TrendLineChart = lazy(
+  () => import("../components/shared/TrendLineChart"),
+);
 import { Navigate, Route, Routes, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -47,16 +39,6 @@ import KpiCard from "../components/shared/KpiCard";
 import OrderStatusBadge from "../components/shared/OrderStatusBadge";
 import ErrorBoundary from "../components/shared/ErrorBoundary";
 import PageShell from "../components/layout/PageShell";
-
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Filler,
-);
 
 const CHART_COLORS = {
   borderColor: "#e8720c",
@@ -648,7 +630,16 @@ export function OverviewTab() {
             </div>
           </div>
           <div className="w-full h-64 relative">
-            <Line data={buildChartData(revenueTrend)} options={chartOptions} />
+            <Suspense
+              fallback={
+                <div className="h-64 animate-pulse rounded-xl bg-paper" />
+              }
+            >
+              <TrendLineChart
+                data={buildChartData(revenueTrend)}
+                options={chartOptions}
+              />
+            </Suspense>
           </div>
         </div>
 
@@ -674,10 +665,16 @@ export function OverviewTab() {
             </div>
           </div>
           <div className="w-full h-64 relative">
-            <Line
-              data={buildVisitorChartData(visitorTrend)}
-              options={visitorChartOptions}
-            />
+            <Suspense
+              fallback={
+                <div className="h-64 animate-pulse rounded-xl bg-paper" />
+              }
+            >
+              <TrendLineChart
+                data={buildVisitorChartData(visitorTrend)}
+                options={visitorChartOptions}
+              />
+            </Suspense>
           </div>
         </div>
       </div>
@@ -970,10 +967,16 @@ function VisitorsTab() {
               <div className="bg-white border border-border rounded-xl p-4 lg:col-span-2">
                 <p className="text-sm font-bold text-ink mb-3">Visitor Trend</p>
                 <div className="h-64">
-                  <Line
-                    data={buildVisitorChartData(visitorTrend)}
-                    options={visitorChartOptions}
-                  />
+                  <Suspense
+                    fallback={
+                      <div className="h-64 animate-pulse rounded-xl bg-paper" />
+                    }
+                  >
+                    <TrendLineChart
+                      data={buildVisitorChartData(visitorTrend)}
+                      options={visitorChartOptions}
+                    />
+                  </Suspense>
                 </div>
               </div>
 
