@@ -356,8 +356,7 @@ function removeStoredValue(key: string) {
 
 function getFallbackBusinessProfile(): BusinessProfile {
   const businessType =
-    (getStoredValue("adminBusinessType") as "restro" | "hotel") ||
-    "restro";
+    (getStoredValue("adminBusinessType") as "restro" | "hotel") || "restro";
 
   return {
     id: "fallback-profile",
