@@ -353,13 +353,10 @@ async function getGuestOrders(req, res, next) {
     if (!normalizedPhone) {
       return res.status(400).json({ message: "Invalid phone number" });
     }
+    const last10 = normalizedPhone.slice(-10);
     // Support both normalized phone and older stored variants (+91..., 91...)
-    const phoneRegex = new RegExp(`(?:\\+?91[\\s-]*)?${normalizedPhone}$`);
-    const candidates = [
-      normalizedPhone,
-      `+91${normalizedPhone}`,
-      `91${normalizedPhone}`,
-    ];
+    const phoneRegex = new RegExp(`(?:\\+?91[\\s-]*)?${last10}$`);
+    const candidates = [normalizedPhone, `91${last10}`, last10];
 
     const rawOrders = await Order.find({
       businessId,

@@ -21,6 +21,7 @@ import {
   registerGuestVisitApi,
   fetchQrTable,
   fetchPublicOffers,
+  fetchGuestOrders,
   pollOrderStatus as pollOrderStatusApi,
   placeGuestOrder,
 } from "../services/api";
@@ -851,6 +852,62 @@ export default function DemoMenu() {
       setOrderHistory(history);
     }
   }, [isJoined, guestName, guestPhone]);
+
+  // Restore latest active backend order after guest logs in again
+  useEffect(() => {
+    if (!isJoined || isForcedDemo || guestPhone.length !== 10) return;
+    const bizId = String(resolvedBusinessId || currentBusinessId || "").trim();
+    if (!bizId) return;
+
+    let cancelled = false;
+
+    const restoreActiveOrder = async () => {
+      try {
+        const { orders = [] } = await fetchGuestOrders(guestPhone, bizId);
+        if (cancelled || !Array.isArray(orders) || orders.length === 0) return;
+
+        const latestRelevant =
+          orders.find((o) => String(o.status || "") !== "Cancelled") ||
+          orders[0];
+        if (!latestRelevant) return;
+
+        const backendStatus = String(latestRelevant.status || "Pending");
+        const paymentStatus = String(latestRelevant.paymentStatus || "Pending");
+
+        if (backendStatus === "Served" && paymentStatus === "Completed") {
+          return;
+        }
+
+        const restoredOrderNo = String(
+          latestRelevant.orderId || latestRelevant._id || "",
+        )
+          .replace(/^#/, "")
+          .trim();
+
+        setActiveOrderDbId(String(latestRelevant._id || ""));
+        setOrderNo(restoredOrderNo);
+        setPlacedOrderAmount(Number(latestRelevant.total || 0));
+        setOrderBackendStatus(backendStatus);
+        setOrderPaymentStatus(paymentStatus);
+        setOrderStatus(mapBackendStatusToStep(backendStatus));
+        setOrderPlaced(true);
+        setShowCart(true);
+      } catch {
+        // Non-blocking restore attempt
+      }
+    };
+
+    restoreActiveOrder();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    isJoined,
+    isForcedDemo,
+    guestPhone,
+    resolvedBusinessId,
+    currentBusinessId,
+  ]);
 
   const mapBackendStatusToStep = (status) => {
     if (status === "Ready" || status === "Served") return 2;

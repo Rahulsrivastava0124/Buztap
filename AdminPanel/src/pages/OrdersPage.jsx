@@ -512,6 +512,17 @@ function OrderDetailDrawer({ orderId, onClose }) {
 export default function OrdersPage() {
   const [selectedOrderId, setSelectedOrderId] = useState(null);
 
+  const formatGeneratedTime = (value) => {
+    if (!value) return "-";
+    const dt = new Date(value);
+    if (Number.isNaN(dt.getTime())) return "-";
+    return dt.toLocaleTimeString("en-IN", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
+  };
+
   const {
     data: orders = [],
     isLoading,
@@ -591,7 +602,7 @@ export default function OrdersPage() {
                   <th className="text-right py-3 px-5">Items</th>
                   <th className="text-right py-3 px-5">Amount</th>
                   <th className="text-left py-3 px-5">Status</th>
-                  <th className="text-right py-3 px-5">ETA</th>
+                  <th className="text-right py-3 px-5">Generated</th>
                 </tr>
               </thead>
               <tbody>
@@ -612,7 +623,9 @@ export default function OrdersPage() {
                     <td className="py-3 px-5">
                       <OrderStatusBadge status={row.status} />
                     </td>
-                    <td className="py-3 px-5 text-right">{row.eta}</td>
+                    <td className="py-3 px-5 text-right">
+                      {formatGeneratedTime(row.createdAt)}
+                    </td>
                   </tr>
                 ))}
               </tbody>

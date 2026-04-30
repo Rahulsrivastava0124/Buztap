@@ -133,12 +133,16 @@ async function getOrders(req, res, next) {
     const phone = normalizePhone(req.params.phone);
     if (!phone) return res.status(400).json({ error: "Invalid phone number" });
 
-    const guest = await Guest.findOne({ phone }).lean();
-    if (!guest) return res.status(404).json({ error: "Guest not found" });
+    const last10 = phone.slice(-10);
+    const phoneRegex = new RegExp(`(?:\\+?91[\\s-]*)?${last10}$`);
+    const phoneCandidates = [phone, `91${last10}`, last10];
 
     const orders = await Order.find({
-      guestPhone: phone,
       businessId: scopedBusinessId,
+      $or: [
+        { guestPhone: { $in: phoneCandidates } },
+        { guestPhone: { $regex: phoneRegex } },
+      ],
     })
       .sort({ createdAt: -1 })
       .limit(50)
