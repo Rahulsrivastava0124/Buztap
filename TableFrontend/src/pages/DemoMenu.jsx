@@ -866,6 +866,33 @@ export default function DemoMenu() {
         const { orders = [] } = await fetchGuestOrders(guestPhone, bizId);
         if (cancelled || !Array.isArray(orders) || orders.length === 0) return;
 
+        // Keep profile/history in sync with backend so logout/login restores data.
+        const backendHistory = orders.slice(0, 10).map((o) => ({
+          id: String(o.orderId || o._id || "").replace(/^#/, ""),
+          date: o.createdAt
+            ? new Date(o.createdAt).toLocaleString()
+            : new Date().toLocaleString(),
+          total: Number(o.total || 0),
+          items: Array.isArray(o.items) ? o.items.length : 0,
+          itemList: Array.isArray(o.items)
+            ? o.items.map((i) => ({
+                name: i?.name || "Item",
+                qty: Number(i?.quantity || 1),
+                price: Number(i?.price || 0),
+                total:
+                  Number(i?.total || 0) ||
+                  Number(i?.price || 0) * Number(i?.quantity || 1),
+              }))
+            : [],
+          status: String(o.status || "Placed"),
+          restaurantName: restaurantDisplayName,
+          tableName: restaurantProfile.tableLabel,
+          guestName: o.guestName || guestName || "Guest",
+          guestPhone,
+        }));
+        setOrderHistory(backendHistory);
+        saveOrderHistory(guestPhone, backendHistory);
+
         const latestRelevant =
           orders.find((o) => String(o.status || "") !== "Cancelled") ||
           orders[0];
@@ -1087,10 +1114,10 @@ export default function DemoMenu() {
   }, [offerOptions, selectedOffer, selectedOfferCode, totalPrice]);
 
   useEffect(() => {
-    if (totalItems === 0 && showCart) {
+    if (totalItems === 0 && showCart && !orderPlaced) {
       setShowCart(false);
     }
-  }, [totalItems, showCart]);
+  }, [totalItems, showCart, orderPlaced]);
 
   const handlePlaceOrder = async () => {
     if (!guestName.trim()) {
