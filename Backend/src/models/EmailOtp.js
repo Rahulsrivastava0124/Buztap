@@ -16,7 +16,7 @@ const emailOtpSchema = new Schema(
       index: true,
     },
     otpHash: { type: String, required: true },
-    expiresAt: { type: Date, required: true, index: true },
+    expiresAt: { type: Date, required: true },
     usedAt: { type: Date, default: null },
     attempts: { type: Number, default: 0 },
   },
