@@ -129,13 +129,14 @@ export default function ActiveOrderBanner({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [normalized, businessId]);
 
-  if (!visible || orders.length === 0) return null;
-
   const topOrder = orders[0];
+  const eta = useEstimatedTime(topOrder);
+
+  if (!visible || !topOrder) return null;
+
   const isPayable = isPayableOrder(topOrder);
   const cfg = STATUS_CONFIG[topOrder.status] || STATUS_CONFIG.Pending;
   const { Icon } = cfg;
-  const eta = useEstimatedTime(topOrder);
 
   return (
     <div className="fixed bottom-5 left-0 right-0 z-50 flex justify-center px-4 pointer-events-none">
@@ -150,7 +151,7 @@ export default function ActiveOrderBanner({
         }}
       >
         {/* Coloured top accent bar */}
-        <div className="h-[3px] w-full" style={{ background: cfg.accentBar }} />
+        <div className="h-0.75 w-full" style={{ background: cfg.accentBar }} />
 
         <div className="px-4 pt-3 pb-3">
           {/* Row 1: icon + text + CTA */}
@@ -177,7 +178,7 @@ export default function ActiveOrderBanner({
               >
                 {cfg.label}
               </p>
-              <p className="font-bold text-[14px] leading-tight text-[#0f0e0b]">
+              <p className="font-bold text-[14px] leading-tight text-ink">
                 #{stripHash(topOrder.orderId)}
               </p>
               {eta && (

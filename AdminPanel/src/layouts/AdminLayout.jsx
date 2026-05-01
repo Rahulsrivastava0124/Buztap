@@ -400,7 +400,7 @@ export default function AdminLayout() {
         className={`flex-1 flex flex-col min-w-0 transition-all ${compactSidebar ? "lg:pl-20" : "lg:pl-64"}`}
       >
         {/* Header */}
-        <header className="h-16 bg-white border-b border-border flex items-center justify-between px-4 sm:px-6 sticky top-0 z-10">
+        <header className="h-16 bg-white border-b border-border flex items-center justify-between px-4 sm:px-6 sticky top-0 z-40">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setMobileOpen(true)}
@@ -432,7 +432,7 @@ export default function AdminLayout() {
           </div>
 
           <div className="flex items-center gap-4">
-            <div className="relative" ref={notificationRef}>
+            <div className="relative z-50" ref={notificationRef}>
               <button
                 onClick={() => setShowNotifications((prev) => !prev)}
                 className="relative p-2 text-muted hover:bg-paper rounded-full transition-colors cursor-pointer"
@@ -447,7 +447,7 @@ export default function AdminLayout() {
               </button>
 
               {showNotifications ? (
-                <div className="absolute right-0 mt-2 w-80 bg-white border border-border rounded-xl shadow-[0_16px_38px_rgba(15,14,11,0.14)] z-30 overflow-hidden">
+                <div className="absolute right-0 mt-2 w-80 bg-white border border-border rounded-xl shadow-[0_16px_38px_rgba(15,14,11,0.14)] z-60 overflow-hidden">
                   <div className="px-4 py-3 border-b border-border flex items-center justify-between">
                     <p className="text-sm font-semibold text-ink">
                       Incoming Orders
