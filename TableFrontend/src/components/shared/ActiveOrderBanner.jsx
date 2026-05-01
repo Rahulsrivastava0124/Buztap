@@ -36,7 +36,7 @@ const STATUS_CONFIG = {
   },
   Served: {
     label: "Invoice Ready",
-    sublabel: "Please complete payment",
+    sublabel: "",
     Icon: Receipt,
     accentBar: "linear-gradient(90deg,#e8720c,#f4a84a)",
     iconBg: "#fff7ed",
@@ -161,7 +161,7 @@ export default function ActiveOrderBanner({
                   <button
                     type="button"
                     onClick={() => onOpenOrder?.(topOrder)}
-                    className="rounded-xl px-3 py-2 text-[11px] font-bold transition"
+                    className="rounded-xl px-4 py-2.5 text-[13px] font-bold transition"
                     style={{ background: "#f5f0e8", color: "#0f0e0b" }}
                   >
                     Status
@@ -169,7 +169,7 @@ export default function ActiveOrderBanner({
                   <button
                     type="button"
                     onClick={() => onPayInvoice?.(topOrder)}
-                    className="rounded-xl px-3 py-2 text-[11px] font-bold transition hover:brightness-95"
+                    className="rounded-xl px-4 py-2.5 text-[13px] font-bold transition hover:brightness-95"
                     style={{ background: "#e8720c", color: "#fff" }}
                   >
                     Pay

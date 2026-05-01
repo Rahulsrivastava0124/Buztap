@@ -1518,32 +1518,32 @@ export default function DemoMenu() {
                   url: window.location.href,
                 })
               }
-              className="w-8 h-8 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center text-white/90"
+              className="w-11 h-11 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center text-white/90"
             >
-              <Share2 size={15} />
+              <Share2 size={20} />
             </button>
             <button
               onClick={() => setShowProfile(true)}
-              className="w-8 h-8 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center text-white/90"
+              className="w-11 h-11 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center text-white/90"
               aria-label="Open guest profile"
             >
-              <User size={14} />
+              <User size={19} />
             </button>
           </div>
 
           {/* Bottom row: social icons + Google review */}
           <div className="absolute bottom-0 left-0 right-0 px-4 pb-3 pt-6 flex items-center justify-between bg-linear-to-t from-black/70 via-black/30 to-transparent backdrop-blur-[1px]">
             {/* Social icons */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               {/* Instagram */}
               <a
                 href={restaurantProfile.socialLinks.instagram}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-8 h-8 rounded-full bg-white/15 backdrop-blur-sm flex items-center justify-center hover:bg-white/25 transition-colors"
+                className="w-12 h-12 rounded-full bg-white/15 backdrop-blur-sm flex items-center justify-center hover:bg-white/25 transition-colors"
                 aria-label="Instagram"
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
                   <rect
                     x="2"
                     y="2"
@@ -1568,10 +1568,10 @@ export default function DemoMenu() {
                 href={restaurantProfile.socialLinks.facebook}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-8 h-8 rounded-full bg-white/15 backdrop-blur-sm flex items-center justify-center hover:bg-white/25 transition-colors"
+                className="w-12 h-12 rounded-full bg-white/15 backdrop-blur-sm flex items-center justify-center hover:bg-white/25 transition-colors"
                 aria-label="Facebook"
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="white">
                   <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" />
                 </svg>
               </a>
@@ -1580,10 +1580,10 @@ export default function DemoMenu() {
                 href={restaurantProfile.socialLinks.x}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-8 h-8 rounded-full bg-white/15 backdrop-blur-sm flex items-center justify-center hover:bg-white/25 transition-colors"
+                className="w-12 h-12 rounded-full bg-white/15 backdrop-blur-sm flex items-center justify-center hover:bg-white/25 transition-colors"
                 aria-label="Twitter"
               >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="white">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
                   <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
                 </svg>
               </a>
