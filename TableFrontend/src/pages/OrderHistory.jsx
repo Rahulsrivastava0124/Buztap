@@ -1,6 +1,13 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { ArrowLeft, ChevronLeft, ChevronRight, Download, History, Search } from "lucide-react";
+import {
+  ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  History,
+  Search,
+} from "lucide-react";
 import { fetchGuestOrders } from "../services/api";
 
 const formatCurrency = (value = 0) => `₹${Number(value || 0)}`;
@@ -351,8 +358,14 @@ export default function OrderHistory() {
 
   const PAGE_SIZE = 8;
   const [page, setPage] = useState(1);
-  const totalPages = Math.max(1, Math.ceil(normalizedOrders.length / PAGE_SIZE));
-  const pagedOrders = normalizedOrders.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const totalPages = Math.max(
+    1,
+    Math.ceil(normalizedOrders.length / PAGE_SIZE),
+  );
+  const pagedOrders = normalizedOrders.slice(
+    (page - 1) * PAGE_SIZE,
+    page * PAGE_SIZE,
+  );
 
   const downloadInvoice = (order) => {
     const invoiceContent = buildInvoiceDocument(order);
@@ -420,86 +433,88 @@ export default function OrderHistory() {
 
           {normalizedOrders.length > 0 ? (
             <>
-            <div className="space-y-2.5">
-              {pagedOrders.map((order) => (
-                <button
-                  key={order.id}
-                  type="button"
-                  onClick={() => setSelectedOrderId(order.id)}
-                  className="w-full text-left bg-white rounded-2xl px-4 py-4 border border-[#ece7de] active:scale-[0.99] transition-transform"
-                >
-                  {order.restaurantName ? (
-                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#c4602a] mb-2">
-                      {order.restaurantName}
-                    </p>
-                  ) : null}
-                  <div className="flex items-start justify-between gap-2 mb-3">
-                    <div>
-                      <p className="font-bold text-[#1a1814] text-[15px]">
-                        #{order.id}
+              <div className="space-y-2.5">
+                {pagedOrders.map((order) => (
+                  <button
+                    key={order.id}
+                    type="button"
+                    onClick={() => setSelectedOrderId(order.id)}
+                    className="w-full text-left bg-white rounded-2xl px-4 py-4 border border-[#ece7de] active:scale-[0.99] transition-transform"
+                  >
+                    {order.restaurantName ? (
+                      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#c4602a] mb-2">
+                        {order.restaurantName}
                       </p>
-                      <p className="text-[11px] text-[#a09080] mt-0.5">
-                        {order.date}
+                    ) : null}
+                    <div className="flex items-start justify-between gap-2 mb-3">
+                      <div>
+                        <p className="font-bold text-[#1a1814] text-[15px]">
+                          #{order.id}
+                        </p>
+                        <p className="text-[11px] text-[#a09080] mt-0.5">
+                          {order.date}
+                        </p>
+                      </div>
+                      <p className="font-bold text-[#1a1814] text-[15px]">
+                        ₹{order.total}
                       </p>
                     </div>
-                    <p className="font-bold text-[#1a1814] text-[15px]">
-                      ₹{order.total}
-                    </p>
-                  </div>
-                  <div className="flex items-center justify-between pt-3 border-t border-[#f0ebe0]">
-                    <p className="text-xs text-[#a09080]">
-                      {order.items} item{order.items !== 1 ? "s" : ""}
-                      {order.tableName ? ` · ${order.tableName}` : ""}
-                    </p>
-                    <span
-                      className={`text-[11px] font-semibold px-2.5 py-1 rounded-full ${statusStyle(order.status)}`}
-                    >
-                      {order.status}
-                    </span>
-                  </div>
-                </button>
-              ))}
-            </div>
-
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="flex items-center justify-between mt-5 px-1">
-                <button
-                  type="button"
-                  disabled={page === 1}
-                  onClick={() => setPage((p) => p - 1)}
-                  className="w-9 h-9 rounded-full bg-white border border-[#e8e2d8] flex items-center justify-center text-[#1a1814] disabled:opacity-30 disabled:cursor-not-allowed transition-opacity"
-                >
-                  <ChevronLeft size={17} strokeWidth={2} />
-                </button>
-
-                <div className="flex items-center gap-1.5">
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-                    <button
-                      key={p}
-                      type="button"
-                      onClick={() => setPage(p)}
-                      className={`w-8 h-8 rounded-full text-sm font-semibold transition-colors ${
-                        p === page
-                          ? "bg-saffron text-white"
-                          : "bg-white border border-[#e8e2d8] text-[#a09080] hover:border-saffron hover:text-saffron"
-                      }`}
-                    >
-                      {p}
-                    </button>
-                  ))}
-                </div>
-
-                <button
-                  type="button"
-                  disabled={page === totalPages}
-                  onClick={() => setPage((p) => p + 1)}
-                  className="w-9 h-9 rounded-full bg-white border border-[#e8e2d8] flex items-center justify-center text-[#1a1814] disabled:opacity-30 disabled:cursor-not-allowed transition-opacity"
-                >
-                  <ChevronRight size={17} strokeWidth={2} />
-                </button>
+                    <div className="flex items-center justify-between pt-3 border-t border-[#f0ebe0]">
+                      <p className="text-xs text-[#a09080]">
+                        {order.items} item{order.items !== 1 ? "s" : ""}
+                        {order.tableName ? ` · ${order.tableName}` : ""}
+                      </p>
+                      <span
+                        className={`text-[11px] font-semibold px-2.5 py-1 rounded-full ${statusStyle(order.status)}`}
+                      >
+                        {order.status}
+                      </span>
+                    </div>
+                  </button>
+                ))}
               </div>
-            )}
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between mt-5 px-1">
+                  <button
+                    type="button"
+                    disabled={page === 1}
+                    onClick={() => setPage((p) => p - 1)}
+                    className="w-9 h-9 rounded-full bg-white border border-[#e8e2d8] flex items-center justify-center text-[#1a1814] disabled:opacity-30 disabled:cursor-not-allowed transition-opacity"
+                  >
+                    <ChevronLeft size={17} strokeWidth={2} />
+                  </button>
+
+                  <div className="flex items-center gap-1.5">
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                      (p) => (
+                        <button
+                          key={p}
+                          type="button"
+                          onClick={() => setPage(p)}
+                          className={`w-8 h-8 rounded-full text-sm font-semibold transition-colors ${
+                            p === page
+                              ? "bg-saffron text-white"
+                              : "bg-white border border-[#e8e2d8] text-[#a09080] hover:border-saffron hover:text-saffron"
+                          }`}
+                        >
+                          {p}
+                        </button>
+                      ),
+                    )}
+                  </div>
+
+                  <button
+                    type="button"
+                    disabled={page === totalPages}
+                    onClick={() => setPage((p) => p + 1)}
+                    className="w-9 h-9 rounded-full bg-white border border-[#e8e2d8] flex items-center justify-center text-[#1a1814] disabled:opacity-30 disabled:cursor-not-allowed transition-opacity"
+                  >
+                    <ChevronRight size={17} strokeWidth={2} />
+                  </button>
+                </div>
+              )}
             </>
           ) : (
             <div className="text-center py-16">
