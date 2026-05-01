@@ -118,12 +118,18 @@ function SidebarContent({
           to={`/${slug}/dashboard/overview`}
           className={`flex items-center ${compactSidebar ? "justify-center" : "gap-2.5"}`}
         >
-          <span className="w-10 h-10 bg-saffron rounded-lg border border-saffron-lt overflow-hidden flex items-center justify-center shrink-0">
+          <span
+            className={`w-10 h-10 rounded-lg overflow-hidden flex items-center justify-center shrink-0 ${
+              logoImage
+                ? "bg-transparent border border-border/30"
+                : "bg-saffron border border-saffron-lt"
+            }`}
+          >
             {logoImage ? (
               <img
                 src={logoImage}
                 alt={brandName || "Restaurant logo"}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-contain"
               />
             ) : (
               <Utensils size={18} className="text-white" strokeWidth={2.2} />

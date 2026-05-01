@@ -559,6 +559,9 @@ export default function DemoMenu() {
   const [showBanner, setShowBanner] = useState(true);
   const paymentSectionRef = useRef(null);
   const lastScrollRef = useRef(0);
+  const scrollRafRef = useRef(0);
+  const scrolledRef = useRef(false);
+  const bannerVisibleRef = useRef(true);
 
   const hydrateOrderFromBackend = (order, { openSheet = true } = {}) => {
     if (!order) return;
@@ -630,6 +633,52 @@ export default function DemoMenu() {
     isDemoLink ? [...FOOD_ITEMS] : [],
   );
   const scrollRef = useRef(null);
+
+  useEffect(() => {
+    scrolledRef.current = scrolled;
+  }, [scrolled]);
+
+  useEffect(() => {
+    bannerVisibleRef.current = showBanner;
+  }, [showBanner]);
+
+  const handleMenuScroll = (event) => {
+    const el = event.currentTarget;
+    if (!el) return;
+    if (scrollRafRef.current) return;
+
+    scrollRafRef.current = requestAnimationFrame(() => {
+      const scrollTop = el.scrollTop;
+
+      const nextScrolled = scrollTop > 200;
+      if (nextScrolled !== scrolledRef.current) {
+        scrolledRef.current = nextScrolled;
+        setScrolled(nextScrolled);
+      }
+
+      const delta = scrollTop - lastScrollRef.current;
+      if (Math.abs(delta) > 6) {
+        const isScrollingDown = delta > 0;
+        // Keep banner visible near top; otherwise hide on down-scroll and show on up-scroll.
+        const nextBannerVisible = scrollTop < 64 ? true : !isScrollingDown;
+        if (nextBannerVisible !== bannerVisibleRef.current) {
+          bannerVisibleRef.current = nextBannerVisible;
+          setShowBanner(nextBannerVisible);
+        }
+        lastScrollRef.current = scrollTop;
+      }
+
+      scrollRafRef.current = 0;
+    });
+  };
+
+  useEffect(() => {
+    return () => {
+      if (scrollRafRef.current) {
+        cancelAnimationFrame(scrollRafRef.current);
+      }
+    };
+  }, []);
 
   const menuItems = liveMenuItems;
   const restaurantDisplayName =
@@ -1113,15 +1162,6 @@ export default function DemoMenu() {
         )
       : null;
 
-  // Scroll detection for sticky compact header
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const handler = () => setScrolled(el.scrollTop > 200);
-    el.addEventListener("scroll", handler, { passive: true });
-    return () => el.removeEventListener("scroll", handler);
-  }, [isJoined]);
-
   // Menu filtered & grouped by price
   const groupedItems = useMemo(() => {
     let items = menuItems;
@@ -1488,14 +1528,14 @@ export default function DemoMenu() {
         }}
       >
         {/* ── Sticky compact header (appears on scroll) ────────────────── */}
-        <AnimatePresence>
+        <AnimatePresence initial={false}>
           {scrolled && (
             <motion.div
               initial={{ y: -50, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: -50, opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-white border-b border-gray-100 z-50 shadow-sm"
+              transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
+              className="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-white border-b border-gray-100 z-50 shadow-sm will-change-transform"
             >
               <div className="flex items-center gap-3 px-4 py-3">
                 <button
@@ -1511,12 +1551,7 @@ export default function DemoMenu() {
                 </div>
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() =>
-                      scrollRef.current?.scrollTo({
-                        top: 280,
-                        behavior: "smooth",
-                      })
-                    }
+                    onScroll={handleMenuScroll}
                     className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-700"
                   >
                     <Search size={16} />
