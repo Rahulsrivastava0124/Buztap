@@ -45,6 +45,7 @@ export default function PosCheckout() {
     setTaxRates,
     setItemNotes,
     updateQty,
+    updateItemPortion,
     removeItem,
     clearCart,
     getTotals,
@@ -145,7 +146,9 @@ export default function PosCheckout() {
 
   const invoiceNumber = useMemo(() => {
     if (kotOrder?.orderId) return kotOrder.orderId;
-    const seed = `${locationLabel}-${selectedTable}-${orderType}-${cart.map((i) => `${i.id}:${i.qty}`).join("|")}-${subtotal.toFixed(2)}`;
+    const seed = `${locationLabel}-${selectedTable}-${orderType}-${cart
+      .map((i) => `${i.id}:${i.portion || "Full"}:${i.qty}`)
+      .join("|")}-${subtotal.toFixed(2)}`;
     let hash = 0;
     for (let i = 0; i < seed.length; i += 1) {
       hash = (hash * 31 + seed.charCodeAt(i)) % 1000000;
@@ -177,6 +180,7 @@ export default function PosCheckout() {
           name: item.name,
           quantity: item.qty,
           price: item.price,
+          portion: item.portion,
           notes: item.notes,
           modifiers: item.modifiers,
         })),
@@ -225,7 +229,7 @@ export default function PosCheckout() {
       "Items:",
       ...cart.map(
         (item) =>
-          `- ${item.name} x${item.qty} = ₹${(item.price * item.qty).toFixed(2)}${item.notes ? ` (${item.notes})` : ""}`,
+          `- ${item.name}${item.portion ? ` (${item.portion})` : ""} x${item.qty} = ₹${(item.price * item.qty).toFixed(2)}${item.notes ? ` (${item.notes})` : ""}`,
       ),
       "",
       `Subtotal: ₹${subtotal.toFixed(2)}`,
@@ -380,13 +384,23 @@ export default function PosCheckout() {
             <div className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
               {cart.map((item) => (
                 <div
-                  key={item.id}
+                  key={item.cartKey || item.id}
                   className="flex justify-between items-center py-2 border-b border-border last:border-0"
                 >
                   <div>
                     <p className="text-sm font-semibold text-ink">
                       {item.name}
                     </p>
+                    {item.portion && (
+                      <p className="text-[11px] text-saffron font-semibold mt-0.5">
+                        {item.portion}
+                      </p>
+                    )}
+                    {item.portion && (
+                      <p className="text-[11px] text-saffron font-semibold">
+                        {item.portion}
+                      </p>
+                    )}
                     {item.notes && (
                       <p className="text-xs text-muted italic">{item.notes}</p>
                     )}
@@ -527,7 +541,7 @@ export default function PosCheckout() {
             ) : (
               cart.map((item) => (
                 <div
-                  key={item.id}
+                  key={item.cartKey || item.id}
                   className="p-3 sm:p-4 rounded-xl border border-border bg-paper"
                 >
                   <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
@@ -536,11 +550,54 @@ export default function PosCheckout() {
                         {item.name}
                       </p>
                       <p className="text-xs text-muted mt-0.5">
-                        ₹{item.price} each
+                        {item.portion ? `${item.portion} • ` : ""}₹{item.price}{" "}
+                        each
                       </p>
+                      {Array.isArray(item.priceOptions) &&
+                        item.priceOptions.filter((opt) => {
+                          const label = String(opt?.label || "").toLowerCase();
+                          return label === "full" || label === "half";
+                        }).length > 1 && (
+                          <div className="flex items-center gap-1 mt-1.5">
+                            {item.priceOptions
+                              .filter((opt) => {
+                                const label = String(
+                                  opt?.label || "",
+                                ).toLowerCase();
+                                return label === "full" || label === "half";
+                              })
+                              .map((opt) => {
+                                const isActive =
+                                  String(item.portion || "").toLowerCase() ===
+                                  String(opt.label || "").toLowerCase();
+                                return (
+                                  <button
+                                    key={`${item.cartKey || item.id}-checkout-${opt.label}`}
+                                    type="button"
+                                    onClick={() =>
+                                      updateItemPortion(
+                                        item.cartKey || item.id,
+                                        opt.label,
+                                        Number(opt.price || item.price || 0),
+                                      )
+                                    }
+                                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                                      isActive
+                                        ? "bg-saffron-lt text-saffron border-saffron/50"
+                                        : "bg-white text-muted border-border"
+                                    }`}
+                                  >
+                                    {opt.label}
+                                  </button>
+                                );
+                              })}
+                          </div>
+                        )}
                       <input
                         value={item.notes || ""}
-                        onChange={(e) => setItemNotes(item.id, e.target.value)}
+                        onChange={(e) =>
+                          setItemNotes(item.cartKey || item.id, e.target.value)
+                        }
                         placeholder="Add note"
                         className="mt-2.5 w-full text-xs sm:text-sm border border-border rounded-md px-3 py-1.5 bg-white"
                       />
@@ -551,7 +608,7 @@ export default function PosCheckout() {
                       </p>
                       <div className="mt-2 flex items-center sm:justify-end gap-2">
                         <button
-                          onClick={() => updateQty(item.id, -1)}
+                          onClick={() => updateQty(item.cartKey || item.id, -1)}
                           className="h-8 w-8 rounded-md border border-border text-sm font-bold text-muted hover:text-ink"
                         >
                           -
@@ -560,13 +617,13 @@ export default function PosCheckout() {
                           {item.qty}
                         </span>
                         <button
-                          onClick={() => updateQty(item.id, 1)}
+                          onClick={() => updateQty(item.cartKey || item.id, 1)}
                           className="h-8 w-8 rounded-md border border-border text-sm font-bold text-muted hover:text-ink"
                         >
                           +
                         </button>
                         <button
-                          onClick={() => removeItem(item.id)}
+                          onClick={() => removeItem(item.cartKey || item.id)}
                           className="h-8 w-8 rounded-md text-red-500 hover:bg-red-50 flex items-center justify-center"
                         >
                           <Trash2 size={14} />

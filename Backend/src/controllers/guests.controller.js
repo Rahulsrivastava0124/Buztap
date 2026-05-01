@@ -59,6 +59,7 @@ const guestOrderSchema = z.object({
         name: z.string().min(1),
         quantity: z.number().int().positive(),
         price: z.number().positive(),
+        portion: z.string().optional(),
         notes: z.string().optional(),
       }),
     )

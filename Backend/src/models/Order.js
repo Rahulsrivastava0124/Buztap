@@ -6,6 +6,7 @@ const orderItemSchema = new Schema(
     name: { type: String, required: true },
     quantity: { type: Number, required: true, min: 1 },
     price: { type: Number, required: true },
+    portion: { type: String, default: "" },
     notes: { type: String, default: "" },
     modifiers: [{ type: String }],
     total: { type: Number, required: true },

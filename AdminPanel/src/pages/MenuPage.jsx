@@ -45,6 +45,10 @@ const EMPTY_FORM = {
   description: "",
   category: "",
   price: "",
+  isHalfAvailable: false,
+  halfPrice: "",
+  isPcsAvailable: false,
+  pcsPrice: "",
   cost: "",
   image: "",
   isVeg: true,
@@ -76,6 +80,28 @@ function ItemModal({ item, categories, onClose, onSave, saving }) {
           description: item.description,
           category: item.category,
           price: String(item.price),
+          isHalfAvailable: Boolean(
+            item.priceOptions?.find((opt) =>
+              String(opt.label).toLowerCase().includes("half"),
+            ),
+          ),
+          halfPrice: String(
+            item.priceOptions?.find((opt) =>
+              String(opt.label).toLowerCase().includes("half"),
+            )?.price ?? "",
+          ),
+          isPcsAvailable: Boolean(
+            item.priceOptions?.find((opt) => {
+              const label = String(opt.label).toLowerCase();
+              return label === "pcs" || label === "pc" || label.includes("pcs");
+            }),
+          ),
+          pcsPrice: String(
+            item.priceOptions?.find((opt) => {
+              const label = String(opt.label).toLowerCase();
+              return label === "pcs" || label === "pc" || label.includes("pcs");
+            })?.price ?? "",
+          ),
           cost: String(item.cost),
           image: item.image,
           isVeg: item.isVeg,
@@ -99,6 +125,12 @@ function ItemModal({ item, categories, onClose, onSave, saving }) {
 
   function set(field, value) {
     setForm((prev) => ({ ...prev, [field]: value }));
+  }
+
+  function toHalfPrice(value) {
+    const n = parseFloat(value);
+    if (!Number.isFinite(n) || n <= 0) return "";
+    return String(Math.round((n / 2) * 100) / 100);
   }
 
   async function handleImagePick(e) {
@@ -131,12 +163,23 @@ function ItemModal({ item, categories, onClose, onSave, saving }) {
     if (!form.category.trim()) return toast.error("Category is required");
     const price = parseFloat(form.price);
     if (!price || price <= 0) return toast.error("Enter a valid price");
+    const halfPrice = parseFloat(form.halfPrice);
+    const pcsPrice = parseFloat(form.pcsPrice);
+
+    const priceOptions = [{ label: "Full", price }];
+    if (form.isHalfAvailable && Number.isFinite(halfPrice) && halfPrice > 0) {
+      priceOptions.push({ label: "Half", price: halfPrice });
+    }
+    if (form.isPcsAvailable && Number.isFinite(pcsPrice) && pcsPrice > 0) {
+      priceOptions.push({ label: "Pcs", price: pcsPrice });
+    }
 
     onSave({
       name: form.name.trim(),
       description: form.description.trim(),
       category: form.category.trim(),
       price,
+      priceOptions,
       cost: parseFloat(form.cost) || 0,
       image: form.image.trim(),
       isVeg: form.isVeg,
@@ -252,7 +295,13 @@ function ItemModal({ item, categories, onClose, onSave, saving }) {
                 min="0"
                 step="0.5"
                 value={form.price}
-                onChange={(e) => set("price", e.target.value)}
+                onChange={(e) => {
+                  const nextPrice = e.target.value;
+                  set("price", nextPrice);
+                  if (form.isHalfAvailable) {
+                    set("halfPrice", toHalfPrice(nextPrice));
+                  }
+                }}
                 placeholder="0.00"
                 className="w-full border border-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-saffron/30 focus:border-saffron"
               />
@@ -270,6 +319,96 @@ function ItemModal({ item, categories, onClose, onSave, saving }) {
                 placeholder="0.00"
                 className="w-full border border-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-saffron/30 focus:border-saffron"
               />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-1.5">
+                Half Option
+              </label>
+              <div className="w-full border border-border rounded-xl px-3 py-2.5 flex items-center gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = !form.isHalfAvailable;
+                    set("isHalfAvailable", next);
+                    if (next) {
+                      set(
+                        "halfPrice",
+                        form.halfPrice || toHalfPrice(form.price),
+                      );
+                    } else {
+                      set("halfPrice", "");
+                    }
+                  }}
+                  className="shrink-0"
+                  title={form.isHalfAvailable ? "Disable half" : "Enable half"}
+                >
+                  {form.isHalfAvailable ? (
+                    <ToggleRight size={22} className="text-saffron" />
+                  ) : (
+                    <ToggleLeft size={22} className="text-muted" />
+                  )}
+                </button>
+                <span
+                  className={`text-xs font-semibold uppercase tracking-wide shrink-0 ${
+                    form.isHalfAvailable ? "text-ink" : "text-muted"
+                  }`}
+                >
+                  Half
+                </span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.5"
+                  value={form.halfPrice}
+                  onChange={(e) => set("halfPrice", e.target.value)}
+                  placeholder="Auto"
+                  disabled={!form.isHalfAvailable}
+                  className="w-full border border-border rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-saffron/30 focus:border-saffron disabled:bg-paper disabled:text-muted"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-1.5">
+                Pcs Option
+              </label>
+              <div className="w-full border border-border rounded-xl px-3 py-2.5 flex items-center gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = !form.isPcsAvailable;
+                    set("isPcsAvailable", next);
+                    if (!next) set("pcsPrice", "");
+                  }}
+                  className="shrink-0"
+                  title={form.isPcsAvailable ? "Disable pcs" : "Enable pcs"}
+                >
+                  {form.isPcsAvailable ? (
+                    <ToggleRight size={22} className="text-saffron" />
+                  ) : (
+                    <ToggleLeft size={22} className="text-muted" />
+                  )}
+                </button>
+                <span
+                  className={`text-xs font-semibold uppercase tracking-wide shrink-0 ${
+                    form.isPcsAvailable ? "text-ink" : "text-muted"
+                  }`}
+                >
+                  Pcs
+                </span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.5"
+                  value={form.pcsPrice}
+                  onChange={(e) => set("pcsPrice", e.target.value)}
+                  placeholder="Price"
+                  disabled={!form.isPcsAvailable}
+                  className="w-full border border-border rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-saffron/30 focus:border-saffron disabled:bg-paper disabled:text-muted"
+                />
+              </div>
             </div>
           </div>
 
@@ -736,6 +875,20 @@ export default function MenuPage() {
                     ₹{item.price.toLocaleString()}
                   </span>
                 </div>
+
+                {Array.isArray(item.priceOptions) &&
+                  item.priceOptions.length > 1 && (
+                    <p className="text-[10px] text-muted mt-0.5 line-clamp-1">
+                      {item.priceOptions
+                        .filter((opt) =>
+                          ["half", "pcs", "pc"].includes(
+                            String(opt.label).toLowerCase(),
+                          ),
+                        )
+                        .map((opt) => `${opt.label}: ₹${opt.price}`)
+                        .join(" • ")}
+                    </p>
+                  )}
 
                 <div className="flex items-center gap-2 text-[10px] text-muted">
                   <span className="flex items-center gap-0.5">

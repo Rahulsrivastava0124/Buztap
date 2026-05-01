@@ -12,6 +12,12 @@ const menuItemSchema = new Schema(
     description: { type: String, trim: true, default: "" },
     category: { type: String, required: true, trim: true },
     price: { type: Number, required: true, min: 0 },
+    priceOptions: [
+      {
+        label: { type: String, required: true, trim: true },
+        price: { type: Number, required: true, min: 0 },
+      },
+    ],
     cost: { type: Number, default: 0 }, // for margin calculation
     image: { type: String, default: "" },
     isVeg: { type: Boolean, default: true },

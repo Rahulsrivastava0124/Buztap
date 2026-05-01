@@ -117,6 +117,7 @@ export interface PosMenuItem {
   id: string;
   name: string;
   price: number;
+  priceOptions: Array<{ label: string; price: number }>;
   cat: string;
   img: string;
 }
@@ -284,6 +285,7 @@ export interface MenuItem {
   description: string;
   category: string;
   price: number;
+  priceOptions: Array<{ label: string; price: number }>;
   cost: number;
   image: string;
   isVeg: boolean;
@@ -298,6 +300,7 @@ export interface CreateMenuItemInput {
   description?: string;
   category: string;
   price: number;
+  priceOptions?: Array<{ label: string; price: number }>;
   cost?: number;
   image?: string;
   isVeg?: boolean;
@@ -312,6 +315,7 @@ export interface PosOrderItemInput {
   name: string;
   quantity: number;
   price: number;
+  portion?: string;
   notes?: string;
   modifiers?: string[];
 }
@@ -603,6 +607,16 @@ export async function fetchPosCatalog(): Promise<PosMenuItem[]> {
     id: item._id,
     name: item.name,
     price: Number(item.price || 0),
+    priceOptions: Array.isArray(item.priceOptions)
+      ? item.priceOptions
+          .map((opt: any) => ({
+            label: String(opt?.label || "").trim(),
+            price: Number(opt?.price || 0),
+          }))
+          .filter((opt: { label: string; price: number }) =>
+            Boolean(opt.label && opt.price > 0),
+          )
+      : [],
     cat: item.category || "Uncategorized",
     img: item.image || "",
   }));
@@ -851,12 +865,24 @@ export async function createPosOrder(
 }
 
 function mapMenuItem(item: any): MenuItem {
+  const priceOptions = Array.isArray(item.priceOptions)
+    ? item.priceOptions
+        .map((opt: any) => ({
+          label: String(opt?.label || "").trim(),
+          price: Number(opt?.price || 0),
+        }))
+        .filter((opt: { label: string; price: number }) =>
+          Boolean(opt.label && opt.price > 0),
+        )
+    : [];
+
   return {
     id: item._id,
     name: item.name,
     description: item.description || "",
     category: item.category,
     price: Number(item.price || 0),
+    priceOptions,
     cost: Number(item.cost || 0),
     image: item.image || "",
     isVeg: item.isVeg !== false,

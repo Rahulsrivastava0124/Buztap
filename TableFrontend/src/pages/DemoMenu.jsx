@@ -144,6 +144,19 @@ function buildTableIdCandidates(tableId) {
   return Array.from(set);
 }
 
+function normalizePriceOptions(item) {
+  const raw = Array.isArray(item?.priceOptions) ? item.priceOptions : [];
+  const mapped = raw
+    .map((opt) => ({
+      label: String(opt?.label || "").trim(),
+      price: Number(opt?.price || 0),
+    }))
+    .filter((opt) => opt.label && opt.price > 0);
+
+  if (mapped.length > 0) return mapped;
+  return [{ label: "Full", price: Number(item?.price || 0) }];
+}
+
 // ── Veg / Non-veg indicator icons ─────────────────────────────────────────────
 const VegIcon = ({ size = 14 }) => (
   <span
@@ -540,6 +553,7 @@ export default function DemoMenu() {
   const [showReward, setShowReward] = useState(false);
   const [freeItemClaimed, setFreeItemClaimed] = useState(false);
   const [orderHistory, setOrderHistory] = useState([]);
+  const [selectedOptionByItem, setSelectedOptionByItem] = useState({});
   const [selectedItem, setSelectedItem] = useState(null);
   const [showProfile, setShowProfile] = useState(false);
   const [showBanner, setShowBanner] = useState(true);
@@ -625,6 +639,25 @@ export default function DemoMenu() {
 
   const findMenuItemById = (id) =>
     menuItems.find((item) => String(item.id) === String(id));
+
+  const getSelectedPriceOption = (item) => {
+    const options = normalizePriceOptions(item);
+    const selectedLabel = selectedOptionByItem[String(item?.id || "")];
+    return (
+      options.find((opt) => opt.label === selectedLabel) ||
+      options[0] || { label: "Full", price: Number(item?.price || 0) }
+    );
+  };
+
+  const selectPriceOption = (itemId, label) => {
+    if (!itemId || !label) return;
+    setSelectedOptionByItem((prev) => ({
+      ...prev,
+      [String(itemId)]: String(label),
+    }));
+  };
+
+  const getItemCartQty = (itemId) => Number(cart[itemId] || 0);
 
   const handleGuestLogout = () => {
     setShowProfile(false);
@@ -1018,7 +1051,10 @@ export default function DemoMenu() {
     currentRestroSlug,
   ]);
 
-  const addToCart = (id) => {
+  const addToCart = (id, optionLabel) => {
+    if (optionLabel) {
+      selectPriceOption(id, optionLabel);
+    }
     setCart((prev) => ({ ...prev, [id]: (prev[id] || 0) + 1 }));
   };
 
@@ -1038,7 +1074,9 @@ export default function DemoMenu() {
   const totalItems = cartTotalPairs.reduce((sum, [, qty]) => sum + qty, 0);
   const totalPrice = cartTotalPairs.reduce((sum, [id, qty]) => {
     const item = findMenuItemById(id);
-    return sum + (item ? item.price * qty : 0);
+    if (!item) return sum;
+    const selectedOption = getSelectedPriceOption(item);
+    return sum + selectedOption.price * qty;
   }, 0);
   const orderLineItems = cartTotalPairs
     .map(([id, qty]) => {
@@ -1048,12 +1086,15 @@ export default function DemoMenu() {
         return null;
       }
 
+      const selectedOption = getSelectedPriceOption(item);
+
       return {
         id: item.id,
         name: item.name,
         qty,
-        price: item.price,
-        total: item.price * qty,
+        price: selectedOption.price,
+        portion: selectedOption.label,
+        total: selectedOption.price * qty,
         veg: item.veg,
       };
     })
@@ -1063,7 +1104,7 @@ export default function DemoMenu() {
   const taxAmount = Math.round(taxableAmount * 0.05);
   const grandTotal = taxableAmount + taxAmount;
   const recommendedItems = menuItems
-    .filter((item) => !cart[item.id])
+    .filter((item) => !getItemCartQty(item.id))
     .slice(0, 3);
   const rewardItem =
     menuItems.length > 0
@@ -1167,6 +1208,7 @@ export default function DemoMenu() {
                 name: i.name,
                 quantity: i.qty,
                 price: i.price,
+                portion: i.portion,
               })),
             },
             { businessId: resolvedBusinessId, restroSlug: currentRestroSlug },
@@ -1762,88 +1804,123 @@ export default function DemoMenu() {
                 {/* Item grid */}
                 {!collapsedSections[category] && (
                   <div className="grid grid-cols-2 gap-3 px-4 pb-4">
-                    {sectionItems.map((item) => (
-                      <div
-                        key={item.id}
-                        className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm"
-                      >
-                        {/* Image area */}
-                        <div className="relative">
-                          <img
-                            src={item.img}
-                            alt={item.name}
-                            loading="lazy"
-                            decoding="async"
-                            className="w-full aspect-4/3 object-cover cursor-pointer"
-                            onClick={() => setSelectedItem(item)}
-                          />
-                          {item.popular && (
-                            <span className="absolute top-2 left-2 text-xs font-bold text-green-600 bg-white/90 backdrop-blur-sm px-2 py-0.5 rounded-full shadow-sm">
-                              Popular
-                            </span>
-                          )}
-                          {/* Add / qty control */}
-                          {!cart[item.id] ? (
-                            <button
-                              onClick={() => addToCart(item.id)}
-                              className="absolute bottom-2 right-2 w-9 h-9 rounded-full bg-white shadow-md flex items-center justify-center border border-pink-400 text-pink-500 hover:bg-pink-50 transition-colors"
-                            >
-                              <Plus size={18} strokeWidth={2.5} />
-                            </button>
-                          ) : (
-                            <div className="absolute bottom-2 right-2 flex items-center gap-0.5 bg-white rounded-full shadow-md border border-pink-400 px-1.5 py-0.5">
-                              <button
-                                onClick={() => removeFromCart(item.id)}
-                                className="w-6 h-6 flex items-center justify-center text-pink-500"
-                              >
-                                <Minus size={13} strokeWidth={2.5} />
-                              </button>
-                              <span className="text-sm font-bold text-gray-800 min-w-4 text-center">
-                                {cart[item.id]}
-                              </span>
-                              <button
-                                onClick={() => addToCart(item.id)}
-                                className="w-6 h-6 flex items-center justify-center text-pink-500"
-                              >
-                                <Plus size={13} strokeWidth={2.5} />
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                        {/* Info */}
-                        <div className="p-2.5">
-                          <div className="flex items-center gap-1 mb-1">
-                            {item.veg ? (
-                              <VegIcon size={12} />
-                            ) : (
-                              <NonVegIcon size={12} />
-                            )}
-                            <p className="text-sm font-bold text-gray-900 leading-tight line-clamp-2">
-                              {item.name}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-1 mb-1.5">
-                            <Star
-                              size={11}
-                              className="fill-green-600 text-green-600"
+                    {sectionItems.map((item) => {
+                      const qty = getItemCartQty(item.id);
+                      const options = normalizePriceOptions(item);
+                      const selectedOption = getSelectedPriceOption(item);
+
+                      return (
+                        <div
+                          key={item.id}
+                          className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm"
+                        >
+                          {/* Image area */}
+                          <div className="relative">
+                            <img
+                              src={item.img}
+                              alt={item.name}
+                              loading="lazy"
+                              decoding="async"
+                              className="w-full aspect-4/3 object-cover cursor-pointer"
+                              onClick={() => setSelectedItem(item)}
                             />
-                            <span className="text-xs font-semibold text-green-700">
-                              {item.rating}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            {item.originalPrice && (
-                              <span className="text-xs text-gray-400 line-through">
-                                ₹{item.originalPrice}
+                            {item.popular && (
+                              <span className="absolute top-2 left-2 text-xs font-bold text-green-600 bg-white/90 backdrop-blur-sm px-2 py-0.5 rounded-full shadow-sm">
+                                Popular
                               </span>
                             )}
-                            <span className="text-sm font-bold text-pink-500">
-                              ₹{item.price}
-                            </span>
+                            {/* Add / qty control */}
+                            {!qty ? (
+                              <button
+                                onClick={() =>
+                                  addToCart(item.id, selectedOption.label)
+                                }
+                                className="absolute bottom-2 right-2 w-9 h-9 rounded-full bg-white shadow-md flex items-center justify-center border border-pink-400 text-pink-500 hover:bg-pink-50 transition-colors"
+                              >
+                                <Plus size={18} strokeWidth={2.5} />
+                              </button>
+                            ) : (
+                              <div className="absolute bottom-2 right-2 flex items-center gap-0.5 bg-white rounded-full shadow-md border border-pink-400 px-1.5 py-0.5">
+                                <button
+                                  onClick={() => removeFromCart(item.id)}
+                                  className="w-6 h-6 flex items-center justify-center text-pink-500"
+                                >
+                                  <Minus size={13} strokeWidth={2.5} />
+                                </button>
+                                <span className="text-sm font-bold text-gray-800 min-w-4 text-center">
+                                  {qty}
+                                </span>
+                                <button
+                                  onClick={() =>
+                                    addToCart(item.id, selectedOption.label)
+                                  }
+                                  className="w-6 h-6 flex items-center justify-center text-pink-500"
+                                >
+                                  <Plus size={13} strokeWidth={2.5} />
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                          {/* Info */}
+                          <div className="p-2.5">
+                            <div className="flex items-center gap-1 mb-1">
+                              {item.veg ? (
+                                <VegIcon size={12} />
+                              ) : (
+                                <NonVegIcon size={12} />
+                              )}
+                              <p className="text-sm font-bold text-gray-900 leading-tight line-clamp-2">
+                                {item.name}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-1 mb-1.5">
+                              <Star
+                                size={11}
+                                className="fill-green-600 text-green-600"
+                              />
+                              <span className="text-xs font-semibold text-green-700">
+                                {item.rating}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              {item.originalPrice && (
+                                <span className="text-xs text-gray-400 line-through">
+                                  ₹{item.originalPrice}
+                                </span>
+                              )}
+                              <span className="text-sm font-bold text-pink-500">
+                                ₹{selectedOption.price}
+                              </span>
+                            </div>
+
+                            {options.length > 1 && (
+                              <div className="mt-2 flex items-center gap-1 flex-wrap">
+                                {options.map((opt) => {
+                                  const isActive =
+                                    selectedOption.label === opt.label;
+                                  return (
+                                    <button
+                                      key={`${item.id}-${opt.label}`}
+                                      type="button"
+                                      onClick={() =>
+                                        selectPriceOption(item.id, opt.label)
+                                      }
+                                      className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
+                                        isActive
+                                          ? "bg-saffron-lt text-saffron border-saffron/40"
+                                          : "bg-white text-muted border-gray-200"
+                                      }`}
+                                    >
+                                      {opt.label}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            )}
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -1877,106 +1954,153 @@ export default function DemoMenu() {
               transition={{ type: "spring", damping: 28, stiffness: 220 }}
               className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md z-71 bg-white rounded-t-3xl overflow-hidden shadow-2xl"
             >
-              {/* Close pill */}
-              <button
-                onClick={() => setSelectedItem(null)}
-                className="absolute top-4 right-4 z-10 w-8 h-8 bg-black/50 rounded-full flex items-center justify-center text-white backdrop-blur-sm"
-              >
-                <span className="text-lg leading-none">&times;</span>
-              </button>
+              {(() => {
+                const modalOptions = normalizePriceOptions(selectedItem);
+                const selectedModalOption =
+                  getSelectedPriceOption(selectedItem);
+                const selectedQty = getItemCartQty(selectedItem.id);
 
-              {/* Large image */}
-              <div className="relative w-full h-64 bg-gray-100">
-                <img
-                  src={selectedItem.img}
-                  alt={selectedItem.name}
-                  className="w-full h-full object-cover"
-                />
-                {selectedItem.popular && (
-                  <span className="absolute top-3 left-3 text-xs font-bold text-green-700 bg-white/90 px-2.5 py-1 rounded-full shadow">
-                    Popular
-                  </span>
-                )}
-              </div>
+                return (
+                  <>
+                    {/* Close pill */}
+                    <button
+                      onClick={() => setSelectedItem(null)}
+                      className="absolute top-4 right-4 z-10 w-8 h-8 bg-black/50 rounded-full flex items-center justify-center text-white backdrop-blur-sm"
+                    >
+                      <span className="text-lg leading-none">&times;</span>
+                    </button>
 
-              {/* Details */}
-              <div className="px-5 pt-4 pb-8">
-                {/* Veg / Non-veg + name */}
-                <div className="flex items-start gap-2 mb-1">
-                  {selectedItem.veg ? (
-                    <VegIcon size={16} />
-                  ) : (
-                    <NonVegIcon size={16} />
-                  )}
-                  <h3 className="text-xl font-bold text-gray-900 leading-tight">
-                    {selectedItem.name}
-                  </h3>
-                </div>
-
-                {/* Price row */}
-                <div className="flex items-center gap-2 mt-1 mb-2">
-                  <span className="text-lg font-bold text-gray-900">
-                    ₹{selectedItem.price}
-                  </span>
-                  {selectedItem.originalPrice && (
-                    <span className="text-sm text-gray-400 line-through">
-                      ₹{selectedItem.originalPrice}
-                    </span>
-                  )}
-                </div>
-
-                {/* Rating */}
-                <div className="flex items-center gap-1 mb-3">
-                  <Star size={14} className="fill-green-600 text-green-600" />
-                  <span className="text-sm font-semibold text-green-700">
-                    {selectedItem.rating}
-                  </span>
-                </div>
-
-                {/* Description */}
-                {selectedItem.desc && (
-                  <p className="text-sm text-gray-500 leading-relaxed mb-5">
-                    {selectedItem.desc}
-                  </p>
-                )}
-
-                {/* ADD / qty control */}
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex-1">
-                    {!cart[selectedItem.id] ? (
-                      <button
-                        onClick={() => {
-                          addToCart(selectedItem.id);
-                        }}
-                        className="w-full py-3 rounded-2xl border-2 border-pink-400 text-pink-500 font-extrabold text-base tracking-wide hover:bg-pink-50 transition-colors"
-                      >
-                        ADD
-                      </button>
-                    ) : (
-                      <div className="flex items-center justify-between border-2 border-pink-400 rounded-2xl px-4 py-2.5">
-                        <button
-                          onClick={() => removeFromCart(selectedItem.id)}
-                          className="text-pink-500 font-bold text-xl leading-none"
-                        >
-                          −
-                        </button>
-                        <span className="text-base font-extrabold text-gray-900">
-                          {cart[selectedItem.id]}
+                    {/* Large image */}
+                    <div className="relative w-full h-64 bg-gray-100">
+                      <img
+                        src={selectedItem.img}
+                        alt={selectedItem.name}
+                        className="w-full h-full object-cover"
+                      />
+                      {selectedItem.popular && (
+                        <span className="absolute top-3 left-3 text-xs font-bold text-green-700 bg-white/90 px-2.5 py-1 rounded-full shadow">
+                          Popular
                         </span>
-                        <button
-                          onClick={() => addToCart(selectedItem.id)}
-                          className="text-pink-500 font-bold text-xl leading-none"
-                        >
-                          +
-                        </button>
+                      )}
+                    </div>
+
+                    {/* Details */}
+                    <div className="px-5 pt-4 pb-8">
+                      {/* Veg / Non-veg + name */}
+                      <div className="flex items-start gap-2 mb-1">
+                        {selectedItem.veg ? (
+                          <VegIcon size={16} />
+                        ) : (
+                          <NonVegIcon size={16} />
+                        )}
+                        <h3 className="text-xl font-bold text-gray-900 leading-tight">
+                          {selectedItem.name}
+                        </h3>
                       </div>
-                    )}
-                    <p className="text-center text-xs text-gray-400 mt-1">
-                      Customisable
-                    </p>
-                  </div>
-                </div>
-              </div>
+
+                      {/* Price row */}
+                      <div className="flex items-center gap-2 mt-1 mb-2">
+                        <span className="text-lg font-bold text-gray-900">
+                          ₹{selectedModalOption.price}
+                        </span>
+                        {selectedItem.originalPrice && (
+                          <span className="text-sm text-gray-400 line-through">
+                            ₹{selectedItem.originalPrice}
+                          </span>
+                        )}
+                      </div>
+
+                      {modalOptions.length > 1 && (
+                        <div className="flex items-center gap-1.5 flex-wrap mb-3">
+                          {modalOptions.map((opt) => {
+                            const isActive =
+                              selectedModalOption.label === opt.label;
+                            return (
+                              <button
+                                key={`${selectedItem.id}-modal-${opt.label}`}
+                                type="button"
+                                onClick={() =>
+                                  selectPriceOption(selectedItem.id, opt.label)
+                                }
+                                className={`px-3 py-1 rounded-full text-xs font-semibold border ${
+                                  isActive
+                                    ? "bg-saffron-lt text-saffron border-saffron/40"
+                                    : "bg-white text-muted border-gray-200"
+                                }`}
+                              >
+                                {opt.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {/* Rating */}
+                      <div className="flex items-center gap-1 mb-3">
+                        <Star
+                          size={14}
+                          className="fill-green-600 text-green-600"
+                        />
+                        <span className="text-sm font-semibold text-green-700">
+                          {selectedItem.rating}
+                        </span>
+                      </div>
+
+                      {/* Description */}
+                      {selectedItem.desc && (
+                        <p className="text-sm text-gray-500 leading-relaxed mb-5">
+                          {selectedItem.desc}
+                        </p>
+                      )}
+
+                      {/* ADD / qty control */}
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex-1">
+                          {!selectedQty ? (
+                            <button
+                              onClick={() => {
+                                addToCart(
+                                  selectedItem.id,
+                                  selectedModalOption.label,
+                                );
+                              }}
+                              className="w-full py-3 rounded-2xl border-2 border-pink-400 text-pink-500 font-extrabold text-base tracking-wide hover:bg-pink-50 transition-colors"
+                            >
+                              ADD
+                            </button>
+                          ) : (
+                            <div className="flex items-center justify-between border-2 border-pink-400 rounded-2xl px-4 py-2.5">
+                              <button
+                                onClick={() => removeFromCart(selectedItem.id)}
+                                className="text-pink-500 font-bold text-xl leading-none"
+                              >
+                                −
+                              </button>
+                              <span className="text-base font-extrabold text-gray-900">
+                                {selectedQty}
+                              </span>
+                              <button
+                                onClick={() =>
+                                  addToCart(
+                                    selectedItem.id,
+                                    selectedModalOption.label,
+                                  )
+                                }
+                                className="text-pink-500 font-bold text-xl leading-none"
+                              >
+                                +
+                              </button>
+                            </div>
+                          )}
+                          <p className="text-center text-xs text-gray-400 mt-1">
+                            Customisable
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
             </motion.div>
           )}
         </AnimatePresence>
@@ -2087,6 +2211,7 @@ export default function DemoMenu() {
                         {cartTotalPairs.map(([id, qty]) => {
                           const item = findMenuItemById(id);
                           if (!item) return null;
+                          const selectedOption = getSelectedPriceOption(item);
                           return (
                             <div
                               key={id}
@@ -2124,7 +2249,8 @@ export default function DemoMenu() {
                                     </h4>
                                   </div>
                                   <p className="font-semibold text-xs text-muted">
-                                    ₹{item.price} x {qty}
+                                    {selectedOption.label} • ₹
+                                    {selectedOption.price} x {qty}
                                   </p>
                                 </div>
                               </div>
@@ -2139,7 +2265,9 @@ export default function DemoMenu() {
                                   {qty}
                                 </span>
                                 <button
-                                  onClick={() => addToCart(item.id)}
+                                  onClick={() =>
+                                    addToCart(item.id, selectedOption.label)
+                                  }
                                   className="text-saffron p-1"
                                 >
                                   <Plus size={14} />
@@ -2197,10 +2325,15 @@ export default function DemoMenu() {
                                 </div>
                                 <div className="flex items-center justify-between gap-2 mt-2">
                                   <span className="text-xs font-semibold text-muted">
-                                    ₹{item.price}
+                                    ₹{getSelectedPriceOption(item).price}
                                   </span>
                                   <button
-                                    onClick={() => addToCart(item.id)}
+                                    onClick={() =>
+                                      addToCart(
+                                        item.id,
+                                        getSelectedPriceOption(item).label,
+                                      )
+                                    }
                                     className="px-2.5 py-1 rounded-md bg-saffron text-white text-[11px] font-bold"
                                   >
                                     Add
@@ -2927,7 +3060,10 @@ export default function DemoMenu() {
                 onComplete={() => {
                   // Add a free item to cart (let's give them the most expensive item as reward)
                   if (rewardItem?.id) {
-                    addToCart(rewardItem.id);
+                    addToCart(
+                      rewardItem.id,
+                      getSelectedPriceOption(rewardItem).label,
+                    );
                   }
                   setFreeItemClaimed(true);
                   localStorage.setItem(

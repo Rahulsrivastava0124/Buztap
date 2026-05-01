@@ -6,6 +6,14 @@ const itemSchema = z.object({
   description: z.string().optional(),
   category: z.string().min(1),
   price: z.number().positive(),
+  priceOptions: z
+    .array(
+      z.object({
+        label: z.string().min(1),
+        price: z.number().positive(),
+      }),
+    )
+    .optional(),
   cost: z.number().min(0).optional(),
   image: z.string().optional(),
   isVeg: z.boolean().optional(),

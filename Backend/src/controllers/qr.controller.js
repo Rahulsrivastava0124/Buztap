@@ -31,10 +31,20 @@ function mapPublicBusiness(business) {
 }
 
 function mapPublicMenuItem(item) {
+  const options = Array.isArray(item.priceOptions)
+    ? item.priceOptions
+        .map((opt) => ({
+          label: String(opt?.label || "").trim(),
+          price: Number(opt?.price || 0),
+        }))
+        .filter((opt) => opt.label && opt.price > 0)
+    : [];
+
   return {
     id: String(item._id),
     name: item.name || "",
     price: Number(item.price || 0),
+    priceOptions: options,
     originalPrice: null,
     veg: Boolean(item.isVeg),
     rating: 4.5,
@@ -176,7 +186,7 @@ async function getQr(req, res, next) {
         .lean(),
       Table.countDocuments({ businessId: table.businessId, isActive: true }),
       MenuItem.find({ businessId: table.businessId, isAvailable: true })
-        .select("name price isVeg description image category")
+        .select("name price priceOptions isVeg description image category")
         .sort({ category: 1, name: 1 })
         .lean(),
     ]);
@@ -187,7 +197,7 @@ async function getQr(req, res, next) {
       availableMenuItems.length > 0
         ? availableMenuItems
         : await MenuItem.find({ businessId: table.businessId })
-            .select("name price isVeg description image category")
+            .select("name price priceOptions isVeg description image category")
             .sort({ category: 1, name: 1 })
             .lean();
     const resolvedSlug = slugify(business?.subdomain || business?.name || "");

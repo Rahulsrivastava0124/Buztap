@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ClipboardList, Flame, BellRing, Receipt } from "lucide-react";
+import { ClipboardList, Flame, BellRing, Receipt, Clock } from "lucide-react";
 import { fetchGuestOrders } from "../../services/api";
 
 const ACTIVE_STATUSES = ["Pending", "Preparing", "Ready"];
@@ -53,6 +53,41 @@ function stripHash(id) {
   return String(id || "").replace(/^#+/, "");
 }
 
+const PREP_MINUTES = 15;
+
+function useEstimatedTime(order) {
+  const [display, setDisplay] = useState("");
+
+  useEffect(() => {
+    if (order?.status !== "Preparing") {
+      setDisplay("");
+      return;
+    }
+    const base = order.updatedAt || order.createdAt;
+    if (!base) {
+      setDisplay("");
+      return;
+    }
+    const deadline = new Date(base).getTime() + PREP_MINUTES * 60 * 1000;
+
+    function tick() {
+      const remaining = Math.max(0, Math.round((deadline - Date.now()) / 1000));
+      if (remaining === 0) {
+        setDisplay("Any moment now");
+      } else {
+        const m = Math.floor(remaining / 60);
+        const s = remaining % 60;
+        setDisplay(m > 0 ? `~${m} min${m === 1 ? "" : "s"}` : `~${s}s`);
+      }
+    }
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [order?.status, order?.updatedAt, order?.createdAt]);
+
+  return display;
+}
+
 export default function ActiveOrderBanner({
   phone,
   businessId,
@@ -100,11 +135,12 @@ export default function ActiveOrderBanner({
   const isPayable = isPayableOrder(topOrder);
   const cfg = STATUS_CONFIG[topOrder.status] || STATUS_CONFIG.Pending;
   const { Icon } = cfg;
+  const eta = useEstimatedTime(topOrder);
 
   return (
     <div className="fixed bottom-5 left-0 right-0 z-50 flex justify-center px-4 pointer-events-none">
       <div
-        className="pointer-events-auto w-full max-w-sm rounded-2xl overflow-hidden"
+        className="pointer-events-auto w-full max-w-sm rounded-full overflow-hidden"
         style={{
           animation: "slideUp 0.28s cubic-bezier(0.34,1.56,0.64,1)",
           background: "#fff",
@@ -143,15 +179,16 @@ export default function ActiveOrderBanner({
               </p>
               <p className="font-bold text-[14px] leading-tight text-[#0f0e0b]">
                 #{stripHash(topOrder.orderId)}
-                {topOrder.tableId && (
-                  <span className="ml-1.5 font-normal text-[12px] text-[#857c6e]">
-                    · Table {topOrder.tableId.replace(/^T-0?/, "")}
-                  </span>
-                )}
               </p>
-              <p className="text-[11px] text-[#857c6e] mt-0.5 leading-none">
-                {cfg.sublabel}
-              </p>
+              {eta && (
+                <span
+                  className="inline-flex items-center gap-1 mt-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
+                  style={{ background: "#fff7ed", color: "#e8720c" }}
+                >
+                  <Clock size={9} />
+                  {eta}
+                </span>
+              )}
             </div>
 
             {/* CTA */}
@@ -179,7 +216,7 @@ export default function ActiveOrderBanner({
                 <button
                   type="button"
                   onClick={() => onOpenOrder?.(topOrder)}
-                  className="rounded-xl px-3 py-2 text-[11px] font-bold transition hover:brightness-95"
+                  className="rounded-full px-5 py-2.5 text-[13px] font-bold transition hover:brightness-95"
                   style={{ background: "#e8720c", color: "#fff" }}
                 >
                   Track

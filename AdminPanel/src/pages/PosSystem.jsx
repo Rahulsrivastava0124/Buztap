@@ -92,6 +92,7 @@ export default function PosSystem() {
   const [paymentMode, setPaymentMode] = useState("UPI");
   const [transactionId, setTransactionId] = useState("");
   const [showPayModal, setShowPayModal] = useState(false);
+  const [selectedOptionByItemId, setSelectedOptionByItemId] = useState({});
   const searchRef = useRef(null);
   const navigate = useNavigate();
   const { slug } = useParams();
@@ -107,6 +108,7 @@ export default function PosSystem() {
     addToCart,
     setItemNotes,
     updateQty,
+    updateItemPortion,
     removeItem,
     clearCart,
     setTaxRates,
@@ -359,6 +361,47 @@ export default function PosSystem() {
       return matchesCat && matchesSearch;
     });
   }, [activeCat, menuItems, searchTerm]);
+
+  const getPriceOptions = (item) => {
+    const options = Array.isArray(item?.priceOptions)
+      ? item.priceOptions
+          .map((opt) => ({
+            label: String(opt?.label || "").trim(),
+            price: Number(opt?.price || 0),
+          }))
+          .filter((opt) => opt.label && opt.price > 0)
+      : [];
+    if (options.length > 0) return options;
+    return [{ label: "Full", price: Number(item?.price || 0) }];
+  };
+
+  const getSelectedOption = (item) => {
+    const options = getPriceOptions(item);
+    const selectedLabel = selectedOptionByItemId[String(item?.id || "")];
+    return options.find((opt) => opt.label === selectedLabel) || options[0];
+  };
+
+  const selectOption = (itemId, label) => {
+    setSelectedOptionByItemId((prev) => ({
+      ...prev,
+      [String(itemId)]: String(label),
+    }));
+  };
+
+  const getItemCartQty = (itemId) =>
+    cart
+      .filter((c) => String(c.id) === String(itemId))
+      .reduce((sum, c) => sum + (c.qty || 0), 0);
+
+  const addItemToCartWithOption = (item, option) => {
+    const safeOption = option || getSelectedOption(item);
+    addToCart({
+      ...item,
+      price: Number(safeOption.price || item.price || 0),
+      portion: safeOption.label,
+      cartKey: `${item.id}::${safeOption.label}`,
+    });
+  };
 
   const { subtotal, tax, total, itemCount } = getTotals();
   const taxLabel = `Tax (${Number(businessProfile?.gstPct ?? 5)}% GST${Number(businessProfile?.taxPct ?? 0) > 0 ? ` + ${Number(businessProfile?.taxPct ?? 0)}% Tax` : ""})`;
@@ -990,31 +1033,84 @@ export default function PosSystem() {
                 No menu items found.
               </p>
             ) : null}
-            {filteredItems.map((item) => (
-              <button
-                key={item.id}
-                onClick={() => addToCart(item)}
-                className="bg-white border border-border rounded-xl overflow-hidden hover:border-saffron hover:shadow-md transition-all text-left flex flex-col group relative"
-              >
-                <div className="h-28 w-full overflow-hidden bg-gray-100">
-                  <img
-                    src={item.img}
-                    alt={item.name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
+            {filteredItems.map((item) => {
+              const options = getPriceOptions(item);
+              const selectedOption = getSelectedOption(item);
+              const cartQty = getItemCartQty(item.id);
+              const inCart = cartQty > 0;
+              return (
+                <div
+                  key={item.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => addItemToCartWithOption(item, selectedOption)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      addItemToCartWithOption(item, selectedOption);
+                    }
+                  }}
+                  className={`bg-white rounded-xl overflow-hidden transition-all text-left flex flex-col group relative cursor-pointer ${
+                    inCart
+                      ? "border-2 border-saffron shadow-[0_0_0_3px_rgba(232,114,12,0.12)] hover:shadow-[0_0_0_3px_rgba(232,114,12,0.2)]"
+                      : "border border-border hover:border-saffron hover:shadow-md"
+                  }`}
+                >
+                  {inCart && (
+                    <div className="absolute top-2 right-2 z-20 min-w-[20px] h-5 px-1.5 bg-saffron text-white text-[10px] font-bold rounded-full flex items-center justify-center shadow-sm">
+                      {cartQty}
+                    </div>
+                  )}
+                  <div className="h-28 w-full overflow-hidden bg-gray-100 relative">
+                    <img
+                      src={item.img}
+                      alt={item.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                    <div className="absolute left-2 bottom-2 flex items-center gap-1 z-10">
+                      {options
+                        .filter((opt) =>
+                          ["full", "half"].includes(
+                            String(opt.label).toLowerCase(),
+                          ),
+                        )
+                        .map((opt) => {
+                          const isActive = selectedOption.label === opt.label;
+                          return (
+                            <button
+                              key={`${item.id}-${opt.label}`}
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                selectOption(item.id, opt.label);
+                              }}
+                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold border backdrop-blur-sm transition-all duration-200 ${
+                                isActive
+                                  ? "bg-gradient-to-b from-white/95 to-white/80 text-saffron border-saffron/50 shadow-[0_1px_4px_rgba(232,114,12,0.25)]"
+                                  : "bg-black/35 text-white/90 border-white/30 hover:bg-black/50"
+                              }`}
+                            >
+                              {opt.label}
+                            </button>
+                          );
+                        })}
+                    </div>
+                  </div>
+                  <div className="p-3">
+                    <p className="font-semibold text-sm text-ink leading-tight mb-1 line-clamp-2">
+                      {item.name}
+                    </p>
+                    <p className="font-roboto font-bold text-saffron">
+                      ₹{selectedOption.price}
+                    </p>
+                    <p className="text-[11px] mt-1 text-muted font-semibold">
+                      {selectedOption.label}
+                    </p>
+                  </div>
+                  <div className="absolute inset-0 bg-saffron/10 opacity-0 group-active:opacity-100 transition-opacity" />
                 </div>
-                <div className="p-3">
-                  <p className="font-semibold text-sm text-ink leading-tight mb-1 line-clamp-2">
-                    {item.name}
-                  </p>
-                  <p className="font-roboto font-bold text-saffron">
-                    ₹{item.price}
-                  </p>
-                  <p className="text-xs mt-1 text-muted">{item.cat}</p>
-                </div>
-                <div className="absolute inset-0 bg-saffron/10 opacity-0 group-active:opacity-100 transition-opacity" />
-              </button>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>
@@ -1055,61 +1151,105 @@ export default function PosSystem() {
                 </p>
               </Motion.div>
             ) : (
-              cart.map((item) => (
-                <Motion.div
-                  key={item.id}
-                  layout
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.9 }}
-                  className="flex flex-col gap-2 p-3 bg-paper border border-border rounded-lg"
-                >
-                  <div className="flex justify-between items-start">
-                    <p className="font-semibold text-sm text-ink max-w-50 leading-tight">
-                      {item.name}
-                    </p>
-                    <p className="font-roboto font-bold text-ink">
-                      ₹{item.price * item.qty}
-                    </p>
-                  </div>
+              cart.map((item) => {
+                const portionOpts = Array.isArray(item.priceOptions)
+                  ? item.priceOptions.filter((o) => {
+                      const l = String(o?.label || "").toLowerCase();
+                      return l === "full" || l === "half" || l === "pcs";
+                    })
+                  : [];
+                const hasOptions = portionOpts.length > 1;
+                const key = item.cartKey || item.id;
+                return (
+                  <Motion.div
+                    key={key}
+                    layout
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    className="bg-white border border-border rounded-xl overflow-hidden"
+                  >
+                    {/* Main row */}
+                    <div className="flex items-center gap-2 px-3 py-2.5">
+                      {/* Name + portion chips */}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[13px] font-semibold text-ink leading-tight truncate">
+                          {item.name}
+                        </p>
+                        {hasOptions && (
+                          <div className="flex items-center gap-1 mt-1">
+                            {portionOpts.map((opt) => {
+                              const isActive =
+                                String(item.portion || "").toLowerCase() ===
+                                String(opt.label || "").toLowerCase();
+                              return (
+                                <button
+                                  key={`${key}-${opt.label}`}
+                                  type="button"
+                                  onClick={() =>
+                                    updateItemPortion(
+                                      key,
+                                      opt.label,
+                                      Number(opt.price || item.price || 0),
+                                    )
+                                  }
+                                  className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-md border transition-all duration-200 ${
+                                    isActive
+                                      ? "bg-gradient-to-b from-saffron/20 to-saffron/5 text-saffron border-saffron/40 shadow-[inset_0_1px_0_rgba(255,255,255,0.6),0_1px_3px_rgba(232,114,12,0.15)]"
+                                      : "bg-transparent text-muted border-border hover:border-saffron/30 hover:text-saffron/70"
+                                  }`}
+                                >
+                                  {opt.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
 
-                  <div className="flex items-center justify-between">
-                    <button
-                      onClick={() => removeItem(item.id)}
-                      className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
-                    >
-                      <Trash2 size={16} />
-                    </button>
+                      {/* Qty stepper */}
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => updateQty(key, -1)}
+                          className="w-6 h-6 rounded-md bg-cream flex items-center justify-center text-muted hover:text-ink transition-colors"
+                        >
+                          <Minus size={11} />
+                        </button>
+                        <span className="text-sm font-bold w-5 text-center text-ink">
+                          {item.qty}
+                        </span>
+                        <button
+                          onClick={() => updateQty(key, 1)}
+                          className="w-6 h-6 rounded-md bg-saffron flex items-center justify-center text-white hover:bg-saffron2 transition-colors"
+                        >
+                          <Plus size={11} />
+                        </button>
+                      </div>
 
-                    <div className="flex items-center gap-3 bg-white border border-border rounded-md px-1.5 h-8">
-                      <button
-                        onClick={() => updateQty(item.id, -1)}
-                        className="text-muted hover:text-ink"
-                      >
-                        <Minus size={16} />
-                      </button>
-                      <span className="font-bold text-sm w-4 text-center">
-                        {item.qty}
+                      {/* Price */}
+                      <span className="text-[13px] font-bold text-ink font-roboto min-w-[44px] text-right">
+                        ₹{item.price * item.qty}
                       </span>
+
+                      {/* Delete */}
                       <button
-                        onClick={() => updateQty(item.id, 1)}
-                        className="text-saffron hover:text-saffron2"
+                        onClick={() => removeItem(key)}
+                        className="ml-0.5 text-red-400 hover:text-red-600 transition-colors"
                       >
-                        <Plus size={16} />
+                        <Trash2 size={14} />
                       </button>
                     </div>
-                  </div>
 
-                  <input
-                    value={item.notes || ""}
-                    onChange={(event) =>
-                      setItemNotes(item.id, event.target.value)
-                    }
-                    placeholder="Add note (e.g. extra spicy)"
-                    className="text-sm border border-border rounded-md px-2 py-1 bg-white"
-                  />
-                </Motion.div>
-              ))
+                    {/* Note input */}
+                    <input
+                      value={item.notes || ""}
+                      onChange={(e) => setItemNotes(key, e.target.value)}
+                      placeholder="Add note…"
+                      className="w-full border-t border-border px-3 py-1.5 text-xs text-ink placeholder:text-muted2 bg-paper/60 outline-none"
+                    />
+                  </Motion.div>
+                );
+              })
             )}
           </AnimatePresence>
         </div>

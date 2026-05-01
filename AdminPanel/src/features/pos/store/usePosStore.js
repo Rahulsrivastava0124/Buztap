@@ -18,35 +18,99 @@ export const usePosStore = create((set, get) => ({
 
   addToCart: (item) => {
     const { cart } = get();
-    const existing = cart.find((x) => x.id === item.id);
+    const key = item.cartKey || item.id;
+    const existing = cart.find((x) => (x.cartKey || x.id) === key);
     if (existing) {
       set({
         cart: cart.map((x) =>
-          x.id === item.id ? { ...x, qty: x.qty + 1 } : x,
+          (x.cartKey || x.id) === key ? { ...x, qty: x.qty + 1 } : x,
         ),
       });
       return;
     }
-    set({ cart: [...cart, { ...item, qty: 1, notes: "", modifiers: [] }] });
+    set({
+      cart: [
+        ...cart,
+        { ...item, cartKey: key, qty: 1, notes: "", modifiers: [] },
+      ],
+    });
   },
 
   setItemNotes: (id, notes) => {
     const { cart } = get();
-    set({ cart: cart.map((x) => (x.id === id ? { ...x, notes } : x)) });
+    set({
+      cart: cart.map((x) => ((x.cartKey || x.id) === id ? { ...x, notes } : x)),
+    });
   },
 
   updateQty: (id, delta) => {
     const { cart } = get();
     set({
       cart: cart
-        .map((x) => (x.id === id ? { ...x, qty: x.qty + delta } : x))
+        .map((x) =>
+          (x.cartKey || x.id) === id ? { ...x, qty: x.qty + delta } : x,
+        )
         .filter((x) => x.qty > 0),
+    });
+  },
+
+  updateItemPortion: (id, portion, price) => {
+    const { cart } = get();
+    const index = cart.findIndex((x) => (x.cartKey || x.id) === id);
+    if (index < 0) return;
+
+    const current = cart[index];
+    const nextPortion = String(portion || current.portion || "Full");
+    const nextPrice = Number(price || current.price || 0);
+    const nextKey = `${current.id}::${nextPortion}`;
+    const currentKey = current.cartKey || current.id;
+
+    if (nextKey === currentKey) {
+      set({
+        cart: cart.map((x, i) =>
+          i === index ? { ...x, portion: nextPortion, price: nextPrice } : x,
+        ),
+      });
+      return;
+    }
+
+    const existingIndex = cart.findIndex(
+      (x, i) => i !== index && (x.cartKey || x.id) === nextKey,
+    );
+
+    if (existingIndex >= 0) {
+      const existing = cart[existingIndex];
+      const merged = {
+        ...existing,
+        qty: Number(existing.qty || 0) + Number(current.qty || 0),
+        portion: nextPortion,
+        price: nextPrice,
+      };
+      const nextCart = cart.filter(
+        (_, i) => i !== index && i !== existingIndex,
+      );
+      nextCart.push(merged);
+      set({ cart: nextCart });
+      return;
+    }
+
+    set({
+      cart: cart.map((x, i) =>
+        i === index
+          ? {
+              ...x,
+              cartKey: nextKey,
+              portion: nextPortion,
+              price: nextPrice,
+            }
+          : x,
+      ),
     });
   },
 
   removeItem: (id) => {
     const { cart } = get();
-    set({ cart: cart.filter((x) => x.id !== id) });
+    set({ cart: cart.filter((x) => (x.cartKey || x.id) !== id) });
   },
 
   holdCurrentOrder: (tableId) => {
