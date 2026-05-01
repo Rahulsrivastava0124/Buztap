@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { ArrowLeft, Download, History, Search } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Download, History, Search } from "lucide-react";
 import { fetchGuestOrders } from "../services/api";
 
 const formatCurrency = (value = 0) => `₹${Number(value || 0)}`;
@@ -349,6 +349,11 @@ export default function OrderHistory() {
   const selectedOrder =
     normalizedOrders.find((order) => order.id === selectedOrderId) || null;
 
+  const PAGE_SIZE = 8;
+  const [page, setPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(normalizedOrders.length / PAGE_SIZE));
+  const pagedOrders = normalizedOrders.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
   const downloadInvoice = (order) => {
     const invoiceContent = buildInvoiceDocument(order);
     const invoiceBlob = new Blob([invoiceContent], { type: "text/html" });
@@ -381,7 +386,7 @@ export default function OrderHistory() {
     <div className="min-h-screen bg-[#f6f4f0]">
       <div className="max-w-md mx-auto min-h-screen">
         {/* Header */}
-        <div className="sticky top-0 z-10 bg-[#f6f4f0] px-4 pt-12 pb-3">
+        <div className="sticky top-0 z-10 bg-[#f6f4f0] px-4 pt-2 pb-3">
           <div className="flex items-center justify-between">
             <button
               type="button"
@@ -414,8 +419,9 @@ export default function OrderHistory() {
           </p>
 
           {normalizedOrders.length > 0 ? (
+            <>
             <div className="space-y-2.5">
-              {normalizedOrders.map((order) => (
+              {pagedOrders.map((order) => (
                 <button
                   key={order.id}
                   type="button"
@@ -454,6 +460,47 @@ export default function OrderHistory() {
                 </button>
               ))}
             </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between mt-5 px-1">
+                <button
+                  type="button"
+                  disabled={page === 1}
+                  onClick={() => setPage((p) => p - 1)}
+                  className="w-9 h-9 rounded-full bg-white border border-[#e8e2d8] flex items-center justify-center text-[#1a1814] disabled:opacity-30 disabled:cursor-not-allowed transition-opacity"
+                >
+                  <ChevronLeft size={17} strokeWidth={2} />
+                </button>
+
+                <div className="flex items-center gap-1.5">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => setPage(p)}
+                      className={`w-8 h-8 rounded-full text-sm font-semibold transition-colors ${
+                        p === page
+                          ? "bg-saffron text-white"
+                          : "bg-white border border-[#e8e2d8] text-[#a09080] hover:border-saffron hover:text-saffron"
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  ))}
+                </div>
+
+                <button
+                  type="button"
+                  disabled={page === totalPages}
+                  onClick={() => setPage((p) => p + 1)}
+                  className="w-9 h-9 rounded-full bg-white border border-[#e8e2d8] flex items-center justify-center text-[#1a1814] disabled:opacity-30 disabled:cursor-not-allowed transition-opacity"
+                >
+                  <ChevronRight size={17} strokeWidth={2} />
+                </button>
+              </div>
+            )}
+            </>
           ) : (
             <div className="text-center py-16">
               <div className="w-12 h-12 rounded-full bg-[#edeae3] flex items-center justify-center mx-auto mb-4">
@@ -466,7 +513,7 @@ export default function OrderHistory() {
               <button
                 type="button"
                 onClick={() => navigate(-1)}
-                className="px-5 py-2.5 rounded-xl bg-[#e8720c] text-white text-sm font-semibold"
+                className="px-5 py-2.5 rounded-xl bg-saffron text-white text-sm font-semibold"
               >
                 Go to Menu
               </button>
@@ -571,7 +618,7 @@ export default function OrderHistory() {
               <button
                 type="button"
                 onClick={() => downloadInvoice(selectedOrder)}
-                className="flex items-center justify-center gap-2 py-3 rounded-xl bg-[#e8720c] text-white text-sm font-semibold"
+                className="flex items-center justify-center gap-2 py-3 rounded-xl bg-saffron text-white text-sm font-semibold"
               >
                 <Download size={14} />
                 Download

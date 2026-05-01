@@ -1582,10 +1582,10 @@ export default function DemoMenu() {
                 href={restaurantProfile.socialLinks.instagram}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-12 h-12 rounded-full bg-white/15 backdrop-blur-sm flex items-center justify-center hover:bg-white/25 transition-colors"
+                className="w-8 h-8 rounded-full bg-white/15 backdrop-blur-sm flex items-center justify-center hover:bg-white/25 transition-colors"
                 aria-label="Instagram"
               >
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
                   <rect
                     x="2"
                     y="2"
@@ -1610,10 +1610,10 @@ export default function DemoMenu() {
                 href={restaurantProfile.socialLinks.facebook}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-12 h-12 rounded-full bg-white/15 backdrop-blur-sm flex items-center justify-center hover:bg-white/25 transition-colors"
+                className="w-8 h-8 rounded-full bg-white/15 backdrop-blur-sm flex items-center justify-center hover:bg-white/25 transition-colors"
                 aria-label="Facebook"
               >
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="white">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="white">
                   <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" />
                 </svg>
               </a>
@@ -1622,10 +1622,10 @@ export default function DemoMenu() {
                 href={restaurantProfile.socialLinks.x}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-12 h-12 rounded-full bg-white/15 backdrop-blur-sm flex items-center justify-center hover:bg-white/25 transition-colors"
+                className="w-8 h-8 rounded-full bg-white/15 backdrop-blur-sm flex items-center justify-center hover:bg-white/25 transition-colors"
                 aria-label="Twitter"
               >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="white">
                   <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
                 </svg>
               </a>
@@ -1824,8 +1824,16 @@ export default function DemoMenu() {
                               className="w-full aspect-4/3 object-cover cursor-pointer"
                               onClick={() => setSelectedItem(item)}
                             />
+                            {/* Veg / Non-veg dot */}
+                            <span className="absolute top-2 left-2 w-5 h-5 rounded-sm bg-white/90 backdrop-blur-sm shadow-sm flex items-center justify-center">
+                              {item.veg ? (
+                                <VegIcon size={13} />
+                              ) : (
+                                <NonVegIcon size={13} />
+                              )}
+                            </span>
                             {item.popular && (
-                              <span className="absolute top-2 left-2 text-xs font-bold text-green-600 bg-white/90 backdrop-blur-sm px-2 py-0.5 rounded-full shadow-sm">
+                              <span className="absolute top-2 left-8 text-xs font-bold text-green-600 bg-white/90 backdrop-blur-sm px-2 py-0.5 rounded-full shadow-sm">
                                 Popular
                               </span>
                             )}
@@ -1864,11 +1872,6 @@ export default function DemoMenu() {
                           {/* Info */}
                           <div className="p-2.5">
                             <div className="flex items-center gap-1 mb-1">
-                              {item.veg ? (
-                                <VegIcon size={12} />
-                              ) : (
-                                <NonVegIcon size={12} />
-                              )}
                               <p className="text-sm font-bold text-gray-900 leading-tight line-clamp-2">
                                 {item.name}
                               </p>

@@ -73,7 +73,7 @@ function useEstimatedTime(order) {
     function tick() {
       const remaining = Math.max(0, Math.round((deadline - Date.now()) / 1000));
       if (remaining === 0) {
-        setDisplay("Any moment now");
+        setDisplay("");
       } else {
         const m = Math.floor(remaining / 60);
         const s = remaining % 60;
