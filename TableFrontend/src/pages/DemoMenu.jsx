@@ -157,6 +157,84 @@ function normalizePriceOptions(item) {
   return [{ label: "Full", price: Number(item?.price || 0) }];
 }
 
+const AUTO_APPLY_OFFER_TYPES = new Set(["festival", "category", "item"]);
+
+function normalizeOfferType(value) {
+  const normalized = String(value || "coupon")
+    .trim()
+    .toLowerCase();
+  return normalized || "coupon";
+}
+
+function normalizeOfferAudience(value) {
+  const normalized = String(value || "all")
+    .trim()
+    .toLowerCase();
+  return normalized || "all";
+}
+
+function isOfferAudienceEligible(offer, userAudienceSegment) {
+  const audience = normalizeOfferAudience(offer?.audience);
+  if (audience === "all") return true;
+  return audience === String(userAudienceSegment || "new");
+}
+
+function normalizeText(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase();
+}
+
+function applyDiscount(basePrice, discountPct) {
+  const safeBase = Number(basePrice || 0);
+  const safePct = Math.max(0, Math.min(90, Number(discountPct || 0)));
+  if (safeBase <= 0 || safePct <= 0) return safeBase;
+  const discounted = Math.round((safeBase * (100 - safePct)) / 100);
+  return Math.max(discounted, 0);
+}
+
+function isOfferApplicableToItem(offer, item) {
+  const offerType = normalizeOfferType(offer?.offerType);
+  const itemId = String(item?.id || "");
+  const itemCategory = normalizeText(item?.category);
+
+  if (offerType === "festival") return true;
+  if (offerType === "category") {
+    return normalizeText(offer?.targetCategory) === itemCategory;
+  }
+  if (offerType === "item") {
+    const targetIds = Array.isArray(offer?.targetItemIds)
+      ? offer.targetItemIds
+      : [];
+    return targetIds.some((id) => String(id) === itemId);
+  }
+  return false;
+}
+
+function buildItemOfferData(item, offers, userAudienceSegment = "new") {
+  const applicableOffers = (Array.isArray(offers) ? offers : []).filter(
+    (offer) =>
+      AUTO_APPLY_OFFER_TYPES.has(normalizeOfferType(offer?.offerType)) &&
+      isOfferAudienceEligible(offer, userAudienceSegment) &&
+      isOfferApplicableToItem(offer, item),
+  );
+
+  const autoDiscountPct = applicableOffers.reduce(
+    (max, offer) => Math.max(max, Number(offer?.pct || 0)),
+    0,
+  );
+
+  const selectedItemOffers = applicableOffers.filter(
+    (offer) => normalizeOfferType(offer?.offerType) === "item",
+  );
+
+  return {
+    autoDiscountPct,
+    applicableOffers,
+    selectedItemOffers,
+  };
+}
+
 // ── Veg / Non-veg indicator icons ─────────────────────────────────────────────
 const VegIcon = ({ size = 14 }) => (
   <span
@@ -539,13 +617,17 @@ export default function DemoMenu() {
       pct: 5,
       title: "Saver 5%",
       subtitle: "5% off",
+      offerType: "coupon",
+      audience: "all",
       minSubtotal: 500,
     },
     {
-      code: "FEST10",
+      code: "SAVE10",
       pct: 10,
-      title: "Festival 10%",
+      title: "Saver 10%",
       subtitle: "10% off",
+      offerType: "coupon",
+      audience: "all",
       minSubtotal: 1000,
     },
   ]);
@@ -680,7 +762,22 @@ export default function DemoMenu() {
     };
   }, []);
 
-  const menuItems = liveMenuItems;
+  const userAudienceSegment = useMemo(() => {
+    const activityCount = Math.max(
+      Number(visitCount || 0),
+      orderHistory.length,
+    );
+    return activityCount > 1 ? "returning" : "new";
+  }, [visitCount, orderHistory.length]);
+
+  const menuItems = useMemo(
+    () =>
+      liveMenuItems.map((item) => ({
+        ...item,
+        offerData: buildItemOfferData(item, offerOptions, userAudienceSegment),
+      })),
+    [liveMenuItems, offerOptions, userAudienceSegment],
+  );
   const restaurantDisplayName =
     String(restaurantProfile.name || "").trim() || "Menu Open";
   const guestDisplayName = String(guestName || "Guest").trim() || "Guest";
@@ -707,6 +804,52 @@ export default function DemoMenu() {
   };
 
   const getItemCartQty = (itemId) => Number(cart[itemId] || 0);
+
+  const couponOffers = useMemo(
+    () =>
+      offerOptions.filter(
+        (offer) =>
+          normalizeOfferType(offer.offerType) === "coupon" &&
+          isOfferAudienceEligible(offer, userAudienceSegment),
+      ),
+    [offerOptions, userAudienceSegment],
+  );
+
+  const selectedItemOfferRows = useMemo(
+    () =>
+      offerOptions.filter(
+        (offer) =>
+          normalizeOfferType(offer.offerType) === "item" &&
+          isOfferAudienceEligible(offer, userAudienceSegment),
+      ),
+    [offerOptions, userAudienceSegment],
+  );
+
+  const getAutoDiscountPctForItem = (item) => {
+    if (item?.offerData) return Number(item.offerData.autoDiscountPct || 0);
+    return Number(
+      buildItemOfferData(item, offerOptions, userAudienceSegment)
+        .autoDiscountPct || 0,
+    );
+  };
+
+  const getSelectedOptionPricing = (item) => {
+    const selectedOption = getSelectedPriceOption(item);
+    const basePrice = Number(selectedOption.price || 0);
+    const discountPct = getAutoDiscountPctForItem(item);
+    const finalPrice = applyDiscount(basePrice, discountPct);
+
+    return {
+      selectedOption,
+      basePrice,
+      finalPrice,
+      discountPct,
+      offerData:
+        item?.offerData ||
+        buildItemOfferData(item, offerOptions, userAudienceSegment),
+      hasDiscount: discountPct > 0 && finalPrice < basePrice,
+    };
+  };
 
   const handleGuestLogout = () => {
     setShowProfile(false);
@@ -900,7 +1043,13 @@ export default function DemoMenu() {
                 pct: Number(row.discountPct || 0),
                 title: String(row.title || `${row.discountPct}% OFF`),
                 subtitle: String(row.description || `${row.discountPct}% off`),
+                offerType: normalizeOfferType(row.offerType),
+                audience: normalizeOfferAudience(row.audience),
                 minSubtotal: Number(row.minSubtotal || 0),
+                targetCategory: String(row.targetCategory || ""),
+                targetItemIds: Array.isArray(row.targetItemIds)
+                  ? row.targetItemIds.map((id) => String(id))
+                  : [],
               })),
             );
           }
@@ -1105,6 +1254,7 @@ export default function DemoMenu() {
       selectPriceOption(id, optionLabel);
     }
     setCart((prev) => ({ ...prev, [id]: (prev[id] || 0) + 1 }));
+    setSelectedItem(null);
   };
 
   const removeFromCart = (id) => {
@@ -1124,8 +1274,14 @@ export default function DemoMenu() {
   const totalPrice = cartTotalPairs.reduce((sum, [id, qty]) => {
     const item = findMenuItemById(id);
     if (!item) return sum;
-    const selectedOption = getSelectedPriceOption(item);
-    return sum + selectedOption.price * qty;
+    const pricing = getSelectedOptionPricing(item);
+    return sum + pricing.finalPrice * qty;
+  }, 0);
+  const baseItemTotal = cartTotalPairs.reduce((sum, [id, qty]) => {
+    const item = findMenuItemById(id);
+    if (!item) return sum;
+    const pricing = getSelectedOptionPricing(item);
+    return sum + pricing.basePrice * qty;
   }, 0);
   const orderLineItems = cartTotalPairs
     .map(([id, qty]) => {
@@ -1135,21 +1291,27 @@ export default function DemoMenu() {
         return null;
       }
 
-      const selectedOption = getSelectedPriceOption(item);
+      const pricing = getSelectedOptionPricing(item);
 
       return {
         id: item.id,
         name: item.name,
         qty,
-        price: selectedOption.price,
-        portion: selectedOption.label,
-        total: selectedOption.price * qty,
+        price: pricing.finalPrice,
+        originalPrice: pricing.basePrice,
+        discountPct: pricing.discountPct,
+        appliedOfferTitles: pricing.offerData.applicableOffers.map(
+          (offer) => offer.title,
+        ),
+        portion: pricing.selectedOption.label,
+        total: pricing.finalPrice * qty,
         veg: item.veg,
       };
     })
     .filter(Boolean);
-  const discountAmount = Math.round((totalPrice * selectedOffer) / 100);
-  const taxableAmount = Math.max(totalPrice - discountAmount, 0);
+  const couponDiscountAmount = Math.round((totalPrice * selectedOffer) / 100);
+  const taxableAmount = Math.max(totalPrice - couponDiscountAmount, 0);
+  const totalDiscountAmount = Math.max(baseItemTotal - taxableAmount, 0);
   const taxAmount = Math.round(taxableAmount * 0.05);
   const grandTotal = taxableAmount + taxAmount;
   const recommendedItems = menuItems
@@ -1200,7 +1362,7 @@ export default function DemoMenu() {
 
   useEffect(() => {
     if (selectedOffer) {
-      const selected = offerOptions.find(
+      const selected = couponOffers.find(
         (offer) =>
           offer.pct === selectedOffer && offer.code === selectedOfferCode,
       );
@@ -1209,7 +1371,7 @@ export default function DemoMenu() {
         setSelectedOfferCode("");
       }
     }
-  }, [offerOptions, selectedOffer, selectedOfferCode, totalPrice]);
+  }, [couponOffers, selectedOffer, selectedOfferCode, totalPrice]);
 
   useEffect(() => {
     if (totalItems === 0 && showCart && !orderPlaced) {
@@ -1281,8 +1443,8 @@ export default function DemoMenu() {
       id: nextOrderNo,
       date: new Date().toLocaleString(),
       total: grandTotal,
-      subtotal: totalPrice,
-      discount: discountAmount,
+      subtotal: baseItemTotal,
+      discount: totalDiscountAmount,
       tax: taxAmount,
       taxableAmount,
       items: totalItems,
@@ -1322,11 +1484,27 @@ export default function DemoMenu() {
 
   const applyCouponCode = () => {
     const normalized = couponCode.trim().toUpperCase();
-    const matched = offerOptions.find((offer) => offer.code === normalized);
-    if (!matched) {
+    const allCouponOffers = offerOptions.filter(
+      (offer) => normalizeOfferType(offer.offerType) === "coupon",
+    );
+    const matchedAnyAudience = allCouponOffers.find(
+      (offer) => offer.code === normalized,
+    );
+    if (!matchedAnyAudience) {
       setCouponError("Invalid coupon code");
       return;
     }
+
+    if (!isOfferAudienceEligible(matchedAnyAudience, userAudienceSegment)) {
+      setCouponError(
+        userAudienceSegment === "new"
+          ? "This coupon is for old users only"
+          : "This coupon is for new users only",
+      );
+      return;
+    }
+
+    const matched = matchedAnyAudience;
 
     if (totalPrice < matched.minSubtotal) {
       setCouponError(`Minimum bill ₹${matched.minSubtotal} required`);
@@ -1842,7 +2020,8 @@ export default function DemoMenu() {
                     {sectionItems.map((item) => {
                       const qty = getItemCartQty(item.id);
                       const options = normalizePriceOptions(item);
-                      const selectedOption = getSelectedPriceOption(item);
+                      const pricing = getSelectedOptionPricing(item);
+                      const selectedOption = pricing.selectedOption;
 
                       return (
                         <div
@@ -1920,41 +2099,51 @@ export default function DemoMenu() {
                                 {item.rating}
                               </span>
                             </div>
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              {item.originalPrice && (
-                                <span className="text-xs text-gray-400 line-through">
-                                  ₹{item.originalPrice}
+                            <div className="flex items-center justify-between mt-1">
+                              <div className="flex items-center gap-1">
+                                {pricing.hasDiscount ? (
+                                  <span className="text-xs text-gray-400 line-through">
+                                    ₹{pricing.basePrice}
+                                  </span>
+                                ) : item.originalPrice ? (
+                                  <span className="text-xs text-gray-400 line-through">
+                                    ₹{item.originalPrice}
+                                  </span>
+                                ) : null}
+                                <span className="text-sm font-bold text-pink-500">
+                                  ₹{pricing.finalPrice}
                                 </span>
-                              )}
-                              <span className="text-sm font-bold text-pink-500">
-                                ₹{selectedOption.price}
-                              </span>
-                            </div>
-
-                            {options.length > 1 && (
-                              <div className="mt-2 flex items-center gap-1 flex-wrap">
-                                {options.map((opt) => {
-                                  const isActive =
-                                    selectedOption.label === opt.label;
-                                  return (
-                                    <button
-                                      key={`${item.id}-${opt.label}`}
-                                      type="button"
-                                      onClick={() =>
-                                        selectPriceOption(item.id, opt.label)
-                                      }
-                                      className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
-                                        isActive
-                                          ? "bg-saffron-lt text-saffron border-saffron/40"
-                                          : "bg-white text-muted border-gray-200"
-                                      }`}
-                                    >
-                                      {opt.label}
-                                    </button>
-                                  );
-                                })}
                               </div>
-                            )}
+                              {options.length > 1 && (
+                                <div className="flex items-center rounded-full overflow-hidden border border-gray-200 bg-gray-100">
+                                  {options.map((opt) => {
+                                    const isActive =
+                                      selectedOption.label === opt.label;
+                                    return (
+                                      <button
+                                        key={`${item.id}-${opt.label}`}
+                                        type="button"
+                                        onClick={() =>
+                                          selectPriceOption(item.id, opt.label)
+                                        }
+                                        className={`px-4 py-1 text-[10px] font-semibold transition-colors ${
+                                          isActive
+                                            ? "bg-saffron text-white"
+                                            : "bg-transparent text-muted"
+                                        }`}
+                                      >
+                                        {opt.label}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                            {pricing.offerData.selectedItemOffers.length > 0 ? (
+                              <p className="mt-1 text-[10px] font-semibold text-saffron">
+                                Selected item offer applied
+                              </p>
+                            ) : null}
                           </div>
                         </div>
                       );
@@ -1994,8 +2183,9 @@ export default function DemoMenu() {
             >
               {(() => {
                 const modalOptions = normalizePriceOptions(selectedItem);
-                const selectedModalOption =
-                  getSelectedPriceOption(selectedItem);
+                const selectedModalPricing =
+                  getSelectedOptionPricing(selectedItem);
+                const selectedModalOption = selectedModalPricing.selectedOption;
                 const selectedQty = getItemCartQty(selectedItem.id);
 
                 return (
@@ -2039,14 +2229,25 @@ export default function DemoMenu() {
                       {/* Price row */}
                       <div className="flex items-center gap-2 mt-1 mb-2">
                         <span className="text-lg font-bold text-gray-900">
-                          ₹{selectedModalOption.price}
+                          ₹{selectedModalPricing.finalPrice}
                         </span>
-                        {selectedItem.originalPrice && (
+                        {selectedModalPricing.hasDiscount ? (
+                          <span className="text-sm text-gray-400 line-through">
+                            ₹{selectedModalPricing.basePrice}
+                          </span>
+                        ) : selectedItem.originalPrice ? (
                           <span className="text-sm text-gray-400 line-through">
                             ₹{selectedItem.originalPrice}
                           </span>
-                        )}
+                        ) : null}
                       </div>
+
+                      {selectedModalPricing.offerData.selectedItemOffers
+                        .length > 0 ? (
+                        <p className="text-[11px] font-semibold text-saffron mb-2">
+                          Selected item offer applied
+                        </p>
+                      ) : null}
 
                       {modalOptions.length > 1 && (
                         <div className="flex items-center gap-1.5 flex-wrap mb-3">
@@ -2174,7 +2375,7 @@ export default function DemoMenu() {
                     onClick={() => setShowCart(true)}
                     className="flex items-center gap-1.5 font-bold text-xs bg-paper text-saffron px-4 py-2 rounded-lg hover:bg-white transition-colors shadow-sm"
                   >
-                    View Cart
+                    Order Preview
                     <ArrowLeft size={13} className="rotate-180" />
                   </button>
                 </div>
@@ -2214,7 +2415,8 @@ export default function DemoMenu() {
                     <ArrowLeft size={20} />
                   </button>
                   <h2 className="font-bold text-xl text-ink">
-                    Your Order {guestName ? `• ${guestName.split(" ")[0]}` : ""}
+                    Order Preview{" "}
+                    {guestName ? `• ${guestName.split(" ")[0]}` : ""}
                   </h2>
                 </div>
 
@@ -2249,7 +2451,8 @@ export default function DemoMenu() {
                         {cartTotalPairs.map(([id, qty]) => {
                           const item = findMenuItemById(id);
                           if (!item) return null;
-                          const selectedOption = getSelectedPriceOption(item);
+                          const pricing = getSelectedOptionPricing(item);
+                          const selectedOption = pricing.selectedOption;
                           return (
                             <div
                               key={id}
@@ -2288,7 +2491,7 @@ export default function DemoMenu() {
                                   </div>
                                   <p className="font-semibold text-xs text-muted">
                                     {selectedOption.label} • ₹
-                                    {selectedOption.price} x {qty}
+                                    {pricing.finalPrice} x {qty}
                                   </p>
                                 </div>
                               </div>
@@ -2386,10 +2589,68 @@ export default function DemoMenu() {
                       <div className="bg-white rounded-2xl p-3 shadow-sm border border-border space-y-3">
                         <div>
                           <h3 className="font-bold text-[15px] text-ink mb-1.5">
-                            Offers
+                            Selected Item Offers
                           </h3>
                           <div className="space-y-2">
-                            {offerOptions.map((offer) => {
+                            {selectedItemOfferRows.map((offer) => {
+                              const targetIds = Array.isArray(
+                                offer.targetItemIds,
+                              )
+                                ? offer.targetItemIds
+                                : [];
+                              const matchedItems = orderLineItems.filter(
+                                (line) => targetIds.includes(String(line.id)),
+                              );
+                              const isActive = matchedItems.length > 0;
+
+                              return (
+                                <div
+                                  key={`item-offer-${offer.code || offer.title}`}
+                                  className={`rounded-xl border px-2.5 py-2 ${isActive ? "bg-saffron-lt border-saffron/40" : "bg-paper border-border"}`}
+                                >
+                                  <div className="flex items-center justify-between gap-2">
+                                    <p className="font-bold text-[13px] text-ink leading-tight">
+                                      {offer.title}
+                                    </p>
+                                    <span
+                                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isActive ? "bg-saffron text-white" : "bg-border text-muted"}`}
+                                    >
+                                      {isActive ? "Auto Applied" : "Add Item"}
+                                    </span>
+                                  </div>
+                                  <p className="text-[10px] text-muted leading-tight mt-0.5">
+                                    {offer.subtitle}
+                                  </p>
+                                  {isActive ? (
+                                    <p className="text-[10px] text-saffron font-semibold mt-1">
+                                      Items:{" "}
+                                      {matchedItems
+                                        .map((line) => line.name)
+                                        .join(", ")}
+                                    </p>
+                                  ) : null}
+                                </div>
+                              );
+                            })}
+                            {selectedItemOfferRows.length === 0 ? (
+                              <p className="text-xs text-muted">
+                                No selected-item offers available right now.
+                              </p>
+                            ) : null}
+                          </div>
+                        </div>
+
+                        <div>
+                          <h3 className="font-bold text-[15px] text-ink mb-1.5">
+                            Coupon Offers
+                          </h3>
+                          <p className="text-[10px] text-muted mb-2">
+                            Showing offers for{" "}
+                            {userAudienceSegment === "new" ? "new" : "old"}{" "}
+                            users
+                          </p>
+                          <div className="space-y-2">
+                            {couponOffers.map((offer) => {
                               const eligible = totalPrice >= offer.minSubtotal;
                               const isSelected =
                                 selectedOffer === offer.pct &&
@@ -2428,6 +2689,11 @@ export default function DemoMenu() {
                                 </div>
                               );
                             })}
+                            {couponOffers.length === 0 ? (
+                              <p className="text-xs text-muted">
+                                No coupon offers available right now.
+                              </p>
+                            ) : null}
                           </div>
                         </div>
 
@@ -2473,14 +2739,14 @@ export default function DemoMenu() {
                         <div className="space-y-2 text-sm">
                           <div className="flex justify-between font-medium text-muted">
                             <span>Item Total</span>
-                            <span>₹{totalPrice}</span>
+                            <span>₹{baseItemTotal}</span>
                           </div>
                           <div className="flex justify-between font-medium text-muted">
                             <span>
                               Discount{" "}
                               {selectedOffer ? `(${selectedOffer}%)` : ""}
                             </span>
-                            <span>-₹{discountAmount}</span>
+                            <span>-₹{totalDiscountAmount}</span>
                           </div>
                           <div className="flex justify-between font-medium text-muted">
                             <span>Taxes & Fees (5%)</span>
@@ -2916,7 +3182,7 @@ export default function DemoMenu() {
                       disabled={!guestName.trim()}
                       className="w-full bg-saffron disabled:bg-border disabled:text-muted text-white py-3.5 rounded-xl font-bold text-sm shadow-[0_4px_20px_rgba(232,114,12,0.3)] hover:bg-saffron2 transition-colors flex items-center justify-center gap-2"
                     >
-                      Place Order • ₹{grandTotal}{" "}
+                      Go to Order • ₹{grandTotal}{" "}
                       <ArrowLeft size={18} className="rotate-180" />
                     </button>
                   </div>

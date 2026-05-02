@@ -67,13 +67,13 @@ const SIDEBAR_ITEMS = [
   {
     path: "/pos",
     icon: MonitorSmartphone,
-    label: "Point of Sale",
+    label: "POS",
     minimumRole: "cashier",
   },
   {
     path: "/orders",
     icon: ClipboardList,
-    label: "Orders",
+    label: "KOT",
     minimumRole: "cashier",
   },
   { path: "/inventory", icon: Boxes, label: "Inventory", minimumRole: "admin" },
@@ -357,14 +357,14 @@ export default function AdminLayout() {
         />
         <button
           onClick={() => setCompactSidebar((prev) => !prev)}
-          className="absolute -right-3 top-6 w-6 h-6 rounded-full border border-border bg-white text-muted hover:text-ink shadow-sm flex items-center justify-center cursor-pointer"
+          className="absolute -right-4 top-6 w-8 h-8 rounded-full border border-border bg-white text-muted hover:text-ink shadow-md flex items-center justify-center cursor-pointer"
           title={compactSidebar ? "Show menu names" : "Hide menu names"}
           aria-label={compactSidebar ? "Show menu names" : "Hide menu names"}
         >
           {compactSidebar ? (
-            <ChevronRight size={14} />
+            <ChevronRight size={18} />
           ) : (
-            <ChevronLeft size={14} />
+            <ChevronLeft size={18} />
           )}
         </button>
       </div>
@@ -423,10 +423,10 @@ export default function AdminLayout() {
               {location.pathname.includes("/pos/checkout") && "POS Checkout"}
               {location.pathname.includes("/pos") &&
                 !location.pathname.includes("/checkout") &&
-                "Point of Sale"}
+                "POS"}
               {location.pathname.includes("/orders") &&
                 !location.pathname.includes("/pos") &&
-                "Orders"}
+                "KOT"}
               {location.pathname.includes("/tables") &&
                 (isHotelMode ? "Rooms" : "Tables")}
               {location.pathname.includes("/inventory") && "Inventory"}
@@ -482,25 +482,32 @@ export default function AdminLayout() {
                       formattedIncomingOrders.map((order) => (
                         <div
                           key={order.id}
-                          className="px-4 py-3 border-b border-border/70 last:border-b-0"
+                          className="px-4 py-3 border-b border-border/70 last:border-b-0 cursor-pointer hover:bg-paper/70 transition-colors"
+                          onClick={() => {
+                            setShowNotifications(false);
+                            navigate(
+                              `/${slug}/orders?orderId=${encodeURIComponent(order._id)}`,
+                            );
+                          }}
                         >
-                          <div className="flex items-start justify-between gap-2 mb-2">
-                            <div>
-                              <p className="text-sm font-semibold text-ink">
-                                {order.id}
-                                <span className="text-muted font-medium">
-                                  {" "}
-                                  · {order.source}
-                                </span>
-                              </p>
-                              <p className="text-xs font-semibold text-saffron mt-1">
-                                {order.amountLabel}
-                              </p>
-                            </div>
+                          <div className="flex items-center justify-between gap-3 mb-2">
+                            <p className="text-sm font-semibold text-ink truncate">
+                              {order.id}
+                              <span className="text-muted font-medium">
+                                {" "}
+                                · {order.source}
+                              </span>
+                            </p>
+                            <p className="text-sm font-semibold text-saffron shrink-0">
+                              {order.amountLabel}
+                            </p>
                           </div>
                           <div className="flex gap-2">
                             <button
-                              onClick={() => handleApprove(order, null)}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                handleApprove(order, null);
+                              }}
                               disabled={approvingId === order._id}
                               className="flex-1 text-xs font-semibold px-3 py-1.5 rounded-lg bg-green-50 text-green-700 hover:bg-green-100 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors inline-flex items-center justify-center gap-1.5"
                             >
@@ -514,7 +521,10 @@ export default function AdminLayout() {
                               )}
                             </button>
                             <button
-                              onClick={() => handleDecline(order, null)}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                handleDecline(order, null);
+                              }}
                               disabled={approvingId === order._id}
                               className="flex-1 text-xs font-semibold px-3 py-1.5 rounded-lg bg-red-50 text-red-700 hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors inline-flex items-center justify-center gap-1.5"
                             >

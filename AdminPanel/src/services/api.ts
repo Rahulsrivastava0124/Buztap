@@ -206,6 +206,7 @@ export interface OrderDetailItem {
   quantity: number;
   price: number;
   total: number;
+  portion?: string;
   notes?: string;
 }
 
@@ -254,13 +255,20 @@ export interface ReportRecord {
   owner?: string;
 }
 
+export type OfferType = "coupon" | "festival" | "category" | "item";
+export type OfferAudience = "all" | "new" | "returning";
+
 export interface OfferRecord {
   id: string;
   title: string;
   code: string;
   description: string;
+  offerType: OfferType;
+  audience: OfferAudience;
   discountPct: number;
   minSubtotal: number;
+  targetCategory: string;
+  targetItemIds: string[];
   expiresAt?: string | null;
   isVisible: boolean;
   isActive: boolean;
@@ -272,8 +280,12 @@ export interface CreateOfferInput {
   title: string;
   code: string;
   description?: string;
+  offerType?: OfferType;
+  audience?: OfferAudience;
   discountPct: number;
   minSubtotal?: number;
+  targetCategory?: string;
+  targetItemIds?: string[];
   expiresAt?: string | null;
   isVisible?: boolean;
   isActive?: boolean;

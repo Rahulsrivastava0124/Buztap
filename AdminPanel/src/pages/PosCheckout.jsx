@@ -30,7 +30,7 @@ import {
 } from "../services/api";
 import { useQuery } from "@tanstack/react-query";
 
-// steps: "review" → "payment" → "done"
+// steps: "review" → "done"
 export default function PosCheckout() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -187,7 +187,7 @@ export default function PosCheckout() {
       });
       setKotOrder(result);
       toast.success("KOT sent to kitchen!");
-      setStep("payment");
+      setStep("done");
     } catch (err) {
       toast.error(err?.message || "Unable to send KOT");
       setCheckoutError(err?.message || "Unable to send KOT. Please try again.");
@@ -273,8 +273,17 @@ export default function PosCheckout() {
   };
 
   // ─────────────────────────────────────────────
-  // Step: DONE
+  // Step: DONE — auto-return to POS after 3 s
   // ─────────────────────────────────────────────
+  useEffect(() => {
+    if (step !== "done") return;
+    const timer = setTimeout(() => {
+      clearCart();
+      navigate(`/${slug}/pos`, { replace: true });
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [step]); // eslint-disable-line react-hooks/exhaustive-deps
+
   if (step === "done") {
     return (
       <div className="h-[calc(100vh-64px)] flex items-center justify-center bg-paper p-6">
@@ -284,6 +293,7 @@ export default function PosCheckout() {
           </div>
           <div>
             <h2 className="font-bold text-xl text-ink">Order Complete!</h2>
+            <p className="text-xs text-muted mt-1">Returning to POS in 3 s…</p>
             <p className="text-sm text-muted mt-1">
               {locationLabel} {selectedTable} • {orderType}
             </p>
@@ -315,10 +325,6 @@ export default function PosCheckout() {
               <span>Total</span>
               <span className="text-saffron">₹{total.toFixed(2)}</span>
             </div>
-            <div className="flex justify-between text-xs text-muted pt-1">
-              <span>Payment</span>
-              <span className="font-medium">{selectedPayment}</span>
-            </div>
             <div className="flex justify-between text-xs text-muted">
               <span>Order ID</span>
               <span className="font-medium">{invoiceNumber}</span>
@@ -339,7 +345,7 @@ export default function PosCheckout() {
             }}
             className="w-full py-2.5 rounded-xl border border-border bg-paper text-sm font-semibold text-muted hover:text-ink transition-colors"
           >
-            Start New Order
+            Go to POS Now
           </button>
         </div>
       </div>
@@ -358,9 +364,7 @@ export default function PosCheckout() {
             <CheckCircle2 size={13} /> Order Sent
           </span>
           <span className="text-muted2">›</span>
-          <span className="text-saffron font-bold">Payment</span>
-          <span className="text-muted2">›</span>
-          <span className="text-muted2">Done</span>
+          <span className="text-saffron font-bold">Done</span>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 flex-1 min-h-0">
@@ -501,8 +505,6 @@ export default function PosCheckout() {
       {/* Progress bar */}
       <div className="flex items-center gap-2 mb-4 text-xs font-semibold">
         <span className="text-saffron font-bold">Review & Guest</span>
-        <span className="text-muted2">›</span>
-        <span className="text-muted2">Payment</span>
         <span className="text-muted2">›</span>
         <span className="text-muted2">Done</span>
       </div>

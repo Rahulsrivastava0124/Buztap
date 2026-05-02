@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   ChevronLeft,
   ChevronRight,
@@ -62,7 +63,7 @@ function OrderDetailDrawer({ orderId, onClose }) {
       .map(
         (item) => `
           <tr>
-            <td>${item.name}</td>
+            <td>${item.name}${item.portion ? ` <span style="color:#666; font-size:12px;">(${item.portion})</span>` : ""}</td>
             <td style="text-align:center;">${item.quantity}</td>
             <td style="text-align:right;">₹${Number(item.price || 0).toFixed(2)}</td>
             <td style="text-align:right;">₹${Number(item.total || 0).toFixed(2)}</td>
@@ -334,6 +335,14 @@ function OrderDetailDrawer({ orderId, onClose }) {
                         <p className="font-medium text-ink">
                           {item.quantity}× {item.name}
                         </p>
+                        {item.portion && (
+                          <p className="text-xs text-muted">
+                            Portion: {item.portion}
+                          </p>
+                        )}
+                        <p className="text-xs text-muted">
+                          Unit: ₹{Number(item.price || 0).toLocaleString()}
+                        </p>
                         {item.notes && (
                           <p className="text-xs text-muted">{item.notes}</p>
                         )}
@@ -393,7 +402,9 @@ function OrderDetailDrawer({ orderId, onClose }) {
 }
 
 export default function OrdersPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [selectedOrderId, setSelectedOrderId] = useState(null);
+  const selectedOrderIdFromQuery = searchParams.get("orderId");
 
   const formatGeneratedTime = (value) => {
     if (!value) return "-";
@@ -424,6 +435,22 @@ export default function OrdersPage() {
   const outForDelivery = orders.filter(
     (o) => o.source.toLowerCase().includes("delivery") && o.status !== "Served",
   ).length;
+
+  useEffect(() => {
+    if (!selectedOrderIdFromQuery) return;
+    setSelectedOrderId(selectedOrderIdFromQuery);
+  }, [selectedOrderIdFromQuery]);
+
+  const closeDrawer = () => {
+    setSelectedOrderId(null);
+    if (selectedOrderIdFromQuery) {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("orderId");
+        return next;
+      });
+    }
+  };
 
   return (
     <PageShell>
@@ -517,10 +544,7 @@ export default function OrdersPage() {
         </div>
 
         {selectedOrderId && (
-          <OrderDetailDrawer
-            orderId={selectedOrderId}
-            onClose={() => setSelectedOrderId(null)}
-          />
+          <OrderDetailDrawer orderId={selectedOrderId} onClose={closeDrawer} />
         )}
       </ErrorBoundary>
     </PageShell>

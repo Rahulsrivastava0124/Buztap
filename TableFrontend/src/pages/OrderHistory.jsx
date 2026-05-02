@@ -58,7 +58,7 @@ const buildInvoiceDocument = (order) => {
         .map(
           (item) => `
             <tr>
-              <td style="padding: 10px 0; border-bottom: 1px solid #ece7de;">${item.name}</td>
+              <td style="padding: 10px 0; border-bottom: 1px solid #ece7de;">${item.name}${item.portion ? ` <span style="color:#857c6e; font-size:12px;">(${item.portion})</span>` : ""}</td>
               <td style="padding: 10px 0; border-bottom: 1px solid #ece7de; text-align:center;">${item.qty}</td>
               <td style="padding: 10px 0; border-bottom: 1px solid #ece7de; text-align:right;">₹${item.price}</td>
               <td style="padding: 10px 0; border-bottom: 1px solid #ece7de; text-align:right;">₹${item.total}</td>
@@ -287,6 +287,7 @@ export default function OrderHistory() {
             name: it.name,
             qty: it.quantity ?? it.qty ?? 1,
             price: it.price ?? 0,
+            portion: it.portion || "",
             total: it.total ?? (it.price ?? 0) * (it.quantity ?? it.qty ?? 1),
           }));
           return {
@@ -577,6 +578,11 @@ export default function OrderHistory() {
                       <p className="text-sm font-medium text-[#1a1814]">
                         {item.name}
                       </p>
+                      {item.portion ? (
+                        <p className="text-xs text-[#a09080] mt-0.5">
+                          Portion: {item.portion}
+                        </p>
+                      ) : null}
                       <p className="text-xs text-[#a09080] mt-0.5">
                         {item.qty} × {formatCurrency(item.price)}
                       </p>

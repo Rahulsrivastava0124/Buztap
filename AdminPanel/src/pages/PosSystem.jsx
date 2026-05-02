@@ -371,14 +371,27 @@ export default function PosSystem() {
           }))
           .filter((opt) => opt.label && opt.price > 0)
       : [];
-    if (options.length > 0) return options;
+
+    const deduped = [];
+    const seen = new Set();
+    options.forEach((opt) => {
+      const key = opt.label.toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      deduped.push(opt);
+    });
+
+    if (deduped.length > 0) return deduped;
     return [{ label: "Full", price: Number(item?.price || 0) }];
   };
 
   const getSelectedOption = (item) => {
     const options = getPriceOptions(item);
     const selectedLabel = selectedOptionByItemId[String(item?.id || "")];
-    return options.find((opt) => opt.label === selectedLabel) || options[0];
+    const wanted = String(selectedLabel || "").toLowerCase();
+    return (
+      options.find((opt) => opt.label.toLowerCase() === wanted) || options[0]
+    );
   };
 
   const selectOption = (itemId, label) => {
@@ -484,18 +497,6 @@ export default function PosSystem() {
       <div className="h-[calc(100vh-64px)] flex overflow-hidden bg-paper relative">
         {/* Table Grid */}
         <div className="flex-1 flex flex-col overflow-hidden">
-          <div className="p-5 bg-white border-b border-border shadow-sm">
-            <h2 className="font-bold text-lg text-ink flex items-center gap-2">
-              <Utensils size={20} className="text-saffron" />
-              Select a {locationLabel}
-            </h2>
-            {/* <p className="text-sm text-muted mt-0.5">
-              {locationLabel === "Table"
-                ? "Occupied tables show the active order. Tap to view or add items."
-                : `Choose a ${locationLabel.toLowerCase()} to start the order.`}
-            </p> */}
-          </div>
-
           <div className="flex-1 overflow-y-auto p-5 custom-scrollbar">
             {tablesLoading ? (
               <p className="text-sm text-muted">
@@ -1057,7 +1058,7 @@ export default function PosSystem() {
                   }`}
                 >
                   {inCart && (
-                    <div className="absolute top-2 right-2 z-20 min-w-[20px] h-5 px-1.5 bg-saffron text-white text-[10px] font-bold rounded-full flex items-center justify-center shadow-sm">
+                    <div className="absolute top-2 right-2 z-20 min-w-5 h-5 px-1.5 bg-saffron text-white text-[10px] font-bold rounded-full flex items-center justify-center shadow-sm">
                       {cartQty}
                     </div>
                   )}
@@ -1086,7 +1087,7 @@ export default function PosSystem() {
                               }}
                               className={`px-2 py-0.5 rounded-full text-[10px] font-bold border backdrop-blur-sm transition-all duration-200 ${
                                 isActive
-                                  ? "bg-gradient-to-b from-white/95 to-white/80 text-saffron border-saffron/50 shadow-[0_1px_4px_rgba(232,114,12,0.25)]"
+                                  ? "bg-linear-to-b from-white/95 to-white/80 text-saffron border-saffron/50 shadow-[0_1px_4px_rgba(232,114,12,0.25)]"
                                   : "bg-black/35 text-white/90 border-white/30 hover:bg-black/50"
                               }`}
                             >
@@ -1152,12 +1153,10 @@ export default function PosSystem() {
               </Motion.div>
             ) : (
               cart.map((item) => {
-                const portionOpts = Array.isArray(item.priceOptions)
-                  ? item.priceOptions.filter((o) => {
-                      const l = String(o?.label || "").toLowerCase();
-                      return l === "full" || l === "half" || l === "pcs";
-                    })
-                  : [];
+                const portionOpts = getPriceOptions(item).filter((o) => {
+                  const l = String(o?.label || "").toLowerCase();
+                  return l === "full" || l === "half" || l === "pcs";
+                });
                 const hasOptions = portionOpts.length > 1;
                 const key = item.cartKey || item.id;
                 return (
@@ -1195,7 +1194,7 @@ export default function PosSystem() {
                                   }
                                   className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-md border transition-all duration-200 ${
                                     isActive
-                                      ? "bg-gradient-to-b from-saffron/20 to-saffron/5 text-saffron border-saffron/40 shadow-[inset_0_1px_0_rgba(255,255,255,0.6),0_1px_3px_rgba(232,114,12,0.15)]"
+                                      ? "bg-linear-to-b from-saffron/20 to-saffron/5 text-saffron border-saffron/40 shadow-[inset_0_1px_0_rgba(255,255,255,0.6),0_1px_3px_rgba(232,114,12,0.15)]"
                                       : "bg-transparent text-muted border-border hover:border-saffron/30 hover:text-saffron/70"
                                   }`}
                                 >
@@ -1227,7 +1226,7 @@ export default function PosSystem() {
                       </div>
 
                       {/* Price */}
-                      <span className="text-[13px] font-bold text-ink font-roboto min-w-[44px] text-right">
+                      <span className="text-[13px] font-bold text-ink font-roboto min-w-11 text-right">
                         ₹{item.price * item.qty}
                       </span>
 

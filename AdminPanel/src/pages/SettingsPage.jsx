@@ -108,6 +108,12 @@ function TableQrCard() {
   const [qrData, setQrData] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
 
+  const { data: profile } = useQuery({
+    queryKey: ["business-profile"],
+    queryFn: fetchBusinessProfile,
+    staleTime: 60_000,
+  });
+
   const { data: tables = [] } = useQuery({
     queryKey: ["tables"],
     queryFn: fetchTables,
@@ -117,6 +123,13 @@ function TableQrCard() {
   const qrImageUrl = qrData?.menuUrl
     ? `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrData.menuUrl)}`
     : "";
+  const qrRestroName = String(qrData?.businessName || "BuzTap").trim();
+  const qrTableLabel = qrData?.table?.label || qrData?.tableId || "Table";
+  const qrPinLabel =
+    qrRestroName.length > 24 ? `${qrRestroName.slice(0, 24)}...` : qrRestroName;
+  const qrLogoUrl =
+    String(qrData?.business?.logoImage || profile?.logoImage || "").trim() ||
+    "";
 
   const handleGenerate = async () => {
     const tableId = selectedTableId || tables[0]?.id;
@@ -142,28 +155,33 @@ function TableQrCard() {
       toast.error("Please allow popups to print QR.");
       return;
     }
-    const title = `${qrData.businessName || "BuzTap"} — ${qrData.table?.label || qrData.tableId}`;
+    const title = `${qrRestroName} — ${qrTableLabel}`;
     popup.document.write(`
       <html>
         <head>
           <title>${title}</title>
           <style>
-            body { font-family: Arial, sans-serif; margin: 0; padding: 24px; text-align: center; color: #222; }
-            .card { border: 1px solid #ddd; border-radius: 16px; padding: 24px; max-width: 520px; margin: 0 auto; }
-            h1 { margin: 0 0 6px; font-size: 24px; }
+            body { font-family: Arial, sans-serif; margin: 0; padding: 24px; text-align: center; color: #222; background: #f5f0e8; }
+            .card { border: 1px solid #e5ddd1; border-radius: 22px; padding: 24px; max-width: 560px; margin: 0 auto; background: #fff; box-shadow: 0 14px 38px rgba(15,14,11,0.08); }
+            .meta { margin: 0 0 12px; color: #7b756b; font-size: 14px; }
+            h1 { margin: 0 0 6px; font-size: 26px; }
             p { margin: 4px 0; color: #555; }
-            img { width: 300px; height: 300px; margin: 16px auto; display: block; }
-            .url { margin-top: 10px; font-size: 12px; color: #666; word-break: break-all; }
+            .qr-wrap { position: relative; width: 320px; height: 320px; margin: 16px auto; border-radius: 18px; padding: 10px; background: #faf7f2; border: 1px solid #e5ddd1; }
+            .qr-wrap .qr-main { width: 100%; height: 100%; display: block; border-radius: 10px; }
+            .pin { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #fff; border: 1px solid #f2d5b9; border-radius: 999px; padding: 6px 12px; font-size: 12px; font-weight: 700; color: #e8720c; max-width: 72%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 6px 18px rgba(232,114,12,0.16); }
+            .pin-logo { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 44px; height: 44px; border-radius: 12px; overflow: hidden; display: block; object-fit: contain; background: #fff; padding: 4px; border: 1px solid #f2d5b9; box-shadow: 0 6px 18px rgba(232,114,12,0.16); }
+            .hint { margin-top: 8px; font-size: 13px; color: #7b756b; }
           </style>
         </head>
         <body>
           <div class="card">
-            <h1>${qrData.businessName || "BuzTap"}</h1>
-            <p><strong>${qrData.table?.label || qrData.tableId}</strong></p>
-            <p>Seats: ${qrData.table?.seats ?? "-"}</p>
-            <img src="${qrImageUrl}" alt="Table QR" />
-            <p>Scan to view menu and place order</p>
-            ${qrData.menuUrl ? `<p class="url">${qrData.menuUrl}</p>` : ""}
+            <h1>${qrRestroName}</h1>
+            <p class="meta"><strong>${qrTableLabel}</strong> · Seats: ${qrData.table?.seats ?? "-"}</p>
+            <div class="qr-wrap">
+              <img class="qr-main" src="${qrImageUrl}" alt="Table QR" />
+              ${qrLogoUrl ? `<img class="pin-logo" src="${qrLogoUrl}" alt="Logo" />` : `<div class="pin">${qrPinLabel}</div>`}
+            </div>
+            <p class="hint">Scan to view menu and place order</p>
           </div>
           <script>window.onload = function() { window.print(); };</script>
         </body>
@@ -211,12 +229,40 @@ function TableQrCard() {
 
         {qrData && qrImageUrl && (
           <>
-            <div className="rounded-lg border border-border bg-paper p-3 flex justify-center">
-              <img
-                src={qrImageUrl}
-                alt={`QR for ${qrData.table?.label || qrData.tableId}`}
-                className="w-48 h-48 object-contain"
-              />
+            <div className="rounded-2xl border border-border bg-linear-to-b from-white to-paper p-3.5">
+              <div className="flex items-center justify-between mb-2.5">
+                <p className="text-sm font-bold text-ink leading-none">
+                  {qrRestroName}
+                </p>
+                <span className="text-[11px] font-semibold text-saffron bg-saffron-lt px-2 py-1 rounded-full">
+                  {qrTableLabel}
+                </span>
+              </div>
+
+              <div className="relative rounded-xl border border-border bg-white p-2 flex justify-center">
+                <img
+                  src={qrImageUrl}
+                  alt={`QR for ${qrTableLabel}`}
+                  className="w-52 h-52 object-contain"
+                />
+                {qrLogoUrl ? (
+                  <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 rounded-xl border border-saffron/30 bg-white shadow-[0_6px_16px_rgba(232,114,12,0.14)] p-1.5 overflow-hidden">
+                    <img
+                      src={qrLogoUrl}
+                      alt="Logo"
+                      className="w-full h-full object-contain"
+                    />
+                  </span>
+                ) : (
+                  <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 max-w-[70%] truncate rounded-full border border-saffron/30 bg-white px-3 py-1 text-[11px] font-bold text-saffron shadow-[0_6px_16px_rgba(232,114,12,0.14)]">
+                    {qrPinLabel}
+                  </span>
+                )}
+              </div>
+
+              <p className="text-[11px] text-muted text-center mt-2">
+                Scan to open menu and place order
+              </p>
             </div>
             <button
               type="button"

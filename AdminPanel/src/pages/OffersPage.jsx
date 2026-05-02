@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from "react";
+import { lazy, Suspense, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Plus,
@@ -13,27 +13,54 @@ import "react-datepicker/dist/react-datepicker.css";
 import {
   createOffer,
   deleteOffer,
+  fetchMenuItems,
   fetchOffers,
   updateOffer,
 } from "../services/api";
 import PageShell from "../components/layout/PageShell";
 
+const OFFER_TYPE_OPTIONS = [
+  { value: "coupon", label: "Coupon (cart level)" },
+  { value: "festival", label: "Festival Offer (auto apply)" },
+  { value: "category", label: "Category Offer" },
+  { value: "item", label: "Selected Item Offer" },
+];
+
+const OFFER_AUDIENCE_OPTIONS = [
+  { value: "all", label: "All Users" },
+  { value: "new", label: "New Users" },
+  { value: "returning", label: "Old Users" },
+];
+
 const EMPTY_FORM = {
   title: "",
   code: "",
   description: "",
+  offerType: "coupon",
+  audience: "all",
   discountPct: 10,
   minSubtotal: 0,
+  targetCategory: "",
+  targetItemIds: [],
   expiresAt: null,
 };
 
 function buildOfferPayload(form) {
+  const offerType = String(form.offerType || "coupon");
+
   return {
     title: form.title.trim(),
     code: form.code.trim().toUpperCase(),
     description: form.description.trim(),
+    offerType,
+    audience: String(form.audience || "all"),
     discountPct: Number(form.discountPct || 0),
     minSubtotal: Number(form.minSubtotal || 0),
+    targetCategory: offerType === "category" ? form.targetCategory.trim() : "",
+    targetItemIds:
+      offerType === "item"
+        ? Array.from(new Set((form.targetItemIds || []).map(String)))
+        : [],
     expiresAt: form.expiresAt ? form.expiresAt.toISOString() : null,
   };
 }
@@ -43,10 +70,57 @@ function formFromOffer(offer) {
     title: offer.title || "",
     code: offer.code || "",
     description: offer.description || "",
+    offerType: offer.offerType || "coupon",
+    audience: offer.audience || "all",
     discountPct: Number(offer.discountPct || 0),
     minSubtotal: Number(offer.minSubtotal || 0),
+    targetCategory: offer.targetCategory || "",
+    targetItemIds: Array.isArray(offer.targetItemIds)
+      ? offer.targetItemIds
+      : [],
     expiresAt: offer.expiresAt ? new Date(offer.expiresAt) : null,
   };
+}
+
+function getOfferTypeLabel(offerType) {
+  switch (offerType) {
+    case "festival":
+      return "Festival";
+    case "category":
+      return "Category";
+    case "item":
+      return "Selected Items";
+    default:
+      return "Coupon";
+  }
+}
+
+function getOfferAudienceLabel(audience) {
+  switch (String(audience || "all")) {
+    case "new":
+      return "New Users";
+    case "returning":
+      return "Old Users";
+    default:
+      return "All Users";
+  }
+}
+
+function getOfferTargetLabel(offer) {
+  const type = String(offer.offerType || "coupon");
+  if (type === "category") {
+    return offer.targetCategory
+      ? `Category: ${offer.targetCategory}`
+      : "Category target missing";
+  }
+  if (type === "item") {
+    const count = Array.isArray(offer.targetItemIds)
+      ? offer.targetItemIds.length
+      : 0;
+    return count > 0 ? `Items: ${count} selected` : "Items target missing";
+  }
+  if (type === "festival") return "Applies on QR menu cards";
+  return "Applied with coupon code";
 }
 
 function getOfferMeta(offer) {
@@ -81,6 +155,7 @@ export default function OffersPage() {
   const queryClient = useQueryClient();
   const [form, setForm] = useState(EMPTY_FORM);
   const [editingOfferId, setEditingOfferId] = useState("");
+  const [formError, setFormError] = useState("");
   const isEditMode = Boolean(editingOfferId);
 
   const {
@@ -93,6 +168,23 @@ export default function OffersPage() {
     queryKey: ["offers"],
     queryFn: fetchOffers,
   });
+
+  const { data: menuItems = [] } = useQuery({
+    queryKey: ["menu-items-for-offers"],
+    queryFn: fetchMenuItems,
+  });
+
+  const menuCategories = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          menuItems
+            .map((item) => String(item.category || "").trim())
+            .filter(Boolean),
+        ),
+      ).sort((a, b) => a.localeCompare(b)),
+    [menuItems],
+  );
 
   const createMutation = useMutation({
     mutationFn: createOffer,
@@ -124,6 +216,21 @@ export default function OffersPage() {
 
   function onSubmit(e) {
     e.preventDefault();
+    setFormError("");
+
+    if (
+      form.offerType === "category" &&
+      !String(form.targetCategory || "").trim()
+    ) {
+      setFormError("Please choose a category for this offer.");
+      return;
+    }
+
+    if (form.offerType === "item" && form.targetItemIds.length === 0) {
+      setFormError("Please choose at least one menu item for this offer.");
+      return;
+    }
+
     const payload = buildOfferPayload(form);
 
     if (isEditMode) {
@@ -153,6 +260,17 @@ export default function OffersPage() {
 
   function onChange(e) {
     const { name, value } = e.target;
+
+    if (name === "offerType") {
+      setForm((prev) => ({
+        ...prev,
+        offerType: value,
+        targetCategory: "",
+        targetItemIds: [],
+      }));
+      return;
+    }
+
     setForm((prev) => ({
       ...prev,
       [name]:
@@ -160,6 +278,21 @@ export default function OffersPage() {
           ? Number(value || 0)
           : value,
     }));
+  }
+
+  function toggleTargetItem(itemId) {
+    setForm((prev) => {
+      const current = Array.isArray(prev.targetItemIds)
+        ? prev.targetItemIds
+        : [];
+      const id = String(itemId);
+      return {
+        ...prev,
+        targetItemIds: current.includes(id)
+          ? current.filter((value) => value !== id)
+          : [...current, id],
+      };
+    });
   }
 
   return (
@@ -213,6 +346,99 @@ export default function OffersPage() {
                 placeholder="10% off on orders"
               />
             </label>
+
+            <label className="block text-sm">
+              <span className="text-muted">Offer Type</span>
+              <select
+                name="offerType"
+                value={form.offerType}
+                onChange={onChange}
+                className="mt-1 w-full rounded-lg border border-border bg-white px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-saffron/30"
+              >
+                {OFFER_TYPE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="block text-sm">
+              <span className="text-muted">Apply For</span>
+              <select
+                name="audience"
+                value={form.audience}
+                onChange={onChange}
+                className="mt-1 w-full rounded-lg border border-border bg-white px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-saffron/30"
+              >
+                {OFFER_AUDIENCE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            {form.offerType === "category" ? (
+              <label className="block text-sm">
+                <span className="text-muted">Target Category</span>
+                <select
+                  name="targetCategory"
+                  value={form.targetCategory}
+                  onChange={onChange}
+                  required
+                  className="mt-1 w-full rounded-lg border border-border bg-white px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-saffron/30"
+                >
+                  <option value="">Select category</option>
+                  {menuCategories.map((category) => (
+                    <option key={category} value={category}>
+                      {category}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
+
+            {form.offerType === "item" ? (
+              <div className="block text-sm">
+                <p className="text-muted">Target Items</p>
+                <div className="mt-1 max-h-40 overflow-auto rounded-lg border border-border p-2.5 space-y-2">
+                  {menuItems.length === 0 ? (
+                    <p className="text-xs text-muted">
+                      No menu items available.
+                    </p>
+                  ) : (
+                    menuItems.map((item) => {
+                      const checked = form.targetItemIds.includes(item.id);
+                      return (
+                        <label
+                          key={item.id}
+                          className="flex items-center gap-2 text-xs text-ink"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => toggleTargetItem(item.id)}
+                            className="accent-saffron"
+                          />
+                          <span>
+                            {item.name}{" "}
+                            <span className="text-muted">
+                              ({item.category})
+                            </span>
+                          </span>
+                        </label>
+                      );
+                    })
+                  )}
+                </div>
+                {form.targetItemIds.length === 0 ? (
+                  <p className="mt-1 text-[11px] text-muted">
+                    Select at least one item for selected-item offers.
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
 
             <div className="grid grid-cols-2 gap-3">
               <label className="block text-sm">
@@ -303,6 +529,10 @@ export default function OffersPage() {
           {mutationError ? (
             <p className="mt-2 text-xs text-error">{mutationError}</p>
           ) : null}
+
+          {formError ? (
+            <p className="mt-2 text-xs text-error">{formError}</p>
+          ) : null}
         </form>
 
         <div className="xl:col-span-2 bg-white border border-border rounded-xl p-5">
@@ -376,6 +606,13 @@ function OfferRow({
         <p className="text-xs text-muted mt-1">
           Code: <span className="font-bold text-ink">{offer.code}</span> •{" "}
           {offer.discountPct}% off • Min ₹{offer.minSubtotal}
+        </p>
+        <p className="text-xs text-muted mt-1">
+          Type: {getOfferTypeLabel(offer.offerType)} •{" "}
+          {getOfferTargetLabel(offer)}
+        </p>
+        <p className="text-xs text-muted mt-1">
+          Audience: {getOfferAudienceLabel(offer.audience)}
         </p>
         <p className="text-xs text-muted mt-1">{offer.description || "-"}</p>
         <p className="text-xs text-muted mt-1">

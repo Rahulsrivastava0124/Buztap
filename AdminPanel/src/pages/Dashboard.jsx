@@ -825,6 +825,13 @@ export function OverviewTab() {
 
 function VisitorsTab() {
   const [visitorTimeRange, setVisitorTimeRange] = useState("1D");
+  const [selectedVisitor, setSelectedVisitor] = useState(null);
+  const [selectedVisitorOrder, setSelectedVisitorOrder] = useState(null);
+
+  const normalizePhone = (value) =>
+    String(value || "")
+      .replace(/\D/g, "")
+      .slice(-10);
 
   const {
     data: stats,
@@ -864,6 +871,7 @@ function VisitorsTab() {
 
       if (!usersByKey.has(key)) {
         usersByKey.set(key, {
+          key,
           name: guestName,
           phone: guestPhone,
           channel: order.channel,
@@ -889,6 +897,35 @@ function VisitorsTab() {
     stats && stats.totalVisitors > 0
       ? Math.round((stats.returningGuests / stats.totalVisitors) * 100)
       : 0;
+
+  const selectedVisitorOrders = useMemo(() => {
+    if (!selectedVisitor) return [];
+
+    const selectedPhone = normalizePhone(selectedVisitor.phone);
+    return visitorOrders
+      .filter((order) => {
+        const orderPhone = normalizePhone(order.guestPhone);
+        if (selectedPhone) return orderPhone === selectedPhone;
+        return (
+          String(order.guestName || "Guest") === String(selectedVisitor.name) &&
+          String(order.channel || "") === String(selectedVisitor.channel || "")
+        );
+      })
+      .sort(
+        (a, b) =>
+          new Date(b.createdAt || 0).getTime() -
+          new Date(a.createdAt || 0).getTime(),
+      );
+  }, [selectedVisitor, visitorOrders]);
+
+  const closeVisitorModal = () => {
+    setSelectedVisitor(null);
+    setSelectedVisitorOrder(null);
+  };
+
+  const closeVisitorOrderDetails = () => {
+    setSelectedVisitorOrder(null);
+  };
 
   return (
     <div className="space-y-6">
@@ -1023,7 +1060,11 @@ function VisitorsTab() {
                       {visitorUsers.map((user, index) => (
                         <tr
                           key={`${user.phone}-${index}`}
-                          className="border-b border-cream"
+                          className="border-b border-cream cursor-pointer hover:bg-paper/70 transition-colors"
+                          onClick={() => {
+                            setSelectedVisitor(user);
+                            setSelectedVisitorOrder(null);
+                          }}
                         >
                           <td className="py-2 pr-3 font-medium text-ink">
                             {user.name}
@@ -1045,6 +1086,178 @@ function VisitorsTab() {
                 </div>
               )}
             </div>
+
+            {selectedVisitor ? (
+              <div
+                className="fixed inset-0 z-70 bg-black/35 flex items-end sm:items-center justify-center p-4"
+                onClick={closeVisitorModal}
+              >
+                <div
+                  className="w-full max-w-2xl max-h-[85vh] overflow-hidden rounded-2xl bg-white border border-border shadow-2xl"
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  <div className="px-5 py-4 border-b border-border flex items-center justify-between">
+                    <div>
+                      <p className="text-base font-bold text-ink">
+                        Visitor Info
+                      </p>
+                      <p className="text-xs text-muted mt-0.5">
+                        {selectedVisitor.name} • {selectedVisitor.phone}
+                      </p>
+                    </div>
+                    <button
+                      onClick={closeVisitorModal}
+                      className="w-8 h-8 rounded-full bg-paper text-ink font-bold"
+                    >
+                      ×
+                    </button>
+                  </div>
+
+                  <div className="p-5 overflow-y-auto max-h-[70vh] space-y-3">
+                    {selectedVisitorOrder ? (
+                      <div className="rounded-xl border border-border bg-paper p-4 space-y-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-base font-bold text-ink">
+                              {selectedVisitorOrder.id}
+                            </p>
+                            <p className="text-xs text-muted mt-0.5">
+                              {selectedVisitorOrder.channel} •{" "}
+                              {selectedVisitorOrder.source}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={closeVisitorOrderDetails}
+                            className="text-xs px-2.5 py-1.5 rounded-md border border-border hover:bg-white"
+                          >
+                            Back
+                          </button>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3 text-xs">
+                          <div className="rounded-lg border border-border bg-white px-3 py-2">
+                            <p className="text-muted">Amount</p>
+                            <p className="text-sm font-bold text-ink mt-0.5">
+                              ₹
+                              {Number(
+                                selectedVisitorOrder.amount || 0,
+                              ).toLocaleString()}
+                            </p>
+                          </div>
+                          <div className="rounded-lg border border-border bg-white px-3 py-2">
+                            <p className="text-muted">Items</p>
+                            <p className="text-sm font-bold text-ink mt-0.5">
+                              {selectedVisitorOrder.items}
+                            </p>
+                          </div>
+                          <div className="rounded-lg border border-border bg-white px-3 py-2">
+                            <p className="text-muted">Order Status</p>
+                            <div className="mt-1">
+                              <OrderStatusBadge
+                                status={selectedVisitorOrder.status}
+                              />
+                            </div>
+                          </div>
+                          <div className="rounded-lg border border-border bg-white px-3 py-2">
+                            <p className="text-muted">Payment Status</p>
+                            <p className="text-sm font-semibold text-ink mt-0.5">
+                              {selectedVisitorOrder.paymentStatus || "Pending"}
+                            </p>
+                          </div>
+                          <div className="rounded-lg border border-border bg-white px-3 py-2">
+                            <p className="text-muted">Payment Method</p>
+                            <p className="text-sm font-semibold text-ink mt-0.5">
+                              {selectedVisitorOrder.paymentMethod || "Pending"}
+                            </p>
+                          </div>
+                          <div className="rounded-lg border border-border bg-white px-3 py-2">
+                            <p className="text-muted">Transaction ID</p>
+                            <p className="text-sm font-semibold text-ink mt-0.5 break-all">
+                              {selectedVisitorOrder.transactionId || "-"}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="rounded-lg border border-border bg-white px-3 py-2 text-xs space-y-1">
+                          <p className="text-muted">
+                            Ordered At:{" "}
+                            {selectedVisitorOrder.createdAt
+                              ? new Date(
+                                  selectedVisitorOrder.createdAt,
+                                ).toLocaleString()
+                              : "-"}
+                          </p>
+                          <p className="text-muted">
+                            ETA: {selectedVisitorOrder.eta}
+                          </p>
+                          <p className="text-muted">
+                            Guest: {selectedVisitorOrder.guestName || "Guest"}
+                            {selectedVisitorOrder.guestPhone
+                              ? ` • ${selectedVisitorOrder.guestPhone}`
+                              : ""}
+                          </p>
+                        </div>
+                      </div>
+                    ) : selectedVisitorOrders.length === 0 ? (
+                      <p className="text-sm text-muted">
+                        No order details available.
+                      </p>
+                    ) : (
+                      selectedVisitorOrders.map((order) => (
+                        <div
+                          key={order._id}
+                          role="button"
+                          tabIndex={0}
+                          className="rounded-xl border border-border bg-paper px-4 py-3 cursor-pointer hover:border-saffron/50 hover:bg-white transition-colors"
+                          onClick={() => setSelectedVisitorOrder(order)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
+                              setSelectedVisitorOrder(order);
+                            }
+                          }}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="text-sm font-semibold text-ink">
+                                {order.id}
+                              </p>
+                              <p className="text-xs text-muted mt-0.5">
+                                {order.source} • {order.items} item
+                                {order.items === 1 ? "" : "s"}
+                              </p>
+                              <p className="text-xs text-muted mt-0.5">
+                                {order.createdAt
+                                  ? new Date(order.createdAt).toLocaleString()
+                                  : "-"}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-sm font-bold text-ink">
+                                ₹{Number(order.amount || 0).toLocaleString()}
+                              </p>
+                              <div className="mt-1">
+                                <OrderStatusBadge status={order.status} />
+                              </div>
+                            </div>
+                          </div>
+                          <div className="mt-2 flex items-center justify-between">
+                            <p className="text-[11px] text-muted">
+                              Payment: {order.paymentMethod || "Pending"} •{" "}
+                              {order.paymentStatus || "Pending"}
+                            </p>
+                            <p className="text-[11px] font-semibold text-saffron">
+                              View details
+                            </p>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : null}
           </>
         ) : null}
       </div>
