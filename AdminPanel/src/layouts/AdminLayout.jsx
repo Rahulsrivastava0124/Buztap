@@ -26,6 +26,7 @@ import {
   ChevronRight,
   Check,
   X,
+  Users,
 } from "lucide-react";
 import { motion as Motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
@@ -78,6 +79,12 @@ const SIDEBAR_ITEMS = [
   },
   { path: "/inventory", icon: Boxes, label: "Inventory", minimumRole: "admin" },
   { path: "/staff", icon: Users2, label: "Staff", minimumRole: "manager" },
+  {
+    path: "/dashboard/visitors",
+    icon: Users,
+    label: "Visitors",
+    minimumRole: "manager",
+  },
   {
     path: "/reports",
     icon: FileBarChart2,
@@ -417,6 +424,7 @@ export default function AdminLayout() {
             <h1 className="font-semibold text-ink text-lg sm:text-xl">
               {location.pathname.includes("/overview") && "Dashboard"}
               {location.pathname.includes("/finance") && "Sales & Finance"}
+              {location.pathname.includes("/visitors") && "Visitors"}
               {location.pathname.includes("/menu") && "Menu & Products"}
               {location.pathname.includes("/operations") &&
                 (isHotelMode ? "Operations & Rooms" : "Operations & Tables")}

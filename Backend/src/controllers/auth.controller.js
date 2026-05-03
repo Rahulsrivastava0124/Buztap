@@ -688,6 +688,313 @@ async function logout(req, res) {
   res.json({ success: true });
 }
 
+// ── Staff: request OTP by phone ───────────────────────────────────────────────
+const staffOtpRequestSchema = z.object({
+  phone: z.string().trim().min(5),
+});
+
+async function requestStaffOtp(req, res, next) {
+  try {
+    const { phone } = staffOtpRequestSchema.parse(req.body);
+    const normalizedInput = normalizePhone(phone);
+
+    console.log("[AUTH][STAFF_OTP_REQUEST] Incoming request", {
+      phoneDigits: normalizedInput,
+      ip: req.ip,
+      origin: req.get("origin") || null,
+    });
+
+    // Find the staff member by phone
+    const allStaff = await User.find({
+      role: { $in: ["admin", "manager", "cashier"] },
+      phone: { $exists: true, $ne: "" },
+    })
+      .select("_id email phone")
+      .lean();
+
+    const staffUser = allStaff.find((u) => {
+      const c = normalizePhone(u.phone || "");
+      return (
+        c &&
+        (c === normalizedInput ||
+          c.endsWith(normalizedInput) ||
+          normalizedInput.endsWith(c))
+      );
+    });
+
+    if (!staffUser) {
+      console.log("[AUTH][STAFF_OTP_REQUEST] Staff not found", {
+        phoneDigits: normalizedInput,
+      });
+      return res
+        .status(404)
+        .json({ error: "No staff account found for this phone number" });
+    }
+
+    if (!staffUser.email) {
+      console.log("[AUTH][STAFF_OTP_REQUEST] Missing email for matched staff", {
+        staffId: String(staffUser._id),
+      });
+      return res
+        .status(400)
+        .json({ error: "No email address on file for this account" });
+    }
+
+    const normalizedEmail = normalizeEmail(staffUser.email);
+
+    // Spam guard – one OTP per minute
+    const recentWindow = new Date(Date.now() - 60 * 1000);
+    const recentOtp = await EmailOtp.findOne({
+      email: normalizedEmail,
+      purpose: "staff-login",
+      createdAt: { $gte: recentWindow },
+    }).lean();
+
+    if (recentOtp) {
+      const waitMs =
+        60000 - (Date.now() - new Date(recentOtp.createdAt).getTime());
+      console.log("[AUTH][STAFF_OTP_REQUEST] Rate limited", {
+        email: normalizedEmail,
+        retryAfterSeconds: Math.max(1, Math.ceil(waitMs / 1000)),
+      });
+      return res.status(429).json({
+        error: "Please wait before requesting another OTP",
+        retryAfterSeconds: Math.max(1, Math.ceil(waitMs / 1000)),
+      });
+    }
+
+    const { expiresInSeconds } = await issueEmailOtp(
+      normalizedEmail,
+      "staff-login",
+    );
+
+    console.log("[AUTH][STAFF_OTP_REQUEST] OTP issued", {
+      email: normalizedEmail,
+      expiresInSeconds,
+    });
+
+    res.json({
+      success: true,
+      maskedEmail: normalizedEmail.replace(/(.{2})(.*)(@.*)/, "$1***$3"),
+      expiresInSeconds,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ── Staff: verify OTP and login ───────────────────────────────────────────────
+const staffOtpVerifySchema = z.object({
+  phone: z.string().trim().min(5),
+  otp: z
+    .string()
+    .trim()
+    .regex(/^\d{6}$/, "OTP must be 6 digits"),
+});
+
+async function verifyStaffOtp(req, res, next) {
+  try {
+    const { phone, otp } = staffOtpVerifySchema.parse(req.body);
+    const normalizedInput = normalizePhone(phone);
+
+    // Find staff by phone
+    const allStaff = await User.find({
+      role: { $in: ["admin", "manager", "cashier"] },
+      phone: { $exists: true, $ne: "" },
+    })
+      .select("+passwordHash")
+      .lean();
+
+    const staff = allStaff.find((u) => {
+      const c = normalizePhone(u.phone || "");
+      return (
+        c &&
+        (c === normalizedInput ||
+          c.endsWith(normalizedInput) ||
+          normalizedInput.endsWith(c))
+      );
+    });
+
+    if (!staff) {
+      return res.status(401).json({ error: "Invalid phone number" });
+    }
+
+    const normalizedEmail = normalizeEmail(staff.email || "");
+    if (!normalizedEmail) {
+      return res
+        .status(400)
+        .json({ error: "No email on file for this account" });
+    }
+
+    // Find the latest unused OTP
+    const otpDoc = await EmailOtp.findOne({
+      email: normalizedEmail,
+      purpose: "staff-login",
+      usedAt: null,
+      expiresAt: { $gt: new Date() },
+    }).sort({ createdAt: -1 });
+
+    if (!otpDoc) {
+      return res
+        .status(400)
+        .json({ error: "OTP expired or not found. Please request a new one." });
+    }
+
+    if (otpDoc.attempts >= OTP_MAX_ATTEMPTS) {
+      return res
+        .status(400)
+        .json({ error: "Too many failed attempts. Please request a new OTP." });
+    }
+
+    const isValid = await bcrypt.compare(otp, otpDoc.otpHash);
+    if (!isValid) {
+      otpDoc.attempts += 1;
+      await otpDoc.save();
+      const remaining = OTP_MAX_ATTEMPTS - otpDoc.attempts;
+      return res
+        .status(400)
+        .json({
+          error: `Invalid OTP. ${remaining} attempt${remaining !== 1 ? "s" : ""} remaining.`,
+        });
+    }
+
+    // Mark OTP as used
+    otpDoc.usedAt = new Date();
+    await otpDoc.save();
+
+    // Issue JWT
+    const jwtSecret = process.env.JWT_SECRET || "dev-secret-key";
+    const token = jwt.sign(
+      { userId: staff._id, businessId: staff.businessId, role: staff.role },
+      jwtSecret,
+      { expiresIn: "7d" },
+    );
+
+    res.json({
+      token,
+      staff: {
+        id: staff._id,
+        name: staff.name,
+        username: staff.username,
+        designation: staff.designation,
+        email: staff.email || "",
+        phone: staff.phone || "",
+        shiftTiming: staff.shiftTiming || {
+          name: "Morning",
+          startTime: "09:00",
+          endTime: "17:00",
+        },
+        salaryMonthly: staff.salaryMonthly || 0,
+        leaveAllowance: staff.leaveAllowance || 12,
+        leavesTaken: staff.leavesTaken || 0,
+        attendanceRecords: staff.attendanceRecords || [],
+        isActive: staff.isActive !== false,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function staffLogin(req, res, next) {
+  try {
+    const { identifier, phone, username, password } = z
+      .object({
+        identifier: z.string().min(1).optional(),
+        phone: z.string().min(1).optional(),
+        username: z.string().min(1).optional(),
+        password: z.string().min(1),
+      })
+      .parse(req.body);
+
+    const login = (identifier || phone || username || "").trim();
+    if (!login) {
+      return res.status(400).json({ error: "Phone or username is required" });
+    }
+
+    // Try to find staff by phone or username
+    const isPhone = /^[+\d][\d\s\-().]{3,}$/.test(login);
+    let staff;
+
+    if (isPhone) {
+      const normalizedPhone = normalizePhone(login);
+      const candidates = await User.find({
+        role: { $in: ["admin", "manager", "cashier"] },
+        phone: { $exists: true, $ne: "" },
+      })
+        .select("+passwordHash")
+        .lean();
+      staff = candidates.find((u) => {
+        const candidate = normalizePhone(u.phone || "");
+        return (
+          candidate &&
+          (candidate === normalizedPhone ||
+            candidate.endsWith(normalizedPhone) ||
+            normalizedPhone.endsWith(candidate))
+        );
+      });
+    } else {
+      staff = await User.findOne({
+        username: { $regex: `^${login}$`, $options: "i" },
+        role: { $in: ["admin", "manager", "cashier"] },
+      }).select("+passwordHash");
+    }
+
+    if (!staff) {
+      return res
+        .status(401)
+        .json({ error: "Invalid phone/username or password" });
+    }
+
+    // Verify password
+    const passwordMatch = await bcrypt.compare(password, staff.passwordHash);
+    if (!passwordMatch) {
+      return res
+        .status(401)
+        .json({ error: "Invalid phone/username or password" });
+    }
+
+    // Generate JWT token
+    const jwtSecret = process.env.JWT_SECRET || "dev-secret-key";
+    const token = jwt.sign(
+      {
+        userId: staff._id,
+        businessId: staff.businessId,
+        role: staff.role,
+      },
+      jwtSecret,
+      { expiresIn: "7d" },
+    );
+
+    // Map staff object for response
+    const staffResponse = {
+      id: staff._id,
+      name: staff.name,
+      username: staff.username,
+      designation: staff.designation,
+      email: staff.email || "",
+      phone: staff.phone || "",
+      shiftTiming: staff.shiftTiming || {
+        name: "Morning",
+        startTime: "09:00",
+        endTime: "17:00",
+      },
+      salaryMonthly: staff.salaryMonthly || 0,
+      leaveAllowance: staff.leaveAllowance || 12,
+      leavesTaken: staff.leavesTaken || 0,
+      attendanceRecords: staff.attendanceRecords || [],
+      isActive: staff.isActive !== false,
+    };
+
+    res.json({
+      token,
+      staff: staffResponse,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   requestEmailOtp,
   requestLoginOtp,
@@ -698,4 +1005,7 @@ module.exports = {
   login,
   me,
   logout,
+  staffLogin,
+  requestStaffOtp,
+  verifyStaffOtp,
 };

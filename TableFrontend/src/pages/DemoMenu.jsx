@@ -26,6 +26,7 @@ import {
   placeGuestOrder,
 } from "../services/api";
 import ActiveOrderBanner from "../components/shared/ActiveOrderBanner";
+import { getPreviousNavigation } from "../utils/navigationHistory";
 
 // ── In-memory cache (per page load) ─────────────────────────────────────────
 // Prevents redundant network calls on re-renders / React strict-mode double
@@ -563,16 +564,20 @@ export default function DemoMenu() {
   const rawRestroParam = queryParams.get("restro");
   const preservedSearch = window.location.search || "";
   const goBackPreservingOrderUrl = () => {
-    // Keep QR context params (restro/table/biz) even when browser history is shallow.
-    if (window.history.length > 1) {
-      navigate(-1);
+    const previousRoute = getPreviousNavigation(location);
+    if (previousRoute) {
+      navigate(previousRoute);
       return;
     }
-    navigate(`/order${preservedSearch}`, { replace: true });
+
+    // Keep QR query params as a fallback so table context is never lost.
+    navigate(`/search${preservedSearch}`, { replace: true });
   };
   const currentTableId = queryParams.get("table") || "04";
   const currentBusinessId = queryParams.get("biz") || "";
   const currentRestroSlug = queryParams.get("restro") || "";
+  const isCartPath = location.pathname === "/cart";
+  const isTrackingPath = location.pathname === "/tracking";
   const rawDemoParam = String(queryParams.get("demo") || "").toLowerCase();
   const isDemoPath = location.pathname === "/demo";
   const isForcedDemo =
@@ -593,6 +598,7 @@ export default function DemoMenu() {
   const [cart, setCart] = useState({});
   const [showCart, setShowCart] = useState(false);
   const [orderPlaced, setOrderPlaced] = useState(false);
+  const isTrackingView = orderPlaced && isTrackingPath;
   const [isJoined, setIsJoined] = useState(false);
   const [guestName, setGuestName] = useState("");
   const [guestPhone, setGuestPhone] = useState("");
@@ -644,6 +650,15 @@ export default function DemoMenu() {
   const scrollRafRef = useRef(0);
   const scrolledRef = useRef(false);
   const bannerVisibleRef = useRef(true);
+  const openCartRoute = ({ replace = false } = {}) => {
+    navigate(`/cart${preservedSearch}`, { replace });
+  };
+  const openTrackingRoute = ({ replace = false } = {}) => {
+    navigate(`/tracking${preservedSearch}`, { replace });
+  };
+  const closeSheetRoute = ({ replace = false } = {}) => {
+    navigate(`/order${preservedSearch}`, { replace });
+  };
 
   const hydrateOrderFromBackend = (order, { openSheet = true } = {}) => {
     if (!order) return;
@@ -661,8 +676,21 @@ export default function DemoMenu() {
     setOrderPaymentStatus(paymentStatus);
     setOrderStatus(mapBackendStatusToStep(backendStatus));
     setOrderPlaced(true);
-    if (openSheet) setShowCart(true);
+    if (openSheet) openTrackingRoute();
   };
+
+  useEffect(() => {
+    const shouldShowSheet = isCartPath || isTrackingPath;
+    if (showCart !== shouldShowSheet) {
+      setShowCart(shouldShowSheet);
+    }
+  }, [isCartPath, isTrackingPath, showCart]);
+
+  useEffect(() => {
+    if (isTrackingPath && !orderPlaced) {
+      openCartRoute({ replace: true });
+    }
+  }, [isTrackingPath, orderPlaced]);
 
   useEffect(() => {
     if (isForcedDemo) {
@@ -1375,13 +1403,13 @@ export default function DemoMenu() {
 
   useEffect(() => {
     if (totalItems === 0 && showCart && !orderPlaced) {
-      setShowCart(false);
+      closeSheetRoute({ replace: true });
     }
   }, [totalItems, showCart, orderPlaced]);
 
   const handlePlaceOrder = async () => {
     if (!guestName.trim()) {
-      setShowCart(true);
+      openCartRoute();
       return;
     }
 
@@ -1438,6 +1466,7 @@ export default function DemoMenu() {
     setOrderPaymentStatus(backendPaymentStatus);
     setOrderStatus(mapBackendStatusToStep(backendStatus));
     setOrderPlaced(true);
+    openTrackingRoute();
 
     const orderRecord = {
       id: nextOrderNo,
@@ -2372,7 +2401,7 @@ export default function DemoMenu() {
                     </div>
                   </div>
                   <button
-                    onClick={() => setShowCart(true)}
+                    onClick={() => openCartRoute()}
                     className="flex items-center gap-1.5 font-bold text-xs bg-paper text-saffron px-4 py-2 rounded-lg hover:bg-white transition-colors shadow-sm"
                   >
                     Order Preview
@@ -2399,15 +2428,15 @@ export default function DemoMenu() {
                 <div className="px-4 py-4 border-b border-border bg-white flex items-center gap-3 shrink-0">
                   <button
                     onClick={() => {
-                      if (orderPlaced) {
+                      if (isTrackingView) {
                         setCart({});
                         setOrderPlaced(false);
                         setActiveOrderDbId("");
                         setOrderStatus(0);
-                        setShowCart(false);
+                        closeSheetRoute();
                         setRating(0);
                       } else {
-                        setShowCart(false);
+                        closeSheetRoute();
                       }
                     }}
                     className="w-10 h-10 rounded-full bg-cream flex items-center justify-center text-ink hover:bg-border transition-colors"
@@ -2422,7 +2451,7 @@ export default function DemoMenu() {
 
                 {/* Scrollable Content */}
                 <div className="flex-1 overflow-y-auto p-4 pb-32">
-                  {!orderPlaced ? (
+                  {!isTrackingView ? (
                     <motion.div
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
@@ -3163,7 +3192,7 @@ export default function DemoMenu() {
                           setOrderBackendStatus("Pending");
                           setOrderStatus(0);
                           setPlacedOrderAmount(0);
-                          setShowCart(false);
+                          closeSheetRoute();
                           setRating(0);
                         }}
                         className="mt-4 w-full text-saffron font-bold text-sm bg-saffron-lt px-6 py-3.5 rounded-xl transition-colors hover:bg-[#fde8e8] hover:shadow-sm"
@@ -3175,7 +3204,7 @@ export default function DemoMenu() {
                 </div>
 
                 {/* Sticky Bottom Place Order */}
-                {!orderPlaced && (
+                {!isTrackingView && (
                   <div className="absolute bottom-0 left-0 w-full p-4 bg-white border-t border-border shrink-0 text-center">
                     <button
                       onClick={handlePlaceOrder}

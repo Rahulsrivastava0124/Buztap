@@ -35,6 +35,8 @@ import {
   fetchTodayStats,
 } from "../services/api";
 import ProtectedRoute from "../components/ProtectedRoute";
+import { useAuth } from "../context/AuthContext";
+import { hasRoleAccess } from "../utils/access";
 import KpiCard from "../components/shared/KpiCard";
 import OrderStatusBadge from "../components/shared/OrderStatusBadge";
 import ErrorBoundary from "../components/shared/ErrorBoundary";
@@ -160,16 +162,18 @@ export default function Dashboard() {
         }
       />
 
-      <Route
-        path="visitors"
-        element={
-          <PageShell>
-            <ErrorBoundary label="Visitors">
-              <VisitorsTab />
-            </ErrorBoundary>
-          </PageShell>
-        }
-      />
+      <Route element={<ProtectedRoute minimumRole="manager" />}>
+        <Route
+          path="visitors"
+          element={
+            <PageShell>
+              <ErrorBoundary label="Visitors">
+                <VisitorsTab />
+              </ErrorBoundary>
+            </PageShell>
+          }
+        />
+      </Route>
     </Routes>
   );
 }
@@ -248,9 +252,12 @@ const buildVisitorChartData = (trend) => {
 
 export function OverviewTab() {
   const navigate = useNavigate();
+  const { role } = useAuth();
+  const canViewFinance = hasRoleAccess(role, "manager");
   const [timeRange, setTimeRange] = useState("1D");
   const [visitorTimeRange, setVisitorTimeRange] = useState("1D");
   const [detailsView, setDetailsView] = useState(null);
+  const [selectedDetailOrder, setSelectedDetailOrder] = useState(null);
   const {
     data: recentOrders = [],
     isLoading,
@@ -307,6 +314,16 @@ export function OverviewTab() {
     return [];
   }, [detailOrders, detailsView]);
 
+  const openDetailsView = (view) => {
+    setSelectedDetailOrder(null);
+    setDetailsView(view);
+  };
+
+  const closeDetailsView = () => {
+    setSelectedDetailOrder(null);
+    setDetailsView(null);
+  };
+
   // Bar chart max for scaling
   const maxHourly = stats
     ? Math.max(...stats.hourlyVisits.map((h) => h.count), 1)
@@ -324,19 +341,23 @@ export function OverviewTab() {
     <div className="space-y-6">
       {/* KPI row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-        <KpiCard
-          title="Today's Revenue"
-          value={stats ? `₹${stats.totalRevenue.toLocaleString()}` : "₹0"}
-          extraIcon={TrendingUp}
-        />
+        {canViewFinance && (
+          <KpiCard
+            title="Today's Revenue"
+            value={stats ? `₹${stats.totalRevenue.toLocaleString()}` : "₹0"}
+            extraIcon={TrendingUp}
+          />
+        )}
         <KpiCard
           title="Total Orders"
           value={stats ? String(stats.servedToday + stats.activeOrders) : "0"}
         />
-        <KpiCard
-          title="Avg. Spend / Guest"
-          value={stats ? `₹${stats.avgSpendPerVisitor}` : "₹0"}
-        />
+        {canViewFinance && (
+          <KpiCard
+            title="Avg. Spend / Guest"
+            value={stats ? `₹${stats.avgSpendPerVisitor}` : "₹0"}
+          />
+        )}
         <KpiCard
           title="Table Occupancy"
           value={
@@ -390,25 +411,43 @@ export function OverviewTab() {
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
           {/* Total Visitors */}
-          <button
-            type="button"
-            onClick={() => navigate("../visitors")}
-            className="col-span-1 bg-linear-to-br from-saffron to-orange-500 rounded-xl p-4 text-white text-left hover:brightness-105 transition cursor-pointer"
-          >
-            <div className="flex items-center justify-between mb-2">
-              <Users size={16} className="opacity-80" />
-              <span className="text-[10px] font-bold uppercase opacity-80 tracking-wider">
-                Total
-              </span>
+          {canViewFinance ? (
+            <button
+              type="button"
+              onClick={() => navigate("../visitors")}
+              className="col-span-1 bg-linear-to-br from-saffron to-orange-500 rounded-xl p-4 text-white text-left hover:brightness-105 transition cursor-pointer"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <Users size={16} className="opacity-80" />
+                <span className="text-[10px] font-bold uppercase opacity-80 tracking-wider">
+                  Total
+                </span>
+              </div>
+              <p className="text-2xl font-black leading-none">
+                {stats?.totalVisitors ?? "—"}
+              </p>
+              <p className="text-[11px] mt-1 opacity-80">Visitors today</p>
+              <p className="text-[10px] mt-0.5 opacity-75 truncate">
+                {stats?.restaurantName || "Restaurant"}
+              </p>
+            </button>
+          ) : (
+            <div className="col-span-1 bg-linear-to-br from-saffron to-orange-500 rounded-xl p-4 text-white text-left">
+              <div className="flex items-center justify-between mb-2">
+                <Users size={16} className="opacity-80" />
+                <span className="text-[10px] font-bold uppercase opacity-80 tracking-wider">
+                  Total
+                </span>
+              </div>
+              <p className="text-2xl font-black leading-none">
+                {stats?.totalVisitors ?? "—"}
+              </p>
+              <p className="text-[11px] mt-1 opacity-80">Visitors today</p>
+              <p className="text-[10px] mt-0.5 opacity-75 truncate">
+                {stats?.restaurantName || "Restaurant"}
+              </p>
             </div>
-            <p className="text-2xl font-black leading-none">
-              {stats?.totalVisitors ?? "—"}
-            </p>
-            <p className="text-[11px] mt-1 opacity-80">Visitors today</p>
-            <p className="text-[10px] mt-0.5 opacity-75 truncate">
-              {stats?.restaurantName || "Restaurant"}
-            </p>
-          </button>
+          )}
 
           {/* New Guests */}
           <div className="bg-paper rounded-xl p-4 border border-border">
@@ -452,7 +491,7 @@ export function OverviewTab() {
 
           <button
             type="button"
-            onClick={() => setDetailsView("qr")}
+            onClick={() => openDetailsView("qr")}
             className="bg-paper rounded-xl p-4 border border-border text-left hover:border-saffron/60 hover:shadow-sm transition cursor-pointer"
           >
             <div className="flex items-center justify-between mb-2">
@@ -471,7 +510,7 @@ export function OverviewTab() {
           {/* Active right now */}
           <button
             type="button"
-            onClick={() => setDetailsView("active")}
+            onClick={() => openDetailsView("active")}
             className="bg-paper rounded-xl p-4 border border-border text-left hover:border-saffron/60 hover:shadow-sm transition cursor-pointer"
           >
             <div className="flex items-center justify-between mb-2">
@@ -606,78 +645,80 @@ export function OverviewTab() {
         </div>
       </div>
 
-      {/* Revenue + Visitor Trend charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white border border-border rounded-xl shadow-sm p-5 sm:p-6 flex flex-col">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="font-bold text-ink flex items-center gap-2">
-              Revenue Trend
-            </h2>
-            <div className="flex bg-paper p-1 rounded-lg border border-border">
-              {["1D", "7D", "1M", "6M"].map((range) => (
-                <button
-                  key={range}
-                  onClick={() => setTimeRange(range)}
-                  className={`px-3 py-1 text-xs font-bold rounded-md transition-colors ${
-                    timeRange === range
-                      ? "bg-white text-saffron shadow-sm"
-                      : "text-muted hover:text-ink"
-                  }`}
-                >
-                  {range}
-                </button>
-              ))}
+      {/* Revenue + Visitor Trend charts — manager+ only */}
+      {canViewFinance && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="bg-white border border-border rounded-xl shadow-sm p-5 sm:p-6 flex flex-col">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="font-bold text-ink flex items-center gap-2">
+                Revenue Trend
+              </h2>
+              <div className="flex bg-paper p-1 rounded-lg border border-border">
+                {["1D", "7D", "1M", "6M"].map((range) => (
+                  <button
+                    key={range}
+                    onClick={() => setTimeRange(range)}
+                    className={`px-3 py-1 text-xs font-bold rounded-md transition-colors ${
+                      timeRange === range
+                        ? "bg-white text-saffron shadow-sm"
+                        : "text-muted hover:text-ink"
+                    }`}
+                  >
+                    {range}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="w-full h-64 relative">
+              <Suspense
+                fallback={
+                  <div className="h-64 animate-pulse rounded-xl bg-paper" />
+                }
+              >
+                <TrendLineChart
+                  data={buildChartData(revenueTrend)}
+                  options={chartOptions}
+                />
+              </Suspense>
             </div>
           </div>
-          <div className="w-full h-64 relative">
-            <Suspense
-              fallback={
-                <div className="h-64 animate-pulse rounded-xl bg-paper" />
-              }
-            >
-              <TrendLineChart
-                data={buildChartData(revenueTrend)}
-                options={chartOptions}
-              />
-            </Suspense>
-          </div>
-        </div>
 
-        <div className="bg-white border border-border rounded-xl shadow-sm p-5 sm:p-6 flex flex-col">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="font-bold text-ink flex items-center gap-2">
-              Visitor Trend
-            </h2>
-            <div className="flex bg-paper p-1 rounded-lg border border-border">
-              {["1D", "7D", "1M", "6M"].map((range) => (
-                <button
-                  key={range}
-                  onClick={() => setVisitorTimeRange(range)}
-                  className={`px-3 py-1 text-xs font-bold rounded-md transition-colors ${
-                    visitorTimeRange === range
-                      ? "bg-white text-indigo-500 shadow-sm"
-                      : "text-muted hover:text-ink"
-                  }`}
-                >
-                  {range}
-                </button>
-              ))}
+          <div className="bg-white border border-border rounded-xl shadow-sm p-5 sm:p-6 flex flex-col">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="font-bold text-ink flex items-center gap-2">
+                Visitor Trend
+              </h2>
+              <div className="flex bg-paper p-1 rounded-lg border border-border">
+                {["1D", "7D", "1M", "6M"].map((range) => (
+                  <button
+                    key={range}
+                    onClick={() => setVisitorTimeRange(range)}
+                    className={`px-3 py-1 text-xs font-bold rounded-md transition-colors ${
+                      visitorTimeRange === range
+                        ? "bg-white text-indigo-500 shadow-sm"
+                        : "text-muted hover:text-ink"
+                    }`}
+                  >
+                    {range}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="w-full h-64 relative">
+              <Suspense
+                fallback={
+                  <div className="h-64 animate-pulse rounded-xl bg-paper" />
+                }
+              >
+                <TrendLineChart
+                  data={buildVisitorChartData(visitorTrend)}
+                  options={visitorChartOptions}
+                />
+              </Suspense>
             </div>
           </div>
-          <div className="w-full h-64 relative">
-            <Suspense
-              fallback={
-                <div className="h-64 animate-pulse rounded-xl bg-paper" />
-              }
-            >
-              <TrendLineChart
-                data={buildVisitorChartData(visitorTrend)}
-                options={visitorChartOptions}
-              />
-            </Suspense>
-          </div>
         </div>
-      </div>
+      )}
 
       {/* Live feed */}
       <div className="bg-white border border-border rounded-xl shadow-sm p-4 sm:p-6 flex flex-col">
@@ -744,7 +785,7 @@ export function OverviewTab() {
           <button
             type="button"
             className="fixed inset-0 bg-black/30 z-40"
-            onClick={() => setDetailsView(null)}
+            onClick={closeDetailsView}
             aria-label="Close details"
           />
           <div className="fixed right-0 top-0 h-full w-full max-w-md bg-white z-50 shadow-2xl border-l border-border flex flex-col">
@@ -757,7 +798,7 @@ export function OverviewTab() {
               <button
                 type="button"
                 className="text-sm font-semibold text-muted hover:text-ink"
-                onClick={() => setDetailsView(null)}
+                onClick={closeDetailsView}
               >
                 Close
               </button>
@@ -790,31 +831,116 @@ export function OverviewTab() {
                 </p>
               ) : null}
 
-              {filteredDetailOrders.map((order) => (
-                <div
-                  key={order._id}
-                  className="border border-border rounded-xl p-3 bg-paper"
-                >
-                  <div className="flex items-center justify-between gap-3">
+              {selectedDetailOrder ? (
+                <div className="rounded-xl border border-border bg-paper p-4 space-y-4">
+                  <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="text-sm font-bold text-ink">{order.id}</p>
+                      <p className="text-base font-bold text-ink">
+                        {selectedDetailOrder.id}
+                      </p>
                       <p className="text-xs text-muted mt-0.5">
-                        {order.channel} • {order.source}
+                        {selectedDetailOrder.channel} •{" "}
+                        {selectedDetailOrder.source}
                       </p>
                     </div>
-                    <p className="text-sm font-bold text-ink">
-                      ₹{order.amount.toLocaleString("en-IN")}
-                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedDetailOrder(null)}
+                      className="text-xs px-2.5 py-1.5 rounded-md border border-border hover:bg-white"
+                    >
+                      Back
+                    </button>
                   </div>
-                  <div className="mt-2 flex items-center justify-between">
-                    <p className="text-xs text-muted">
-                      {order.items} item{order.items === 1 ? "" : "s"} •{" "}
-                      {order.eta}
+
+                  <div className="grid grid-cols-2 gap-3 text-xs">
+                    <div className="rounded-lg border border-border bg-white px-3 py-2">
+                      <p className="text-muted">Amount</p>
+                      <p className="text-sm font-bold text-ink mt-0.5">
+                        ₹
+                        {Number(selectedDetailOrder.amount || 0).toLocaleString(
+                          "en-IN",
+                        )}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-border bg-white px-3 py-2">
+                      <p className="text-muted">Items</p>
+                      <p className="text-sm font-bold text-ink mt-0.5">
+                        {selectedDetailOrder.items}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-border bg-white px-3 py-2">
+                      <p className="text-muted">Order Status</p>
+                      <div className="mt-1">
+                        <OrderStatusBadge status={selectedDetailOrder.status} />
+                      </div>
+                    </div>
+                    <div className="rounded-lg border border-border bg-white px-3 py-2">
+                      <p className="text-muted">Payment Status</p>
+                      <p className="text-sm font-semibold text-ink mt-0.5">
+                        {selectedDetailOrder.paymentStatus || "Pending"}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-border bg-white px-3 py-2">
+                      <p className="text-muted">Payment Method</p>
+                      <p className="text-sm font-semibold text-ink mt-0.5">
+                        {selectedDetailOrder.paymentMethod || "Pending"}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-border bg-white px-3 py-2">
+                      <p className="text-muted">Transaction ID</p>
+                      <p className="text-sm font-semibold text-ink mt-0.5 break-all">
+                        {selectedDetailOrder.transactionId || "-"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg border border-border bg-white px-3 py-2 text-xs space-y-1">
+                    <p className="text-muted">
+                      Ordered At:{" "}
+                      {selectedDetailOrder.createdAt
+                        ? new Date(
+                            selectedDetailOrder.createdAt,
+                          ).toLocaleString()
+                        : "-"}
                     </p>
-                    <OrderStatusBadge status={order.status} />
+                    <p className="text-muted">ETA: {selectedDetailOrder.eta}</p>
+                    <p className="text-muted">
+                      Guest: {selectedDetailOrder.guestName || "Guest"}
+                      {selectedDetailOrder.guestPhone
+                        ? ` • ${selectedDetailOrder.guestPhone}`
+                        : ""}
+                    </p>
                   </div>
                 </div>
-              ))}
+              ) : (
+                filteredDetailOrders.map((order) => (
+                  <button
+                    key={order._id}
+                    type="button"
+                    onClick={() => setSelectedDetailOrder(order)}
+                    className="w-full border border-border rounded-xl p-3 bg-paper text-left hover:border-saffron/50 hover:bg-white transition-colors"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-bold text-ink">{order.id}</p>
+                        <p className="text-xs text-muted mt-0.5">
+                          {order.channel} • {order.source}
+                        </p>
+                      </div>
+                      <p className="text-sm font-bold text-ink">
+                        ₹{order.amount.toLocaleString("en-IN")}
+                      </p>
+                    </div>
+                    <div className="mt-2 flex items-center justify-between">
+                      <p className="text-xs text-muted">
+                        {order.items} item{order.items === 1 ? "" : "s"} •{" "}
+                        {order.eta}
+                      </p>
+                      <OrderStatusBadge status={order.status} />
+                    </div>
+                  </button>
+                ))
+              )}
             </div>
           </div>
         </>

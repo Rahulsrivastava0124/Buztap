@@ -16,6 +16,11 @@ export const usePosStore = create((set, get) => ({
       taxPct: Math.min(100, Math.max(0, Number(taxPct || 0))),
     }),
 
+  setCart: (cart = []) =>
+    set({
+      cart: Array.isArray(cart) ? cart : [],
+    }),
+
   addToCart: (item) => {
     const { cart } = get();
     const key = item.cartKey || item.id;

@@ -149,6 +149,17 @@ const createOrderSchema = z.object({
     .optional(),
 });
 
+const updateOrderItemsSchema = z.object({
+  items: z.array(orderItemSchema).min(1),
+  guestName: z.string().optional(),
+  guestPhone: z.string().optional(),
+  orderType: z
+    .enum(["Dine-in", "Takeaway", "Delivery", "Room Service"])
+    .optional(),
+  discountPct: z.number().min(0).max(100).optional(),
+  discountReason: z.string().optional(),
+});
+
 function computeTotals(items, discountPct = 0, gstPct = 5, taxPct = 0) {
   const subtotal = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
   const discount = Math.round((subtotal * discountPct) / 100);
@@ -363,6 +374,80 @@ async function updatePayment(req, res, next) {
   }
 }
 
+async function updateItems(req, res, next) {
+  try {
+    const data = updateOrderItemsSchema.parse(req.body);
+
+    const order = await Order.findOne({
+      _id: req.params.id,
+      businessId: req.user.businessId,
+    });
+    if (!order) return res.status(404).json({ error: "Order not found" });
+
+    const business = await Business.findById(req.user.businessId)
+      .select("gstPct taxPct")
+      .lean();
+    const gstPct = Number(business?.gstPct ?? 5);
+    const taxPct = Number(business?.taxPct ?? 0);
+
+    const items = data.items.map((i) => ({
+      ...i,
+      total: i.price * i.quantity,
+      preparationStatus: "Pending",
+    }));
+
+    const discountPct = Number(data.discountPct ?? order.discountPct ?? 0);
+    const {
+      subtotal,
+      discount,
+      taxableAmount,
+      gstAmount,
+      extraTaxAmount,
+      tax,
+      total,
+    } = computeTotals(items, discountPct, gstPct, taxPct);
+
+    const normalizedGuestPhone =
+      data.guestPhone === undefined
+        ? order.guestPhone
+        : normalizeGuestPhone(data.guestPhone);
+
+    order.items = items;
+    order.subtotal = subtotal;
+    order.discount = discount;
+    order.discountPct = discountPct;
+    order.discountReason = data.discountReason ?? order.discountReason ?? null;
+    order.taxableAmount = taxableAmount;
+    order.gstAmount = gstAmount;
+    order.extraTaxAmount = extraTaxAmount;
+    order.tax = tax;
+    order.total = total;
+    order.guestName =
+      data.guestName !== undefined
+        ? data.guestName || "Guest"
+        : order.guestName || "Guest";
+    order.guestPhone = normalizedGuestPhone;
+    order.orderType = data.orderType || order.orderType;
+    order.status = "Preparing";
+    order.completedAt = null;
+    order.cancelledAt = null;
+    order.cancelReason = null;
+    if (order.paymentStatus === "Completed") {
+      order.paymentStatus = "Pending";
+      order.paymentMethod = "Pending";
+      order.transactionId = null;
+    }
+
+    await order.save();
+
+    syncTableStatus(order, order.status).catch(() => {});
+
+    res.json(order);
+  } catch (err) {
+    next(err);
+  }
+}
+
 async function getIncomingQr(req, res, next) {
   try {
     const orders = await Order.find({
@@ -434,6 +519,7 @@ module.exports = {
   create,
   updateStatus,
   updatePayment,
+  updateItems,
   getIncomingQr,
   getGuestOrders,
 };

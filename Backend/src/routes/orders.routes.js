@@ -7,6 +7,7 @@ const {
   create,
   updateStatus,
   updatePayment,
+  updateItems,
   getIncomingQr,
   getGuestOrders,
 } = require("../controllers/orders.controller");
@@ -25,5 +26,6 @@ router.post("/", create);
 router.put("/:id/status", updateStatus);
 router.patch("/:id/status", updateStatus);
 router.put("/:id/payment", updatePayment);
+router.put("/:id/items", updateItems);
 
 module.exports = router;

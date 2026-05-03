@@ -286,7 +286,7 @@ export default function PosCheckout() {
 
   if (step === "done") {
     return (
-      <div className="h-[calc(100vh-64px)] flex items-center justify-center bg-paper p-6">
+      <div className="h-[calc(100vh-64px)] flex items-center justify-center bg-white p-6">
         <div className="bg-white border border-border rounded-2xl p-8 max-w-md w-full text-center space-y-5 shadow-lg">
           <div className="mx-auto w-16 h-16 rounded-full bg-green-50 border border-green-200 flex items-center justify-center">
             <CheckCircle2 size={32} className="text-green-500" />

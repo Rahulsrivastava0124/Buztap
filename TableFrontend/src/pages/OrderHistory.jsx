@@ -9,6 +9,7 @@ import {
   Search,
 } from "lucide-react";
 import { fetchGuestOrders } from "../services/api";
+import { getPreviousNavigation } from "../utils/navigationHistory";
 
 const formatCurrency = (value = 0) => `₹${Number(value || 0)}`;
 
@@ -235,6 +236,16 @@ function collectAllOrders(phone, scopeKey = "") {
 export default function OrderHistory() {
   const location = useLocation();
   const navigate = useNavigate();
+  const goBackToGuestFlow = () => {
+    const previousRoute = getPreviousNavigation(location);
+    if (previousRoute) {
+      navigate(previousRoute);
+      return;
+    }
+
+    navigate(`/order${location.search || ""}`, { replace: true });
+  };
+
   const queryParams = useMemo(
     () => new URLSearchParams(location.search),
     [location.search],
@@ -404,7 +415,7 @@ export default function OrderHistory() {
           <div className="flex items-center justify-between">
             <button
               type="button"
-              onClick={() => navigate(-1)}
+              onClick={goBackToGuestFlow}
               className="w-9 h-9 rounded-full bg-white border border-[#e8e2d8] flex items-center justify-center text-[#1a1814]"
             >
               <ArrowLeft size={17} strokeWidth={2} />
@@ -528,7 +539,7 @@ export default function OrderHistory() {
               </p>
               <button
                 type="button"
-                onClick={() => navigate(-1)}
+                onClick={goBackToGuestFlow}
                 className="px-5 py-2.5 rounded-xl bg-saffron text-white text-sm font-semibold"
               >
                 Go to Menu

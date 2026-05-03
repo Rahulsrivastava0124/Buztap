@@ -15,13 +15,49 @@ const userSchema = new Schema(
       enum: ["admin", "manager", "cashier"],
       required: true,
     },
+    designation: {
+      type: String,
+      enum: [
+        "Admin",
+        "Manager",
+        "Receptionist",
+        "Kitchen",
+        "Waiter",
+        "Employee",
+      ],
+      default: "Employee",
+    },
     name: { type: String, required: true, trim: true },
     email: { type: String, lowercase: true, trim: true },
     phone: { type: String, trim: true },
-    shift: {
-      type: String,
-      enum: ["Morning", "Evening", "Night"],
-      default: "Morning",
+    shiftTiming: {
+      name: {
+        type: String,
+        enum: ["Morning", "Evening", "Night", "Custom"],
+        default: "Morning",
+      },
+      startTime: { type: String, default: "09:00" }, // HH:mm format
+      endTime: { type: String, default: "17:00" }, // HH:mm format
+    },
+    salaryMonthly: { type: Number, min: 0, default: 0 },
+    leaveAllowance: { type: Number, min: 0, default: 12 },
+    leavesTaken: { type: Number, min: 0, default: 0 },
+    joiningDate: { type: Date },
+    attendanceRecords: {
+      type: [
+        {
+          date: { type: Date, required: true },
+          status: {
+            type: String,
+            enum: ["work", "absent", "holiday", "weekOff", "halfDay"],
+            required: true,
+          },
+          note: { type: String, trim: true },
+          punchIn: { type: Date },
+          punchOut: { type: Date },
+        },
+      ],
+      default: [],
     },
     serviceScore: { type: Number, min: 0, max: 100, default: 80 },
     isActive: { type: Boolean, default: true },

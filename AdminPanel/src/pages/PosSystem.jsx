@@ -28,6 +28,7 @@ import {
   fetchBusinessProfile,
   updateTableStatus,
   updateOrderPayment,
+  updateOrderItems,
 } from "../services/api";
 import { usePosStore } from "../features/pos/store/usePosStore";
 import usePOSHotkeys from "../hooks/usePOSHotkeys";
@@ -35,14 +36,14 @@ import { useAuth } from "../context/AuthContext";
 
 const TABLE_STATUS_STYLES = {
   Occupied: "border-warning bg-warning/10 text-ink",
-  Free: "border-sage bg-sage-lt text-sage",
+  Free: "border-muted2 border-dashed bg-base-100 text-muted",
   Reserved: "border-saffron bg-saffron-lt text-saffron",
   Cleaning: "border-muted2 bg-base-200 text-muted",
 };
 
 const TABLE_STATUS_DOT = {
   Occupied: "bg-warning",
-  Free: "bg-sage",
+  Free: "bg-muted2",
   Reserved: "bg-saffron",
   Cleaning: "bg-muted2",
 };
@@ -92,6 +93,7 @@ export default function PosSystem() {
   const [paymentMode, setPaymentMode] = useState("UPI");
   const [transactionId, setTransactionId] = useState("");
   const [showPayModal, setShowPayModal] = useState(false);
+  const [editingOrderId, setEditingOrderId] = useState(null);
   const [selectedOptionByItemId, setSelectedOptionByItemId] = useState({});
   const searchRef = useRef(null);
   const navigate = useNavigate();
@@ -105,6 +107,7 @@ export default function PosSystem() {
     cart,
     orderType,
     setOrderType,
+    setCart,
     addToCart,
     setItemNotes,
     updateQty,
@@ -238,6 +241,18 @@ export default function PosSystem() {
       setTransactionId("");
     },
     onError: (err) => toast.error(err?.message || "Unable to update payment."),
+  });
+
+  const updateItemsMutation = useMutation({
+    mutationFn: ({ id, payload }) => updateOrderItems(id, payload),
+    onSuccess: (_, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      queryClient.invalidateQueries({ queryKey: ["order-detail", vars.id] });
+      queryClient.invalidateQueries({ queryKey: ["tables"] });
+      toast.success("Existing order updated.");
+    },
+    onError: (err) =>
+      toast.error(err?.message || "Unable to update existing order."),
   });
 
   const isPaymentDone =
@@ -406,6 +421,34 @@ export default function PosSystem() {
       .filter((c) => String(c.id) === String(itemId))
       .reduce((sum, c) => sum + (c.qty || 0), 0);
 
+  const mapOrderItemsToCart = (order) => {
+    if (!Array.isArray(order?.items)) return [];
+    return order.items
+      .map((item, idx) => {
+        const quantity = Math.max(1, Number(item?.quantity || 1));
+        const portion = String(item?.portion || "Full").trim() || "Full";
+        const itemId = String(
+          item?.menuItemId ||
+            item?.id ||
+            item?._id ||
+            item?.name ||
+            `item-${idx}`,
+        );
+        const price = Number(item?.price || 0);
+        return {
+          id: itemId,
+          name: item?.name || "Item",
+          price,
+          qty: quantity,
+          portion,
+          notes: item?.notes || "",
+          modifiers: Array.isArray(item?.modifiers) ? item.modifiers : [],
+          cartKey: `${itemId}::${portion}`,
+        };
+      })
+      .filter((item) => item.price >= 0 && item.qty > 0);
+  };
+
   const addItemToCartWithOption = (item, option) => {
     const safeOption = option || getSelectedOption(item);
     addToCart({
@@ -463,7 +506,12 @@ export default function PosSystem() {
     }
   }
 
-  function selectTable(table) {
+  function selectTable(table, existingOrder = null) {
+    const existingCart = mapOrderItemsToCart(existingOrder);
+    if (table?.status === "Occupied" && existingCart.length > 0) {
+      setCart(existingCart);
+    }
+    setEditingOrderId(existingOrder?._id || null);
     setSelectedTable(table);
     setDetailTable(null);
     setStep("menu");
@@ -471,6 +519,7 @@ export default function PosSystem() {
 
   function changeTable() {
     setDetailTable(null);
+    setEditingOrderId(null);
     setStep("table");
   }
 
@@ -485,16 +534,44 @@ export default function PosSystem() {
     });
   };
 
+  const updateExistingOrderDirectly = async () => {
+    if (!editingOrderId || cart.length === 0 || updateItemsMutation.isPending)
+      return;
+
+    await updateItemsMutation.mutateAsync({
+      id: editingOrderId,
+      payload: {
+        guestName: guestName.trim() || undefined,
+        guestPhone: guestPhone.trim() || undefined,
+        orderType,
+        items: cart.map((item) => ({
+          menuItemId: String(item.id || "").trim() || undefined,
+          name: item.name,
+          quantity: Number(item.qty || 1),
+          price: Number(item.price || 0),
+          portion: item.portion,
+          notes: item.notes,
+          modifiers: Array.isArray(item.modifiers) ? item.modifiers : [],
+        })),
+      },
+    });
+    setDetailTable(null);
+    setEditingOrderId(null);
+    clearCart();
+    setStep("table");
+  };
+
   usePOSHotkeys({
     onFocusSearch: () => step === "menu" && searchRef.current?.focus(),
-    onCheckout: () => goToCheckout(),
+    onCheckout: () =>
+      editingOrderId ? updateExistingOrderDirectly() : goToCheckout(),
     onClear: () => clearCart(),
   });
 
   // ── Step 1: Table Picker ──
   if (step === "table") {
     return (
-      <div className="h-[calc(100vh-64px)] flex overflow-hidden bg-paper relative">
+      <div className="h-[calc(100vh-64px)] flex overflow-hidden bg-white relative">
         {/* Table Grid */}
         <div className="flex-1 flex flex-col overflow-hidden">
           <div className="flex-1 overflow-y-auto p-5 custom-scrollbar">
@@ -522,6 +599,20 @@ export default function PosSystem() {
                   const isActive = detailTable?.id === table.id;
                   const cleaningTimeLabel = getCleaningTimeLabel(table);
                   const orderInfo = getOrderInfo(table);
+                  const isReadyForPayment =
+                    table.status === "Occupied" &&
+                    orderInfo &&
+                    ["Ready", "Served"].includes(orderInfo.status);
+                  const cardStatusClass = isReadyForPayment
+                    ? "border-sage bg-sage-lt text-sage"
+                    : TABLE_STATUS_STYLES[table.status] ||
+                      "border-border bg-white text-ink";
+                  const statusDotClass = isReadyForPayment
+                    ? "bg-sage"
+                    : TABLE_STATUS_DOT[table.status] || "bg-muted2";
+                  const statusLabel = isReadyForPayment
+                    ? "Ready to Payment"
+                    : table.status;
                   return (
                     <Motion.button
                       key={table.id}
@@ -531,11 +622,8 @@ export default function PosSystem() {
                         table.status === "Occupied" && orderInfo
                           ? "pt-8 pb-4 px-4"
                           : "p-4"
-                      } ${
-                        isActive
-                          ? "border-saffron ring-2 ring-saffron/30 shadow-md"
-                          : TABLE_STATUS_STYLES[table.status] ||
-                            "border-border bg-white text-ink"
+                      } ${cardStatusClass} ${
+                        isActive ? "ring-2 ring-saffron/30 shadow-md" : ""
                       }`}
                     >
                       {table.status === "Occupied" && orderInfo && (
@@ -551,9 +639,9 @@ export default function PosSystem() {
                       <span className="text-2xl font-black">{table.id}</span>
                       <span className="flex items-center gap-1.5 text-xs font-medium">
                         <span
-                          className={`w-2 h-2 rounded-full ${TABLE_STATUS_DOT[table.status] || "bg-muted2"}`}
+                          className={`w-2 h-2 rounded-full ${statusDotClass}`}
                         />
-                        {table.status}
+                        {statusLabel}
                       </span>
                       {cleaningTimeLabel && (
                         <span className="text-[11px] font-semibold text-muted">
@@ -579,7 +667,11 @@ export default function PosSystem() {
                         />
                       )}
                       {table.status === "Occupied" && (
-                        <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-warning animate-pulse" />
+                        <span
+                          className={`absolute top-2 right-2 w-2 h-2 rounded-full animate-pulse ${
+                            isReadyForPayment ? "bg-sage" : "bg-warning"
+                          }`}
+                        />
                       )}
                     </Motion.button>
                   );
@@ -819,7 +911,13 @@ export default function PosSystem() {
                     </button>
                   ) : (
                     <button
-                      onClick={() => selectTable(detailTable)}
+                      onClick={() => {
+                        if (detailOrderLoading) {
+                          toast.error("Please wait, loading existing order...");
+                          return;
+                        }
+                        selectTable(detailTable, detailOrder);
+                      }}
                       className="w-full py-2.5 rounded-xl bg-saffron hover:bg-saffron2 text-white font-bold text-sm flex items-center justify-center gap-1.5 transition-colors shadow-md"
                     >
                       <PlusCircle size={15} /> Add Items
@@ -945,7 +1043,7 @@ export default function PosSystem() {
 
   // ── Step 2: Menu + Cart ──
   return (
-    <div className="h-[calc(100vh-64px)] flex flex-col lg:flex-row overflow-hidden bg-paper">
+    <div className="h-[calc(100vh-64px)] flex flex-col lg:flex-row overflow-hidden bg-white">
       {/* ── Left Area: Menu Grid ── */}
       <div className="flex-1 flex flex-col overflow-hidden relative border-r border-border">
         {/* Top Controls */}
@@ -1068,34 +1166,6 @@ export default function PosSystem() {
                       alt={item.name}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />
-                    <div className="absolute left-2 bottom-2 flex items-center gap-1 z-10">
-                      {options
-                        .filter((opt) =>
-                          ["full", "half"].includes(
-                            String(opt.label).toLowerCase(),
-                          ),
-                        )
-                        .map((opt) => {
-                          const isActive = selectedOption.label === opt.label;
-                          return (
-                            <button
-                              key={`${item.id}-${opt.label}`}
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                selectOption(item.id, opt.label);
-                              }}
-                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold border backdrop-blur-sm transition-all duration-200 ${
-                                isActive
-                                  ? "bg-linear-to-b from-white/95 to-white/80 text-saffron border-saffron/50 shadow-[0_1px_4px_rgba(232,114,12,0.25)]"
-                                  : "bg-black/35 text-white/90 border-white/30 hover:bg-black/50"
-                              }`}
-                            >
-                              {opt.label}
-                            </button>
-                          );
-                        })}
-                    </div>
                   </div>
                   <div className="p-3">
                     <p className="font-semibold text-sm text-ink leading-tight mb-1 line-clamp-2">
@@ -1103,9 +1173,6 @@ export default function PosSystem() {
                     </p>
                     <p className="font-roboto font-bold text-saffron">
                       ₹{selectedOption.price}
-                    </p>
-                    <p className="text-[11px] mt-1 text-muted font-semibold">
-                      {selectedOption.label}
                     </p>
                   </div>
                   <div className="absolute inset-0 bg-saffron/10 opacity-0 group-active:opacity-100 transition-opacity" />
@@ -1280,11 +1347,17 @@ export default function PosSystem() {
 
           <div className="grid grid-cols-2 gap-3 mt-4">
             <button
-              disabled={cart.length === 0}
-              onClick={goToCheckout}
+              disabled={cart.length === 0 || updateItemsMutation.isPending}
+              onClick={
+                editingOrderId ? updateExistingOrderDirectly : goToCheckout
+              }
               className="col-span-2 py-3 px-4 rounded-xl font-bold flex items-center justify-center gap-2 bg-saffron hover:bg-saffron2 text-white shadow-md transition-colors disabled:opacity-50 disabled:pointer-events-none"
             >
-              Go to Checkout
+              {editingOrderId
+                ? updateItemsMutation.isPending
+                  ? "Updating Existing Order..."
+                  : "Update Existing Order"
+                : "Go to Checkout"}
             </button>
           </div>
         </div>

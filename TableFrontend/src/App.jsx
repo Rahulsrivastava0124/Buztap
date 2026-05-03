@@ -1,7 +1,8 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import ErrorBoundary from "./components/shared/ErrorBoundary";
 import lazyWithRetry from "./utils/lazyWithRetry";
+import { recordNavigation } from "./utils/navigationHistory";
 
 const Landing = lazy(() =>
   lazyWithRetry(() => import("./pages/Landing"), "landing"),
@@ -44,6 +45,12 @@ function DemoMenuWithBoundary() {
 }
 
 export default function App() {
+  const location = useLocation();
+
+  useEffect(() => {
+    recordNavigation(location);
+  }, [location.pathname, location.search]);
+
   return (
     <Suspense fallback={<PageLoader />}>
       <Routes>
@@ -51,6 +58,8 @@ export default function App() {
         <Route path="/auth" element={<AuthPage />} />
         {/* Primary guest ordering route */}
         <Route path="/order" element={<DemoMenuWithBoundary />} />
+        <Route path="/cart" element={<DemoMenuWithBoundary />} />
+        <Route path="/tracking" element={<DemoMenuWithBoundary />} />
         {/* Explicit live demo route (always demo-mode menu JSON) */}
         <Route path="/demo" element={<DemoMenuWithBoundary />} />
         {/* Backward-compat aliases so old QR codes & links still work */}

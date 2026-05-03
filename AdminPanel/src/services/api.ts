@@ -240,12 +240,86 @@ export interface InventoryItem {
   status: "Healthy" | "Low" | "Out of Stock";
 }
 
+export type StaffDesignation =
+  | "Admin"
+  | "Manager"
+  | "Receptionist"
+  | "Kitchen"
+  | "Waiter"
+  | "Employee";
+
+export type StaffSystemRole = "admin" | "manager" | "cashier";
+export type StaffAttendanceStatus =
+  | "work"
+  | "absent"
+  | "holiday"
+  | "weekOff"
+  | "halfDay";
+
+export interface ShiftTiming {
+  name: "Morning" | "Evening" | "Night" | "Custom";
+  startTime: string; // HH:mm format
+  endTime: string; // HH:mm format
+}
+
+export interface StaffAttendanceRecord {
+  date: string;
+  status: StaffAttendanceStatus;
+  note?: string;
+  punchIn?: string;
+  punchOut?: string;
+}
+
 export interface StaffRecord {
   id: string;
+  username: string;
   name: string;
-  role: string;
-  shift: string;
+  role: StaffSystemRole;
+  designation: StaffDesignation;
+  shiftTiming: ShiftTiming;
+  email: string;
+  phone: string;
+  salaryMonthly: number;
+  leaveAllowance: number;
+  leavesTaken: number;
+  joiningDate?: string | null;
+  attendanceRecords: StaffAttendanceRecord[];
   score: number;
+  isActive: boolean;
+  createdAt?: string;
+}
+
+export interface CreateStaffInput {
+  username: string;
+  password: string;
+  name: string;
+  designation: StaffDesignation;
+  role?: StaffSystemRole;
+  shiftTiming?: ShiftTiming;
+  email?: string;
+  phone?: string;
+  salaryMonthly?: number;
+  leaveAllowance?: number;
+  leavesTaken?: number;
+  joiningDate?: string;
+  attendanceRecords?: StaffAttendanceRecord[];
+}
+
+export interface UpdateStaffInput {
+  name?: string;
+  designation?: StaffDesignation;
+  role?: StaffSystemRole;
+  shiftTiming?: ShiftTiming;
+  email?: string;
+  phone?: string;
+  salaryMonthly?: number;
+  leaveAllowance?: number;
+  leavesTaken?: number;
+  joiningDate?: string;
+  attendanceRecords?: StaffAttendanceRecord[];
+  isActive?: boolean;
+  serviceScore?: number;
+  password?: string;
 }
 
 export interface ReportRecord {
@@ -343,6 +417,15 @@ export interface CreatePosOrderInput {
   discountPct?: number;
   discountReason?: string;
   paymentMethod?: PaymentMethod;
+}
+
+export interface UpdateOrderItemsInput {
+  items: PosOrderItemInput[];
+  guestName?: string;
+  guestPhone?: string;
+  orderType?: "Dine-in" | "Takeaway" | "Delivery" | "Room Service";
+  discountPct?: number;
+  discountReason?: string;
 }
 
 export interface PosOrderResponse {
@@ -775,6 +858,16 @@ export async function updateOrderPayment(
   );
 }
 
+export async function updateOrderItems(
+  orderId: string,
+  payload: UpdateOrderItemsInput,
+): Promise<OrderDetail> {
+  return request<OrderDetail>(`/orders/${encodeURIComponent(orderId)}/items`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+}
+
 export async function fetchRecentOrders(): Promise<
   Array<{
     id: string;
@@ -808,15 +901,105 @@ export async function fetchInventory(): Promise<InventoryItem[]> {
   }));
 }
 
-export async function fetchStaff(): Promise<StaffRecord[]> {
-  const rows = await request<Array<any>>("/staff");
-  return rows.map((member) => ({
-    id: member._id,
+function mapStaff(member: any): StaffRecord {
+  const shift = ["Morning", "Evening", "Night"].includes(member.shift)
+    ? member.shift
+    : "Morning";
+
+  // Deduplicate attendance records by date to prevent duplicate data display
+  const recordMap: Record<string, any> = {};
+  const attendanceRecords = Array.isArray(member.attendanceRecords)
+    ? member.attendanceRecords.reduce((acc: Array<any>, record: any) => {
+        const d = new Date(record.date);
+        if (!Number.isNaN(d.getTime())) {
+          // Convert to UTC date key to ensure consistency
+          const dateKey = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
+          // Keep only the latest record for each date (last one wins)
+          recordMap[dateKey] = {
+            date: record.date,
+            status: record.status,
+            note: record.note || "",
+            punchIn: record.punchIn || undefined,
+            punchOut: record.punchOut || undefined,
+          };
+        }
+        return acc;
+      }, [])
+    : [];
+
+  // Convert map back to array
+  const deduplicatedRecords = Object.values(recordMap);
+
+  return {
+    id: member._id || member.id,
+    username: member.username || "",
     name: member.name,
     role: member.role,
-    shift: member.shift,
-    score: Number(member.serviceScore || 0),
-  }));
+    designation: member.designation || "Employee",
+    shift,
+    email: member.email || "",
+    phone: member.phone || "",
+    salaryMonthly: Number(member.salaryMonthly || 0),
+    leaveAllowance: Number(member.leaveAllowance ?? 12),
+    leavesTaken: Number(member.leavesTaken || 0),
+    joiningDate: member.joiningDate || null,
+    attendanceRecords: deduplicatedRecords,
+    score: Number(member.serviceScore ?? 80),
+    isActive: member.isActive !== false,
+    createdAt: member.createdAt,
+  };
+}
+
+export async function fetchStaff(): Promise<StaffRecord[]> {
+  const rows = await request<Array<any>>("/staff");
+  return rows.map(mapStaff);
+}
+
+export async function createStaffMember(
+  payload: CreateStaffInput,
+): Promise<StaffRecord> {
+  const result = await request<any>("/staff", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+  return mapStaff(result);
+}
+
+export async function updateStaffMember(
+  id: string,
+  payload: UpdateStaffInput,
+): Promise<StaffRecord> {
+  const result = await request<any>(`/staff/${encodeURIComponent(id)}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+  return mapStaff(result);
+}
+
+export async function deleteStaffMember(id: string): Promise<void> {
+  await request<any>(`/staff/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
+}
+
+export async function punchInStaff(id: string): Promise<StaffRecord> {
+  const result = await request<any>(
+    `/staff/${encodeURIComponent(id)}/punch-in`,
+    {
+      method: "POST",
+    },
+  );
+  return mapStaff(result);
+}
+
+export async function punchOutStaff(id: string): Promise<StaffRecord> {
+  const result = await request<any>(
+    `/staff/${encodeURIComponent(id)}/punch-out`,
+    {
+      method: "POST",
+    },
+  );
+  return mapStaff(result);
 }
 
 export async function fetchReports(): Promise<ReportRecord[]> {
