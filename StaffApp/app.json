@@ -11,12 +11,13 @@
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
-    "assetBundlePatterns": [
-      "**/*"
-    ],
+    "assetBundlePatterns": ["**/*"],
     "ios": {
-      "supportsTabletMode": true,
-      "bundleIdentifier": "com.tableqr.staffattendance"
+      "supportsTablet": true,
+      "bundleIdentifier": "com.tableqr.staffattendance",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -24,18 +25,17 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.tableqr.staffattendance",
-      "permissions": [
-        "CAMERA",
-        "INTERNET"
-      ]
+      "permissions": ["CAMERA", "INTERNET"]
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "scheme": "staffattendance",
-    "plugins": [
-      "expo-font",
-      "expo-secure-store"
-    ]
+    "plugins": ["expo-font", "expo-secure-store"],
+    "extra": {
+      "eas": {
+        "projectId": "c4b911f9-02ca-4940-ad1d-d4365db48bcc"
+      }
+    }
   }
 }

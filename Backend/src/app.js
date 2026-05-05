@@ -3,6 +3,7 @@ const cors = require("cors");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
 const errorHandler = require("./middleware/errorHandler");
+const apiAudit = require("./middleware/apiAudit");
 
 const authRoutes = require("./routes/auth.routes");
 const dashboardRoutes = require("./routes/dashboard.routes");
@@ -113,6 +114,9 @@ app.use(express.json());
 
 // ── Security headers ─────────────────────────────────────────────────────────
 app.use(helmet());
+
+// ── API audit logs ───────────────────────────────────────────────────────────
+app.use("/api", apiAudit);
 
 // ── Rate limiting ─────────────────────────────────────────────────────────────
 // Login only: 10 attempts / 15 min per account+IP — brute-force guard

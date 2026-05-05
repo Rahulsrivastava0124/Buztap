@@ -66,30 +66,65 @@ const updateSchema = z.object({
   password: z.string().min(6).optional(),
 });
 
+function toUtcDateKey(value) {
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "";
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
+}
+
+function mergeAttendanceRecords(existingRecords = [], incomingRecords = []) {
+  const byDate = new Map();
+
+  for (const record of existingRecords) {
+    const key = toUtcDateKey(record?.date);
+    if (!key) continue;
+    byDate.set(key, {
+      date: record.date,
+      status: record.status,
+      note: record.note || "",
+      punchIn: record.punchIn || null,
+      punchOut: record.punchOut || null,
+    });
+  }
+
+  for (const record of incomingRecords) {
+    const key = toUtcDateKey(record?.date);
+    if (!key) continue;
+
+    const prev = byDate.get(key) || {
+      date: record.date,
+      status: undefined,
+      note: "",
+      punchIn: null,
+      punchOut: null,
+    };
+
+    const merged = {
+      date: record.date || prev.date,
+      status: record.status || prev.status,
+      note: record.note ?? prev.note,
+      // Preserve existing punches if incoming payload does not include them.
+      punchIn: record.punchIn || prev.punchIn || null,
+      punchOut: record.punchOut || prev.punchOut || null,
+    };
+
+    // If any punch exists for the day, treat it as a worked day.
+    if (merged.punchIn || merged.punchOut) {
+      merged.status = "work";
+    }
+
+    byDate.set(key, merged);
+  }
+
+  return Array.from(byDate.values());
+}
+
 function mapMember(member) {
   // Deduplicate attendance records by date
-  const recordMap = {};
-  const attendanceRecords = (member.attendanceRecords || []).reduce(
-    (acc, record) => {
-      const d = new Date(record.date);
-      if (!Number.isNaN(d.getTime())) {
-        // Convert to UTC date key to ensure consistency
-        const dateKey = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
-        // Keep only the latest record for each date
-        recordMap[dateKey] = {
-          date: record.date,
-          status: record.status,
-          note: record.note || "",
-          punchIn: record.punchIn || null,
-          punchOut: record.punchOut || null,
-        };
-      }
-      return acc;
-    },
-    {},
+  const deduplicatedRecords = mergeAttendanceRecords(
+    [],
+    member.attendanceRecords || [],
   );
-
-  const deduplicatedRecords = Object.values(recordMap);
 
   return {
     _id: member._id,
@@ -197,14 +232,26 @@ async function update(req, res, next) {
       updatePayload.passwordHash = await bcrypt.hash(data.password, 10);
     }
 
-    const member = await User.findOneAndUpdate(
-      { _id: req.params.id, businessId: req.user.businessId },
-      { $set: updatePayload },
-      { new: true },
-    ).select("-passwordHash");
+    const member = await User.findOne({
+      _id: req.params.id,
+      businessId: req.user.businessId,
+    });
     if (!member)
       return res.status(404).json({ error: "Staff member not found" });
-    res.json(mapMember(member.toObject()));
+
+    if (Array.isArray(data.attendanceRecords)) {
+      updatePayload.attendanceRecords = mergeAttendanceRecords(
+        member.attendanceRecords || [],
+        data.attendanceRecords,
+      );
+    }
+
+    Object.assign(member, updatePayload);
+    await member.save();
+
+    const response = member.toObject();
+    delete response.passwordHash;
+    res.json(mapMember(response));
   } catch (err) {
     next(err);
   }

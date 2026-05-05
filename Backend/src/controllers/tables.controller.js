@@ -38,8 +38,6 @@ async function reconcileTableOccupancy(businessId) {
     .select("tableId guestName guestPhone status paymentStatus")
     .lean();
 
-  if (activeOrders.length === 0) return;
-
   const latestByTableId = new Map();
   activeOrders.forEach((order) => {
     const key = String(order.tableId || "").trim();
@@ -48,8 +46,28 @@ async function reconcileTableOccupancy(businessId) {
     }
   });
 
-  const tables = await Table.find({ businessId, isActive: true })
+  // Track latest Served+Completed orders so we can auto-move stale occupied tables
+  // into Cleaning when no active/unpaid orders remain.
+  const servedPaidOrders = await Order.find({
+    businessId,
+    tableId: { $ne: null },
+    status: "Served",
+    paymentStatus: "Completed",
+  })
+    .sort({ createdAt: -1 })
     .select("tableId")
+    .lean();
+
+  const latestServedPaidByTableId = new Map();
+  servedPaidOrders.forEach((order) => {
+    const key = String(order.tableId || "").trim();
+    if (key && !latestServedPaidByTableId.has(key)) {
+      latestServedPaidByTableId.set(key, true);
+    }
+  });
+
+  const tables = await Table.find({ businessId, isActive: true })
+    .select("tableId status")
     .lean();
 
   const updates = [];
@@ -59,20 +77,40 @@ async function reconcileTableOccupancy(businessId) {
       .map((candidate) => latestByTableId.get(candidate))
       .find(Boolean);
 
-    if (!matchedOrder) continue;
-
-    updates.push({
-      updateOne: {
-        filter: { businessId, tableId: table.tableId },
-        update: {
-          $set: {
-            status: "Occupied",
-            guestName: matchedOrder.guestName || null,
-            guestPhone: matchedOrder.guestPhone || null,
+    if (matchedOrder) {
+      updates.push({
+        updateOne: {
+          filter: { businessId, tableId: table.tableId },
+          update: {
+            $set: {
+              status: "Occupied",
+              guestName: matchedOrder.guestName || null,
+              guestPhone: matchedOrder.guestPhone || null,
+            },
           },
         },
-      },
-    });
+      });
+      continue;
+    }
+
+    const hasServedPaidOrder = candidates.some((candidate) =>
+      latestServedPaidByTableId.has(candidate),
+    );
+
+    if (table.status === "Occupied" && hasServedPaidOrder) {
+      updates.push({
+        updateOne: {
+          filter: { businessId, tableId: table.tableId },
+          update: {
+            $set: {
+              status: "Cleaning",
+              guestName: null,
+              guestPhone: null,
+            },
+          },
+        },
+      });
+    }
   }
 
   if (updates.length > 0) {

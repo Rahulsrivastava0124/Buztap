@@ -23,11 +23,6 @@ const THUMB_SIZE = 56;
 const SWIPE_THRESHOLD = SWIPE_TRACK_WIDTH - THUMB_SIZE - 8;
 
 const toDateKey = (value: Date | string) => {
-  if (typeof value === "string") {
-    const isoPrefix = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
-    if (isoPrefix) return `${isoPrefix[1]}-${isoPrefix[2]}-${isoPrefix[3]}`;
-  }
-
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return "";
   return [
@@ -282,6 +277,9 @@ export const DashboardScreen = ({ navigation }: any) => {
   const workedDurationText = isPunchedIn
     ? formatDurationLabel(elapsed)
     : "--h --m";
+  const hasPunchOutWithoutPunchIn =
+    !!todayStatus?.punchOut && !todayStatus?.punchIn;
+  const hasPunchError = hasPunchOutWithoutPunchIn;
 
   // Activity items from real attendance fields for today
   const activities: {
@@ -306,6 +304,14 @@ export const DashboardScreen = ({ navigation }: any) => {
       meta: `Worked: ${workedDurationText}`,
     });
   }
+  if (hasPunchError) {
+    activities.push({
+      time: "--:--:--",
+      label: "Punch Error",
+      color: "#F59E0B",
+      meta: "Attendance marked as work, but punch times are incomplete.",
+    });
+  }
 
   const goToCalendar = () => {
     const parent = navigation?.getParent?.();
@@ -328,10 +334,7 @@ export const DashboardScreen = ({ navigation }: any) => {
       >
         <View className="flex-row items-center justify-between px-5 pt-4 pb-5 bg-sky-50">
           <View className="flex-row items-center flex-1">
-            <TouchableOpacity onPress={() => navigation?.openDrawer?.()}>
-              <Ionicons name="menu" size={26} color="#1E293B" />
-            </TouchableOpacity>
-            <View className="ml-3">
+            <View>
               <Text className="text-slate-500 text-xs">Welcome</Text>
               <Text
                 className="text-slate-800 text-2xl font-semibold max-w-[210px]"

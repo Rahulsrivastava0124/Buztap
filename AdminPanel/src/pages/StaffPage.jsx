@@ -177,14 +177,19 @@ function AttendanceCalendarModal({
     halfDay: 0,
     unmarked: 0,
   };
+  const todayKey = toDateKey(new Date());
   for (let i = 0; i < startWeekday; i += 1) cells.push(null);
   for (let day = 1; day <= totalDays; day += 1) {
     const dateObj = new Date(
       Date.UTC(monthDate.getFullYear(), monthDate.getMonth(), day),
     );
+    const key = toDateKey(dateObj);
     const status = getAttendanceStatus(recordsByDate, dateObj, weekOffDays);
     monthStatusCount[status] += 1;
-    cells.push({ day, status, dateObj });
+    const record = storedRecordDetailsByDate[key];
+    const showIncompleteWarning =
+      key < todayKey && !!record?.punchIn && !record?.punchOut;
+    cells.push({ day, status, dateObj, showIncompleteWarning });
   }
 
   const selectedCell =
@@ -262,6 +267,10 @@ function AttendanceCalendarModal({
                   {cfg.label}: {monthStatusCount[key]}
                 </span>
               ))}
+              <span className="px-2 py-1 text-xs rounded-full border bg-orange-50 text-orange-700 border-orange-200 flex items-center gap-1">
+                <span className="inline-block w-2 h-2 rounded-full bg-orange-500" />
+                Incomplete Punch
+              </span>
             </div>
 
             <div className="grid grid-cols-7 gap-2 mb-2">
@@ -294,11 +303,17 @@ function AttendanceCalendarModal({
                     key={`day-${cell.day}`}
                     type="button"
                     onClick={() => setSelectedDateKey(toDateKey(cell.dateObj))}
-                    className={`h-11 sm:h-12 rounded-lg border px-1.5 flex items-center justify-center ${cfg.badge} ${isSelected ? "ring-2 ring-offset-1 ring-primary" : ""}`}
+                    className={`h-11 sm:h-12 rounded-lg border px-1.5 flex items-center justify-center relative ${cfg.badge} ${isSelected ? "ring-2 ring-offset-1 ring-primary" : ""}`}
                   >
                     <span className="text-xs font-bold leading-none">
                       {cell.day}
                     </span>
+                    {cell.showIncompleteWarning && (
+                      <span
+                        title="Punched in but not punched out"
+                        className="absolute top-0.5 right-0.5 w-2 h-2 rounded-full bg-orange-500"
+                      />
+                    )}
                   </button>
                 );
               })}

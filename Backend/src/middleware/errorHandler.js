@@ -3,6 +3,13 @@ function errorHandler(err, req, res, _next) {
   const status = err.status || err.statusCode || 500;
   const message = err.message || "Internal server error";
 
+  res.locals.apiError = {
+    name: err.name || "Error",
+    message,
+    status,
+    code: err.code || null,
+  };
+
   // Mongoose duplicate key
   if (err.code === 11000) {
     return res

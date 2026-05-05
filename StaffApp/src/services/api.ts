@@ -1,6 +1,40 @@
 import axios, { AxiosInstance } from "axios";
-import { NativeModules } from "react-native";
+import { Platform } from "react-native";
 import { useAuthStore } from "../store/authStore";
+
+const API_PREFIX = "/api";
+
+// On Android, `localhost` / `127.0.0.1` points to the device itself.
+// The host machine is reachable via 10.0.2.2 (emulator) or the LAN IP
+// (physical device). We auto-swap so .env can stay as `localhost`.
+function resolveHost(hostname: string): string {
+  if (Platform.OS === "android") {
+    if (hostname === "localhost" || hostname === "127.0.0.1") {
+      return "10.0.2.2";
+    }
+  }
+  return hostname;
+}
+
+function normalizeBaseUrl(rawUrl?: string): string {
+  const value = String(rawUrl || "")
+    .trim()
+    .replace(/\/+$/, "");
+
+  if (!value) return "";
+
+  try {
+    const parsed = new URL(value);
+    parsed.hostname = resolveHost(parsed.hostname);
+    const trimmedPath = parsed.pathname.replace(/\/+$/, "");
+    parsed.pathname = trimmedPath.toLowerCase().endsWith("/api")
+      ? trimmedPath.slice(0, -4) || "/"
+      : trimmedPath || "/";
+    return parsed.toString().replace(/\/+$/, "");
+  } catch {
+    return "";
+  }
+}
 
 // Types
 export interface ShiftTiming {
@@ -32,93 +66,41 @@ export interface Staff {
   isActive: boolean;
 }
 
-// @ts-ignore
-const ENV_BASE_URL = process.env.EXPO_PUBLIC_API_URL || "";
-const PORT_CANDIDATES = [5000, 5001, 5002, 5003];
-const DEFAULT_HOSTS = ["localhost", "127.0.0.1", "10.0.2.2"];
-
-const normalizeEnvBaseUrl = (raw: string) => {
-  try {
-    const base = raw.includes("://") ? raw : `http://${raw}`;
-    const url = new URL(base);
-    const trimmedPath = url.pathname.replace(/\/+$/, "");
-
-    if (!trimmedPath || trimmedPath === "/") {
-      url.pathname = "/api";
-    } else if (!trimmedPath.endsWith("/api")) {
-      url.pathname = `${trimmedPath}/api`;
-    }
-
-    return url.toString().replace(/\/$/, "");
-  } catch {
-    return "";
-  }
-};
-
-const buildBaseUrlsForHost = (host: string) =>
-  PORT_CANDIDATES.map((port) => `http://${host}:${port}/api`);
-
-const getMetroHost = () => {
-  try {
-    const scriptURL: string | undefined = NativeModules?.SourceCode?.scriptURL;
-    if (!scriptURL) return "";
-    const host = new URL(scriptURL).hostname;
-    return host || "";
-  } catch {
-    return "";
-  }
-};
-
-const envBaseUrls = ENV_BASE_URL.split(",")
-  .map((v) => normalizeEnvBaseUrl(v.trim()))
-  .filter(Boolean);
-
-const metroHost = getMetroHost();
-const metroHostBaseUrls = metroHost ? buildBaseUrlsForHost(metroHost) : [];
-
-const defaultBaseUrls = DEFAULT_HOSTS.flatMap((host) =>
-  buildBaseUrlsForHost(host),
-);
-
-const API_BASE_URLS = [...envBaseUrls, ...metroHostBaseUrls, ...defaultBaseUrls]
-  .filter(Boolean)
-  .filter((value, index, array) => array.indexOf(value) === index);
-
-let activeBaseUrlIndex = 0;
+const RAW_ENV_API_URL = process.env.EXPO_PUBLIC_API_URL;
+const BASE_URL = normalizeBaseUrl(RAW_ENV_API_URL);
 
 let api: AxiosInstance;
 
 export const initializeAPI = () => {
+  if (!BASE_URL) {
+    console.warn(
+      "[API] EXPO_PUBLIC_API_URL is missing or invalid. Set it in StaffApp/.env",
+    );
+  }
+
   if (__DEV__) {
-    console.log("[API] Base URLs:", API_BASE_URLS.join(" | "));
-    console.log("[API] Active Base URL:", API_BASE_URLS[activeBaseUrlIndex]);
+    console.log("[API] Base URL:", BASE_URL || "(missing)");
+    console.log("[API] Prefix:", API_PREFIX);
   }
 
   api = axios.create({
-    baseURL: API_BASE_URLS[activeBaseUrlIndex] || "http://localhost:5000/api",
+    baseURL: BASE_URL,
     timeout: 10000,
   });
 
   // Add auth token to requests
   api.interceptors.request.use((config) => {
-    const candidateBaseUrls = API_BASE_URLS.length
-      ? API_BASE_URLS
-      : ["http://localhost:5000/api"];
+    if (!BASE_URL) {
+      return Promise.reject(
+        new Error("EXPO_PUBLIC_API_URL is missing or invalid in .env"),
+      );
+    }
 
-    const attempt = Number((config as any).__baseUrlRetryAttempt || 0);
-    const selectedBaseUrl = candidateBaseUrls[attempt] || candidateBaseUrls[0];
-
-    config.baseURL = selectedBaseUrl;
-    (config as any).__candidateBaseUrls = candidateBaseUrls;
-    (config as any).__baseUrlRetryAttempt = attempt;
+    config.baseURL = BASE_URL;
 
     if (__DEV__) {
       const method = String(config.method || "get").toUpperCase();
-      console.log(
-        "[API] Request",
-        method,
-        `${selectedBaseUrl}${config.url || ""}`,
-      );
+      console.log("[API] Request", method, `${BASE_URL}${config.url || ""}`);
     }
 
     const token = useAuthStore.getState().token;
@@ -135,57 +117,21 @@ export const initializeAPI = () => {
         console.log(
           "[API] Response",
           response.status,
-          `${response.config.baseURL || ""}${response.config.url || ""}`,
+          `${BASE_URL}${response.config.url || ""}`,
         );
-      }
-      const usedBaseUrl = String(response.config.baseURL || "");
-      const index = API_BASE_URLS.indexOf(usedBaseUrl);
-      if (index >= 0) {
-        activeBaseUrlIndex = index;
       }
       return response;
     },
     (error) => {
-      const config: any = error.config;
-      const hasNetworkError = !error.response;
-      const candidateBaseUrls: string[] =
-        config?.__candidateBaseUrls || API_BASE_URLS;
-      const attempt = Number(config?.__baseUrlRetryAttempt || 0);
-
-      // Retry request on next local base URL when current one is unreachable.
-      if (hasNetworkError && config) {
-        const nextAttempt = attempt + 1;
-
-        if (nextAttempt < candidateBaseUrls.length) {
-          activeBaseUrlIndex = nextAttempt;
-          config.__baseUrlRetryAttempt = nextAttempt;
-          config.baseURL = candidateBaseUrls[nextAttempt];
-
-          if (__DEV__) {
-            console.log(
-              "[API] Network error, retrying with Base URL:",
-              config.baseURL,
-            );
-          }
-
-          return api(config);
-        }
-      }
-
       if (__DEV__) {
-        const status = error.response?.status;
-        const data = error.response?.data;
         console.log("[API] Error", {
           message: error.message,
           code: error.code,
-          status,
-          data,
-          attemptedBaseUrls: candidateBaseUrls,
-          finalAttempt: attempt,
+          status: error.response?.status,
+          data: error.response?.data,
+          url: `${BASE_URL}${error.config?.url || ""}`,
         });
       }
-
-      (error as any).attemptedBaseUrls = candidateBaseUrls;
 
       if (error.response?.status === 401) {
         useAuthStore.getState().logout();
@@ -208,20 +154,24 @@ export const getAPI = () => {
 export const authAPI = {
   /** Step 1 – request OTP; returns maskedEmail + expiresInSeconds */
   requestOtp: (phone: string) =>
-    getAPI().post("/auth/staff/request-otp", { phone }),
+    getAPI().post(`${API_PREFIX}/auth/staff/request-otp`, { phone }),
 
   /** Step 2 – verify OTP; returns token + staff */
   verifyOtp: (phone: string, otp: string) =>
-    getAPI().post("/auth/staff/verify-otp", { phone, otp }),
+    getAPI().post(`${API_PREFIX}/auth/staff/verify-otp`, { phone, otp }),
 
-  getProfile: (staffId: string) => getAPI().get(`/staff/${staffId}`),
+  getProfile: (staffId: string) =>
+    getAPI().get(`${API_PREFIX}/staff/${staffId}`),
 };
 
 // Attendance APIs
 export const attendanceAPI = {
-  punchIn: (staffId: string) => getAPI().post(`/staff/${staffId}/punch-in`),
+  punchIn: (staffId: string) =>
+    getAPI().post(`${API_PREFIX}/staff/${staffId}/punch-in`),
 
-  punchOut: (staffId: string) => getAPI().post(`/staff/${staffId}/punch-out`),
+  punchOut: (staffId: string) =>
+    getAPI().post(`${API_PREFIX}/staff/${staffId}/punch-out`),
 
-  getAttendance: (staffId: string) => getAPI().get(`/staff/${staffId}`),
+  getAttendance: (staffId: string) =>
+    getAPI().get(`${API_PREFIX}/staff/${staffId}`),
 };

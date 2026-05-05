@@ -27,11 +27,6 @@ const CELL_GAP = 6;
 const CELL_SIZE = Math.floor((width - GRID_PADDING * 2 - CELL_GAP * 6) / 7);
 
 const toDateKey = (value: Date | string) => {
-  if (typeof value === "string") {
-    const isoPrefix = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
-    if (isoPrefix) return `${isoPrefix[1]}-${isoPrefix[2]}-${isoPrefix[3]}`;
-  }
-
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return "";
   return [
@@ -194,14 +189,16 @@ export const AttendanceCalendarScreen = ({ navigation }: any) => {
               const record = recordMap.get(key);
               const isCurrentMonth = isSameMonth(cell.date, visibleMonth);
               const workedOnDate = Boolean(record?.punchIn || record?.punchOut);
+              const hasIncompletePunch =
+                (!!record?.punchIn && !record?.punchOut) ||
+                (!!record?.punchOut && !record?.punchIn);
               const effectiveStatus = workedOnDate
                 ? "work"
                 : record?.status ||
                   (cell.date.getDay() === 0 ? "weekOff" : undefined);
               const style = statusStyle(effectiveStatus);
               const showPunchError =
-                effectiveStatus === "work" &&
-                (!record.punchIn || !record.punchOut);
+                effectiveStatus === "work" && hasIncompletePunch;
               const isSelected = selectedAttendanceDate === key;
 
               return (
