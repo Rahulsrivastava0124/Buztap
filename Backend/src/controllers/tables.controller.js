@@ -113,7 +113,7 @@ async function reconcileTableOccupancy(businessId) {
       continue;
     }
 
-    if (table.status !== "Free") {
+    if (table.status === "Occupied") {
       updates.push({
         updateOne: {
           filter: { businessId, tableId: table.tableId },
