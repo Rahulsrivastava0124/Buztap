@@ -97,34 +97,19 @@ async function reconcileTableOccupancy(businessId) {
       latestServedPaidByTableId.has(candidate),
     );
 
-    if (table.status === "Occupied") {
-      if (hasServedPaidOrder) {
-        updates.push({
-          updateOne: {
-            filter: { businessId, tableId: table.tableId },
-            update: {
-              $set: {
-                status: "Cleaning",
-                guestName: null,
-                guestPhone: null,
-              },
+    if (table.status === "Occupied" && hasServedPaidOrder) {
+      updates.push({
+        updateOne: {
+          filter: { businessId, tableId: table.tableId },
+          update: {
+            $set: {
+              status: "Cleaning",
+              guestName: null,
+              guestPhone: null,
             },
           },
-        });
-      } else {
-        updates.push({
-          updateOne: {
-            filter: { businessId, tableId: table.tableId },
-            update: {
-              $set: {
-                status: "Free",
-                guestName: null,
-                guestPhone: null,
-              },
-            },
-          },
-        });
-      }
+        },
+      });
     }
   }
 
