@@ -61,29 +61,7 @@ const allowedOrigins = (process.env.ALLOWED_ORIGINS || "")
   .split(",")
   .map((o) => o.trim())
   .filter(Boolean);
-const allowAllOrigins = allowedOrigins.length === 0;
-const isProduction =
-  String(process.env.NODE_ENV || "").toLowerCase() === "production";
-
-function isLocalDevOrigin(origin) {
-  try {
-    const parsed = new URL(origin);
-    const host = parsed.hostname;
-
-    if (host === "localhost" || host === "127.0.0.1" || host === "::1") {
-      return true;
-    }
-
-    // Allow common private network ranges for local device testing.
-    if (/^192\.168\.\d{1,3}\.\d{1,3}$/.test(host)) return true;
-    if (/^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(host)) return true;
-    if (/^172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}$/.test(host)) return true;
-  } catch {
-    return false;
-  }
-
-  return false;
-}
+const allowedOriginSet = new Set(allowedOrigins);
 
 app.use(
   cors({
@@ -91,13 +69,7 @@ app.use(
       // Allow requests with no origin (e.g. curl, Postman).
       if (!origin) return cb(null, true);
 
-      // If ALLOWED_ORIGINS is not configured, allow all origins for local dev.
-      if (allowAllOrigins || allowedOrigins.includes(origin)) {
-        return cb(null, true);
-      }
-
-      // In non-production, allow localhost and private LAN origins for app testing.
-      if (!isProduction && isLocalDevOrigin(origin)) {
+      if (allowedOriginSet.has(origin)) {
         return cb(null, true);
       }
 
