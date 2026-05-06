@@ -326,9 +326,19 @@ async function updatePayment(req, res, next) {
     });
     const data = schema.parse(req.body);
 
+    // Once payment is completed, treat the order lifecycle as closed for table occupancy.
+    const paymentUpdate =
+      data.paymentStatus === "Completed"
+        ? {
+            ...data,
+            status: "Served",
+            completedAt: new Date(),
+          }
+        : data;
+
     const order = await Order.findOneAndUpdate(
       { _id: req.params.id, businessId: req.user.businessId },
-      { $set: data },
+      { $set: paymentUpdate },
       { new: true },
     );
     if (!order) return res.status(404).json({ error: "Order not found" });

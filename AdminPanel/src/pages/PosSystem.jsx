@@ -234,6 +234,7 @@ export default function PosSystem() {
     mutationFn: ({ id, payload }) => updateOrderPayment(id, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["orders"] });
+      queryClient.invalidateQueries({ queryKey: ["tables"] });
       queryClient.invalidateQueries({
         queryKey: ["order-detail", detailOrderSummary?._id],
       });
