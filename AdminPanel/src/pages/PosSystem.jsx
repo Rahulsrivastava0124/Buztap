@@ -169,7 +169,7 @@ export default function PosSystem() {
       orders
         .filter((o) => {
           if (!candidates.has(String(o.tableId || "").trim())) return false;
-          if (o.status === "Served" && o.paymentStatus === "Completed") return false;
+          if (o.paymentStatus === "Completed") return false;
           return activeStatuses.has(o.status);
         })
         .sort(
@@ -468,11 +468,11 @@ export default function PosSystem() {
     const activeStatuses = new Set(["Pending", "Preparing", "Ready", "Served"]);
     return (
       orders
-        .filter(
-          (o) =>
-            candidates.has(String(o.tableId || "").trim()) &&
-            activeStatuses.has(o.status),
-        )
+        .filter((o) => {
+          if (!candidates.has(String(o.tableId || "").trim())) return false;
+          if (o.paymentStatus === "Completed") return false;
+          return activeStatuses.has(o.status);
+        })
         .sort(
           (a, b) =>
             new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
@@ -491,8 +491,9 @@ export default function PosSystem() {
         : "";
     return {
       orderId: normalizedId,
-      itemCount: Number(order.items || 0),
+      itemCount: Number(order.items?.length || 0),
       status: order.status || "Pending",
+      paymentStatus: order.paymentStatus || "Pending",
     };
   };
 
@@ -603,7 +604,8 @@ export default function PosSystem() {
                   const isReadyForPayment =
                     table.status === "Occupied" &&
                     orderInfo &&
-                    ["Ready", "Served"].includes(orderInfo.status);
+                    ["Ready", "Served"].includes(orderInfo.status) &&
+                    orderInfo.paymentStatus !== "Completed";
                   const cardStatusClass = isReadyForPayment
                     ? "border-sage bg-sage-lt text-sage"
                     : TABLE_STATUS_STYLES[table.status] ||

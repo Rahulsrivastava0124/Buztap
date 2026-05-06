@@ -138,7 +138,8 @@ export default function TablesPage() {
       .filter((order) => {
         const tableId = String(order.tableId || "").trim();
         if (!candidateSet.has(tableId)) return false;
-        if (order.status === "Served" && order.paymentStatus === "Completed") return false;
+        if (order.status === "Served" && order.paymentStatus === "Completed")
+          return false;
         return activeStatuses.has(order.status);
       })
       .sort((a, b) => {
@@ -169,7 +170,8 @@ export default function TablesPage() {
     return matched[0] || null;
   }, [orders, selectedTable]);
 
-  const selectedTableActiveOrder = selectedTableOrder || selectedTableLatestOrder;
+  const selectedTableActiveOrder =
+    selectedTableOrder || selectedTableLatestOrder;
   const selectedOrderIsServed = selectedTableActiveOrder?.status === "Served";
   const selectedOrderPaymentStatus =
     selectedTableActiveOrder?.paymentStatus || "Pending";
