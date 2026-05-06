@@ -497,8 +497,8 @@ export default function PosSystem() {
     };
   };
 
-  function handleTableClick(table) {
-    if (table.status === "Occupied") {
+  function handleTableClick(table, orderInfo) {
+    if (table.status === "Occupied" && orderInfo) {
       const activeOrder = getLatestTableOrder(table);
       setGuestName(activeOrder?.guestName || "");
       setGuestPhone(activeOrder?.guestPhone || "");
@@ -601,28 +601,32 @@ export default function PosSystem() {
                   const isActive = detailTable?.id === table.id;
                   const cleaningTimeLabel = getCleaningTimeLabel(table);
                   const orderInfo = getOrderInfo(table);
+                  const effectiveTableStatus =
+                    table.status === "Occupied" && !orderInfo
+                      ? "Free"
+                      : table.status;
                   const isReadyForPayment =
-                    table.status === "Occupied" &&
+                    effectiveTableStatus === "Occupied" &&
                     orderInfo &&
                     ["Ready", "Served"].includes(orderInfo.status) &&
                     orderInfo.paymentStatus !== "Completed";
                   const cardStatusClass = isReadyForPayment
                     ? "border-sage bg-sage-lt text-sage"
-                    : TABLE_STATUS_STYLES[table.status] ||
+                    : TABLE_STATUS_STYLES[effectiveTableStatus] ||
                       "border-border bg-white text-ink";
                   const statusDotClass = isReadyForPayment
                     ? "bg-sage"
-                    : TABLE_STATUS_DOT[table.status] || "bg-muted2";
+                    : TABLE_STATUS_DOT[effectiveTableStatus] || "bg-muted2";
                   const statusLabel = isReadyForPayment
                     ? "Ready to Payment"
-                    : table.status;
+                    : effectiveTableStatus;
                   return (
                     <Motion.button
                       key={table.id}
-                      onClick={() => handleTableClick(table)}
+                      onClick={() => handleTableClick(table, orderInfo)}
                       whileTap={{ scale: 0.96 }}
                       className={`relative flex flex-col items-center justify-center gap-1.5 rounded-xl border font-semibold transition-all hover:shadow-md min-h-27.5 ${
-                        table.status === "Occupied" && orderInfo
+                        effectiveTableStatus === "Occupied" && orderInfo
                           ? "pt-8 pb-4 px-4"
                           : "p-4"
                       } ${cardStatusClass} ${
