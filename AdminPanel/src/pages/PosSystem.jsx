@@ -167,11 +167,11 @@ export default function PosSystem() {
     const activeStatuses = new Set(["Pending", "Preparing", "Ready", "Served"]);
     return (
       orders
-        .filter(
-          (o) =>
-            candidates.has(String(o.tableId || "").trim()) &&
-            activeStatuses.has(o.status),
-        )
+        .filter((o) => {
+          if (!candidates.has(String(o.tableId || "").trim())) return false;
+          if (o.status === "Served" && o.paymentStatus === "Completed") return false;
+          return activeStatuses.has(o.status);
+        })
         .sort(
           (a, b) =>
             new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),

@@ -132,12 +132,14 @@ export default function TablesPage() {
     const tableIdCandidates = buildTableIdCandidates(selectedTable.id);
     const candidateSet = new Set(tableIdCandidates);
 
-    const activeStatuses = new Set(["Pending", "Preparing", "Ready"]);
+    const activeStatuses = new Set(["Pending", "Preparing", "Ready", "Served"]);
 
     const matched = orders
       .filter((order) => {
         const tableId = String(order.tableId || "").trim();
-        return candidateSet.has(tableId) && activeStatuses.has(order.status);
+        if (!candidateSet.has(tableId)) return false;
+        if (order.status === "Served" && order.paymentStatus === "Completed") return false;
+        return activeStatuses.has(order.status);
       })
       .sort((a, b) => {
         const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
@@ -167,23 +169,25 @@ export default function TablesPage() {
     return matched[0] || null;
   }, [orders, selectedTable]);
 
-  const selectedOrderIsServed = selectedTableLatestOrder?.status === "Served";
+  const selectedTableActiveOrder = selectedTableOrder || selectedTableLatestOrder;
+  const selectedOrderIsServed = selectedTableActiveOrder?.status === "Served";
   const selectedOrderPaymentStatus =
-    selectedTableLatestOrder?.paymentStatus || "Pending";
+    selectedTableActiveOrder?.paymentStatus || "Pending";
   const selectedOrderPaymentDone = selectedOrderPaymentStatus === "Completed";
 
   const upiId = businessProfile?.restroUpi || "";
+
   const upiPaymentLink = useMemo(() => {
-    if (!selectedTableLatestOrder || !upiId) return "";
+    if (!selectedTableActiveOrder || !upiId) return "";
     const params = new URLSearchParams({
       pa: upiId,
       pn: businessProfile?.name || "Restaurant",
-      am: String(Number(selectedTableLatestOrder.amount || 0).toFixed(2)),
+      am: String(Number(selectedTableActiveOrder.amount || 0).toFixed(2)),
       cu: "INR",
-      tn: selectedTableLatestOrder.id || "Table Payment",
+      tn: selectedTableActiveOrder.id || "Table Payment",
     });
     return `upi://pay?${params.toString()}`;
-  }, [businessProfile?.name, selectedTableLatestOrder, upiId]);
+  }, [businessProfile?.name, selectedTableActiveOrder, upiId]);
 
   const upiQrUrl = upiPaymentLink
     ? `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(
@@ -192,8 +196,8 @@ export default function TablesPage() {
     : "";
 
   const selectedTableElapsed = useMemo(() => {
-    if (!selectedTableLatestOrder?.createdAt) return "-";
-    const createdAtMs = new Date(selectedTableLatestOrder.createdAt).getTime();
+    if (!selectedTableActiveOrder?.createdAt) return "-";
+    const createdAtMs = new Date(selectedTableActiveOrder.createdAt).getTime();
     if (!Number.isFinite(createdAtMs)) return "-";
     const totalMinutes = Math.max(
       1,
@@ -213,7 +217,7 @@ export default function TablesPage() {
     }
 
     return `${minutes}m`;
-  }, [selectedTableLatestOrder]);
+  }, [selectedTableActiveOrder]);
 
   const nextTableStatus = useMemo(() => {
     if (!selectedTable) return null;
@@ -256,7 +260,7 @@ export default function TablesPage() {
   };
 
   const markPayment = () => {
-    if (!selectedTableLatestOrder?._id) return;
+    if (!selectedTableActiveOrder?._id) return;
     if (!selectedOrderIsServed) {
       toast.error("Payment can be recorded only after order is served.");
       return;
@@ -276,16 +280,16 @@ export default function TablesPage() {
     };
 
     paymentMutation.mutate({
-      orderId: selectedTableLatestOrder._id,
+      orderId: selectedTableActiveOrder._id,
       payload,
     });
   };
 
   const printInvoice = async () => {
-    if (!selectedTableLatestOrder?._id) return;
+    if (!selectedTableActiveOrder?._id) return;
 
     try {
-      const order = await fetchOrderById(selectedTableLatestOrder._id);
+      const order = await fetchOrderById(selectedTableActiveOrder._id);
       const popup = window.open("", "_blank", "width=860,height=920");
       if (!popup) {
         toast.error("Please allow popups to print invoice.");
@@ -475,21 +479,21 @@ export default function TablesPage() {
                   <p className="text-xs text-muted">
                     Bill Amount:{" "}
                     <span className="font-semibold text-ink">
-                      {selectedTableLatestOrder
-                        ? `₹${Number(selectedTableLatestOrder.amount || 0).toLocaleString("en-IN")}`
+                      {selectedTableActiveOrder
+                        ? `₹${Number(selectedTableActiveOrder.amount || 0).toLocaleString("en-IN")}`
                         : "-"}
                     </span>
                   </p>
                   <p className="text-xs text-muted">
                     Kitchen Response:{" "}
                     <span className="font-semibold text-ink">
-                      {kitchenResponseText(selectedTableLatestOrder?.status)}
+                      {kitchenResponseText(selectedTableActiveOrder?.status)}
                     </span>
                   </p>
                   <p className="text-xs text-muted">
                     Order Status:{" "}
                     <span className="font-bold text-saffron">
-                      {selectedTableLatestOrder?.status || "-"}
+                      {selectedTableActiveOrder?.status || "-"}
                     </span>
                   </p>
                   <p className="text-xs text-muted">
@@ -497,13 +501,13 @@ export default function TablesPage() {
                     <span
                       className={`font-bold ${selectedOrderPaymentDone ? "text-green-700" : "text-orange-600"}`}
                     >
-                      {selectedTableLatestOrder?.paymentStatus || "Pending"}
+                      {selectedTableActiveOrder?.paymentStatus || "Pending"}
                     </span>
                   </p>
                   <p className="text-xs text-muted">
                     Payment Method:{" "}
                     <span className="font-semibold text-ink">
-                      {selectedTableLatestOrder?.paymentMethod || "Pending"}
+                      {selectedTableActiveOrder?.paymentMethod || "Pending"}
                     </span>
                   </p>
                 </div>
