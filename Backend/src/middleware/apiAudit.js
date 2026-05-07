@@ -76,7 +76,9 @@ function logHitToConsole(entry, errorInfo) {
   const baseLine =
     `[API] ${entry.method} ${entry.originalUrl} ` +
     `status=${entry.statusCode} duration=${entry.durationMs}ms ` +
-    `requestId=${entry.requestId}`;
+    `requestId=${entry.requestId} userId=${entry.userId || "guest"} ` +
+    `businessId=${entry.businessId || "none"} role=${entry.role} ` +
+    `ip=${entry.ip}`;
 
   if (entry.statusCode >= 500) {
     console.error(

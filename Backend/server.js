@@ -7,7 +7,7 @@ const HOST = process.env.HOST || "0.0.0.0";
 
 function startServer(port, retriesLeft = 5) {
   const server = app.listen(port, HOST, () => {
-    console.log(
+    console.info(
       `Buztap API running on http://localhost:${port} (host: ${HOST})`,
     );
   });

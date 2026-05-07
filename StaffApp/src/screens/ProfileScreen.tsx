@@ -8,6 +8,7 @@ import {
   Alert,
   ActivityIndicator,
   RefreshControl,
+  StatusBar,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { attendanceAPI } from "../services/api";
@@ -73,6 +74,7 @@ export const ProfileScreen = ({ navigation }: any) => {
 
   return (
     <View style={styles.container}>
+      <StatusBar backgroundColor="#1a237e" barStyle="light-content" />
       <View style={[styles.profileHeader, { paddingTop: insets.top + 16 }]}>
         <View style={styles.avatar}>
           <Text style={styles.avatarText}>
@@ -198,7 +200,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#f5f5f5",
   },
   profileHeader: {
-    backgroundColor: "#007AFF",
+    backgroundColor: "#1a237e",
     padding: 20,
     flexDirection: "row",
     alignItems: "center",

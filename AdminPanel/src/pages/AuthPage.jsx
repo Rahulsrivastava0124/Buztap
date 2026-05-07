@@ -44,8 +44,9 @@ export default function AuthPage() {
   }
 
   useEffect(() => {
+    const timerId = otpTimerRef.current;
     return () => {
-      clearInterval(otpTimerRef.current);
+      clearInterval(timerId);
     };
   }, []);
 

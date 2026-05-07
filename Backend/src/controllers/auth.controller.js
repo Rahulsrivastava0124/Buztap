@@ -698,12 +698,6 @@ async function requestStaffOtp(req, res, next) {
     const { phone } = staffOtpRequestSchema.parse(req.body);
     const normalizedInput = normalizePhone(phone);
 
-    console.log("[AUTH][STAFF_OTP_REQUEST] Incoming request", {
-      phoneDigits: normalizedInput,
-      ip: req.ip,
-      origin: req.get("origin") || null,
-    });
-
     // Find the staff member by phone
     const allStaff = await User.find({
       role: { $in: ["admin", "manager", "cashier"] },
@@ -723,18 +717,12 @@ async function requestStaffOtp(req, res, next) {
     });
 
     if (!staffUser) {
-      console.log("[AUTH][STAFF_OTP_REQUEST] Staff not found", {
-        phoneDigits: normalizedInput,
-      });
       return res
         .status(404)
         .json({ error: "No staff account found for this phone number" });
     }
 
     if (!staffUser.email) {
-      console.log("[AUTH][STAFF_OTP_REQUEST] Missing email for matched staff", {
-        staffId: String(staffUser._id),
-      });
       return res
         .status(400)
         .json({ error: "No email address on file for this account" });
@@ -753,10 +741,6 @@ async function requestStaffOtp(req, res, next) {
     if (recentOtp) {
       const waitMs =
         60000 - (Date.now() - new Date(recentOtp.createdAt).getTime());
-      console.log("[AUTH][STAFF_OTP_REQUEST] Rate limited", {
-        email: normalizedEmail,
-        retryAfterSeconds: Math.max(1, Math.ceil(waitMs / 1000)),
-      });
       return res.status(429).json({
         error: "Please wait before requesting another OTP",
         retryAfterSeconds: Math.max(1, Math.ceil(waitMs / 1000)),
@@ -767,11 +751,6 @@ async function requestStaffOtp(req, res, next) {
       normalizedEmail,
       "staff-login",
     );
-
-    console.log("[AUTH][STAFF_OTP_REQUEST] OTP issued", {
-      email: normalizedEmail,
-      expiresInSeconds,
-    });
 
     res.json({
       success: true,
@@ -851,11 +830,9 @@ async function verifyStaffOtp(req, res, next) {
       otpDoc.attempts += 1;
       await otpDoc.save();
       const remaining = OTP_MAX_ATTEMPTS - otpDoc.attempts;
-      return res
-        .status(400)
-        .json({
-          error: `Invalid OTP. ${remaining} attempt${remaining !== 1 ? "s" : ""} remaining.`,
-        });
+      return res.status(400).json({
+        error: `Invalid OTP. ${remaining} attempt${remaining !== 1 ? "s" : ""} remaining.`,
+      });
     }
 
     // Mark OTP as used

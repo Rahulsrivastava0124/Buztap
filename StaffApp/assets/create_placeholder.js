@@ -93,5 +93,4 @@ for (const asset of assets) {
     outputPath,
     createSolidPng(asset.width, asset.height, asset.rgba),
   );
-  console.log(`Created ${asset.name}`);
 }

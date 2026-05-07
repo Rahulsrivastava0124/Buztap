@@ -54,15 +54,6 @@ export const LoginScreen = ({ navigation }: any) => {
       startCooldown(60);
       Alert.alert("OTP Sent", `A 6-digit OTP has been sent to ${email}`);
     } catch (error: any) {
-      if (__DEV__) {
-        console.log("[LOGIN] requestOtp failed", {
-          message: error?.message,
-          code: error?.code,
-          status: error?.response?.status,
-          data: error?.response?.data,
-          attemptedBaseUrls: error?.attemptedBaseUrls,
-        });
-      }
       const message =
         error.response?.data?.error ||
         "Cannot reach backend. Make sure API server is running and EXPO_PUBLIC_API_URL is correct.";

@@ -19,8 +19,9 @@ import { useAuthStore } from "../store/authStore";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const SWIPE_TRACK_WIDTH = SCREEN_WIDTH - 48;
-const THUMB_SIZE = 56;
-const SWIPE_THRESHOLD = SWIPE_TRACK_WIDTH - THUMB_SIZE - 8;
+const THUMB_WIDTH = 72;
+const THUMB_HEIGHT = 50;
+const SWIPE_THRESHOLD = SWIPE_TRACK_WIDTH - THUMB_WIDTH - 8;
 
 const toDateKey = (value: Date | string) => {
   const d = new Date(value);
@@ -261,7 +262,7 @@ export const DashboardScreen = ({ navigation }: any) => {
   const swipeLabel = !isViewingToday
     ? "Viewing selected date"
     : isPunchedOut
-      ? "✓ Done for today"
+      ? " Done for today"
       : isPunchedIn
         ? "Swipe To Punch Out"
         : "Swipe To Punch";
@@ -453,9 +454,9 @@ export const DashboardScreen = ({ navigation }: any) => {
         >
           <Animated.View
             style={{
-              width: THUMB_SIZE,
-              height: THUMB_SIZE,
-              borderRadius: THUMB_SIZE / 2,
+              width: THUMB_WIDTH,
+              height: THUMB_HEIGHT,
+              borderRadius: THUMB_HEIGHT / 2,
               backgroundColor: "#fff",
               alignItems: "center",
               justifyContent: "center",
@@ -473,9 +474,7 @@ export const DashboardScreen = ({ navigation }: any) => {
             {swipeLoading ? (
               <ActivityIndicator size="small" color={swipeColor} />
             ) : (
-              <Text className="text-lg font-bold" style={{ color: swipeColor }}>
-                {">>"}
-              </Text>
+              <Ionicons name="arrow-forward" size={24} color={swipeColor} />
             )}
           </Animated.View>
           <Text className="text-white text-base font-semibold tracking-wide ml-16 text-center">

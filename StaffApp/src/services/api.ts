@@ -78,11 +78,6 @@ export const initializeAPI = () => {
     );
   }
 
-  if (__DEV__) {
-    console.log("[API] Base URL:", BASE_URL || "(missing)");
-    console.log("[API] Prefix:", API_PREFIX);
-  }
-
   api = axios.create({
     baseURL: BASE_URL,
     timeout: 10000,
@@ -98,11 +93,6 @@ export const initializeAPI = () => {
 
     config.baseURL = BASE_URL;
 
-    if (__DEV__) {
-      const method = String(config.method || "get").toUpperCase();
-      console.log("[API] Request", method, `${BASE_URL}${config.url || ""}`);
-    }
-
     const token = useAuthStore.getState().token;
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -113,26 +103,9 @@ export const initializeAPI = () => {
   // Handle responses
   api.interceptors.response.use(
     (response) => {
-      if (__DEV__) {
-        console.log(
-          "[API] Response",
-          response.status,
-          `${BASE_URL}${response.config.url || ""}`,
-        );
-      }
       return response;
     },
     (error) => {
-      if (__DEV__) {
-        console.log("[API] Error", {
-          message: error.message,
-          code: error.code,
-          status: error.response?.status,
-          data: error.response?.data,
-          url: `${BASE_URL}${error.config?.url || ""}`,
-        });
-      }
-
       if (error.response?.status === 401) {
         useAuthStore.getState().logout();
       }

@@ -93,7 +93,7 @@ const ATTENDANCE_STYLES = {
     badge: "bg-blue-100 text-blue-700 border-blue-200",
   },
   unmarked: {
-    label: "Unmarked",
+    label: "No Record",
     badge: "bg-gray-100 text-gray-700 border-gray-200",
   },
 };
@@ -107,11 +107,24 @@ function toDateKey(dateObj) {
   ].join("-");
 }
 
-function getAttendanceStatus(recordsByDate, dateObj, weekOffDays = [0]) {
+function getAttendanceStatus(
+  recordsByDate,
+  dateObj,
+  weekOffDays = [0],
+  joiningDate,
+) {
   const directStatus = recordsByDate[toDateKey(dateObj)];
   if (directStatus) return directStatus;
+  if (joiningDate) {
+    const joinDate = new Date(joiningDate);
+    const joinKey = toDateKey(joinDate);
+    const dateKey = toDateKey(dateObj);
+    if (dateKey < joinKey) return "unmarked";
+  }
   if (weekOffDays.includes(dateObj.getDay())) return "weekOff";
-  // Default to unmarked instead of work
+  const todayKey = toDateKey(new Date());
+  const dateKey = toDateKey(dateObj);
+  if (dateKey < todayKey) return "absent";
   return "unmarked";
 }
 
@@ -184,7 +197,12 @@ function AttendanceCalendarModal({
       Date.UTC(monthDate.getFullYear(), monthDate.getMonth(), day),
     );
     const key = toDateKey(dateObj);
-    const status = getAttendanceStatus(recordsByDate, dateObj, weekOffDays);
+    const status = getAttendanceStatus(
+      recordsByDate,
+      dateObj,
+      weekOffDays,
+      member?.joiningDate,
+    );
     monthStatusCount[status] += 1;
     const record = storedRecordDetailsByDate[key];
     const showIncompleteWarning =
@@ -1241,6 +1259,7 @@ export default function StaffPage() {
         effectiveMap,
         dateObj,
         attendanceTarget?.weekOffDays || [0],
+        attendanceTarget?.joiningDate,
       );
       if (status === "unmarked") continue;
       const dateKey = toDateKey(dateObj);

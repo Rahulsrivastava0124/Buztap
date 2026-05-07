@@ -403,8 +403,10 @@ function OrderDetailDrawer({ orderId, onClose }) {
 
 export default function OrdersPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [selectedOrderId, setSelectedOrderId] = useState(null);
   const selectedOrderIdFromQuery = searchParams.get("orderId");
+  const [selectedOrderId, setSelectedOrderId] = useState(
+    () => selectedOrderIdFromQuery || null,
+  );
 
   const formatGeneratedTime = (value) => {
     if (!value) return "-";
@@ -435,11 +437,6 @@ export default function OrdersPage() {
   const outForDelivery = orders.filter(
     (o) => o.source.toLowerCase().includes("delivery") && o.status !== "Served",
   ).length;
-
-  useEffect(() => {
-    if (!selectedOrderIdFromQuery) return;
-    setSelectedOrderId(selectedOrderIdFromQuery);
-  }, [selectedOrderIdFromQuery]);
 
   const closeDrawer = () => {
     setSelectedOrderId(null);

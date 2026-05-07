@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Armchair,
   CheckCircle2,
@@ -90,6 +90,7 @@ export default function TablesPage() {
   const [selectedTableId, setSelectedTableId] = useState("T-01");
   const [paymentMode, setPaymentMode] = useState("UPI");
   const [transactionId, setTransactionId] = useState("");
+  const [selectedTableElapsed, setSelectedTableElapsed] = useState("-");
 
   const tableMutation = useMutation({
     mutationFn: ({ tableId, status }) => updateTableStatus(tableId, status),
@@ -197,28 +198,48 @@ export default function TablesPage() {
       )}`
     : "";
 
-  const selectedTableElapsed = useMemo(() => {
-    if (!selectedTableActiveOrder?.createdAt) return "-";
-    const createdAtMs = new Date(selectedTableActiveOrder.createdAt).getTime();
-    if (!Number.isFinite(createdAtMs)) return "-";
-    const totalMinutes = Math.max(
-      1,
-      Math.round((Date.now() - createdAtMs) / 60000),
-    );
+  useEffect(() => {
+    const updateElapsed = () => {
+      if (!selectedTableActiveOrder?.createdAt) {
+        setSelectedTableElapsed("-");
+        return;
+      }
 
-    const days = Math.floor(totalMinutes / 1440);
-    const hours = Math.floor((totalMinutes % 1440) / 60);
-    const minutes = totalMinutes % 60;
+      const createdAtMs = new Date(
+        selectedTableActiveOrder.createdAt,
+      ).getTime();
+      if (!Number.isFinite(createdAtMs)) {
+        setSelectedTableElapsed("-");
+        return;
+      }
 
-    if (days > 0) {
-      return `${days}d ${hours}h`;
-    }
+      const totalMinutes = Math.max(
+        1,
+        Math.round((Date.now() - createdAtMs) / 60000),
+      );
 
-    if (hours > 0) {
-      return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
-    }
+      const days = Math.floor(totalMinutes / 1440);
+      const hours = Math.floor((totalMinutes % 1440) / 60);
+      const minutes = totalMinutes % 60;
 
-    return `${minutes}m`;
+      if (days > 0) {
+        setSelectedTableElapsed(`${days}d ${hours}h`);
+        return;
+      }
+
+      if (hours > 0) {
+        setSelectedTableElapsed(
+          minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`,
+        );
+        return;
+      }
+
+      setSelectedTableElapsed(`${minutes}m`);
+    };
+
+    updateElapsed();
+    const intervalId = setInterval(updateElapsed, 60_000);
+    return () => clearInterval(intervalId);
   }, [selectedTableActiveOrder]);
 
   const nextTableStatus = useMemo(() => {
