@@ -163,10 +163,42 @@ async function lookupGuest(req, res, next) {
     const phone = normalizePhone(rawPhone);
     if (!phone) return res.status(400).json({ error: "Invalid phone number" });
 
-    const guest = await Guest.findOne({ phone }).select("name phone").lean();
-    if (!guest) return res.status(404).json({ error: "Guest not found" });
+    const last10 = phone.slice(-10);
+    const phoneCandidates = [phone, `91${last10}`, last10];
 
-    res.json({ name: guest.name, phone: guest.phone });
+    const guest = await Guest.findOne({ phone }).lean();
+
+    // Determine if the stored name is a real name or a placeholder
+    const isPlaceholder =
+      !guest?.name || guest.name.trim().toLowerCase() === "guest";
+
+    let resolvedName = isPlaceholder ? null : guest.name.trim();
+
+    // Fall back to most recent order with a real name for this phone
+    if (!resolvedName) {
+      const recentOrder = await Order.findOne({
+        guestPhone: { $in: phoneCandidates },
+        guestName: { $exists: true, $ne: null, $nin: ["", "Guest", "guest"] },
+      })
+        .sort({ createdAt: -1 })
+        .select("guestName")
+        .lean();
+
+      if (recentOrder?.guestName) {
+        resolvedName = recentOrder.guestName.trim();
+
+        // Repair the Guest record so future lookups return the real name directly
+        if (guest) {
+          await Guest.updateOne({ phone }, { $set: { name: resolvedName } });
+        }
+      }
+    }
+
+    if (!resolvedName) {
+      return res.status(404).json({ error: "Guest not found" });
+    }
+
+    res.json({ name: resolvedName, phone });
   } catch (err) {
     next(err);
   }

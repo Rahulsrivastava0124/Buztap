@@ -26,9 +26,10 @@ import {
   createPosOrder,
   fetchBusinessProfile,
   fetchGuestByPhone,
+  saveGuest,
   updateOrderPayment,
 } from "../services/api";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 // steps: "review" → "done"
 export default function PosCheckout() {
@@ -37,6 +38,7 @@ export default function PosCheckout() {
   const { slug } = useParams();
   const { businessType } = useAuth();
   const isHotelMode = businessType === "hotel";
+  const queryClient = useQueryClient();
 
   const {
     cart,
@@ -57,10 +59,23 @@ export default function PosCheckout() {
 
   // ── Guest info ──
   const [guestName, setGuestName] = useState(location.state?.guestName || "");
-  const [guestPhone, setGuestPhone] = useState(
-    location.state?.guestPhone || "",
-  );
-  const [guestLookupState, setGuestLookupState] = useState("idle"); // "idle" | "loading" | "found" | "new"
+  const [guestPhone, setGuestPhone] = useState(() => {
+    // Normalize to last 10 digits — DB stores phones as +91XXXXXXXXXX
+    const raw = String(location.state?.guestPhone || "").replace(/\D/g, "");
+    return raw.slice(-10);
+  });
+  const [guestLookupState, setGuestLookupState] = useState(() => {
+    // If we already have a real name pre-filled, show it immediately
+    const preName = String(location.state?.guestName || "").trim();
+    const prePhone = String(location.state?.guestPhone || "").replace(
+      /\D/g,
+      "",
+    );
+    if (preName && preName.toLowerCase() !== "guest" && prePhone.length >= 10) {
+      return "found";
+    }
+    return "idle";
+  }); // "idle" | "loading" | "found" | "new"
 
   // Auto-lookup when phone reaches 10 digits
   useEffect(() => {
@@ -73,8 +88,12 @@ export default function PosCheckout() {
     setGuestLookupState("loading");
     fetchGuestByPhone(digits).then((guest) => {
       if (cancelled) return;
-      if (guest?.name) {
-        setGuestName(guest.name);
+      const realName =
+        guest?.name && guest.name.trim().toLowerCase() !== "guest"
+          ? guest.name
+          : null;
+      if (realName) {
+        setGuestName(realName);
         setGuestLookupState("found");
       } else {
         setGuestLookupState("new");
@@ -187,7 +206,15 @@ export default function PosCheckout() {
       });
       setKotOrder(result);
       toast.success("KOT sent to kitchen!");
+      // Immediately refresh tables + orders so the new order shows in POS
+      queryClient.invalidateQueries({ queryKey: ["tables"] });
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
       setStep("done");
+      // Save guest name for future lookups if a real name was provided
+      const trimmedName = guestName.trim();
+      if (trimmedName && trimmedName.toLowerCase() !== "guest") {
+        saveGuest(phoneDigits, trimmedName, slug);
+      }
     } catch (err) {
       toast.error(err?.message || "Unable to send KOT");
       setCheckoutError(err?.message || "Unable to send KOT. Please try again.");
@@ -279,6 +306,8 @@ export default function PosCheckout() {
     if (step !== "done") return;
     const timer = setTimeout(() => {
       clearCart();
+      queryClient.invalidateQueries({ queryKey: ["tables"] });
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
       navigate(`/${slug}/pos`, { replace: true });
     }, 3000);
     return () => clearTimeout(timer);
@@ -341,6 +370,8 @@ export default function PosCheckout() {
           <button
             onClick={() => {
               clearCart();
+              queryClient.invalidateQueries({ queryKey: ["tables"] });
+              queryClient.invalidateQueries({ queryKey: ["orders"] });
               navigate(`/${slug}/pos`, { replace: true });
             }}
             className="w-full py-2.5 rounded-xl border border-border bg-paper text-sm font-semibold text-muted hover:text-ink transition-colors"

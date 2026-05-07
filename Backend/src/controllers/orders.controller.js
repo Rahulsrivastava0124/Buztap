@@ -46,6 +46,17 @@ function normalizeGuestPhone(value) {
   return `+91${last10}`;
 }
 
+function buildOrderTableCandidates(order) {
+  const tableId = String(order?.tableId || "").trim();
+  const source = String(order?.source || "").trim();
+  return Array.from(
+    new Set([
+      ...buildTableIdCandidates(tableId),
+      ...buildTableIdCandidates(source),
+    ]),
+  );
+}
+
 /**
  * Sync table status after an order status change.
  * Called after Order.findOneAndUpdate completes.
@@ -57,19 +68,24 @@ async function syncTableStatus(order, newStatus) {
   const tableIdCandidates = buildTableIdCandidates(tableId);
   if (tableIdCandidates.length === 0) return;
 
-  // If any active order exists on this table, table must stay occupied.
+  // If any active order exists on this table, table must stay Occupied.
+  // Scope to this business and to the exact table candidates only.
   const activeOrders = await Order.find({
     businessId,
     tableId: { $in: tableIdCandidates },
     status: { $in: ["Pending", "Preparing", "Ready"] },
+    paymentStatus: { $ne: "Completed" },
   })
     .sort({ createdAt: -1 })
-    .select("guestName guestPhone")
+    .select("tableId source guestName guestPhone")
     .lean();
 
-  if (activeOrders.length > 0) {
+  const matchingActiveOrders = activeOrders;
+
+  if (matchingActiveOrders.length > 0) {
     const latestWithGuest =
-      activeOrders.find((o) => o.guestName || o.guestPhone) || activeOrders[0];
+      matchingActiveOrders.find((o) => o.guestName || o.guestPhone) ||
+      matchingActiveOrders[0];
     await Table.findOneAndUpdate(
       { tableId: { $in: tableIdCandidates }, businessId },
       {
@@ -110,14 +126,14 @@ async function syncTableStatus(order, newStatus) {
     }
 
     await Table.findOneAndUpdate(
-      { tableId: { $in: tableIdCandidates }, businessId },
+      { tableId: { $in: tableIdCandidates }, businessId, status: "Occupied" },
       { $set: { status: "Cleaning", guestName: null, guestPhone: null } },
     );
     return;
   }
 
   await Table.findOneAndUpdate(
-    { tableId: { $in: tableIdCandidates }, businessId },
+    { tableId: { $in: tableIdCandidates }, businessId, status: "Occupied" },
     { $set: { status: "Free", guestName: null, guestPhone: null } },
   );
 }
@@ -333,6 +349,7 @@ async function updatePayment(req, res, next) {
             ...data,
             status: "Served",
             completedAt: new Date(),
+            paymentCompletedAt: new Date(),
           }
         : data;
 
@@ -343,38 +360,22 @@ async function updatePayment(req, res, next) {
     );
     if (!order) return res.status(404).json({ error: "Order not found" });
 
-    // When payment is completed, decide table state properly:
-    // only move to Cleaning if no other active or unpaid-served orders remain on the table.
-    if (data.paymentStatus === "Completed" && order.tableId) {
-      const tableIdCandidates = buildTableIdCandidates(order.tableId);
-      if (tableIdCandidates.length > 0) {
-        const remainingActive = await Order.findOne({
-          businessId: req.user.businessId,
-          tableId: { $in: tableIdCandidates },
-          _id: { $ne: order._id },
-          $or: [
-            { status: { $in: ["Pending", "Preparing", "Ready"] } },
-            { status: "Served", paymentStatus: { $ne: "Completed" } },
-          ],
-        })
-          .select("_id")
-          .lean();
-
-        const newTableStatus = remainingActive ? "Occupied" : "Cleaning";
-        await Table.findOneAndUpdate(
-          {
-            tableId: { $in: tableIdCandidates },
-            businessId: req.user.businessId,
-          },
-          {
-            $set: {
-              status: newTableStatus,
-              ...(newTableStatus === "Cleaning"
-                ? { guestName: null, guestPhone: null }
-                : {}),
+    // When payment is completed, immediately move the table to Cleaning.
+    // Check both order.tableId and order.source (for QR orders that use source as table label).
+    if (data.paymentStatus === "Completed") {
+      const rawTableId = order.tableId || order.source;
+      if (rawTableId) {
+        const tableIdCandidates = buildTableIdCandidates(rawTableId);
+        if (tableIdCandidates.length > 0) {
+          await Table.findOneAndUpdate(
+            {
+              businessId: req.user.businessId,
+              tableId: { $in: tableIdCandidates },
+              status: "Occupied",
             },
-          },
-        );
+            { $set: { status: "Cleaning", guestName: null, guestPhone: null } },
+          );
+        }
       }
     }
 

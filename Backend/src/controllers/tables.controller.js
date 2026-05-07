@@ -24,15 +24,29 @@ function buildTableIdCandidates(rawTableId) {
   return Array.from(set);
 }
 
+function buildOrderTableCandidates(order) {
+  const tableId = String(order?.tableId || "").trim();
+  const source = String(order?.source || "").trim();
+  return Array.from(
+    new Set([
+      ...buildTableIdCandidates(tableId),
+      ...buildTableIdCandidates(source),
+    ]),
+  );
+}
+
 async function reconcileTableOccupancy(businessId) {
-  // Include Served+unpaid orders: table must stay Occupied until payment is done
+  // Only consider orders from the last 24 hours as "active".
+  // Stale orders older than 24h (never cancelled/paid) should not keep
+  // a table permanently Occupied after cleaning.
+  const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
   const activeOrders = await Order.find({
     businessId,
     tableId: { $ne: null },
-    $or: [
-      { status: { $in: ["Pending", "Preparing", "Ready"] } },
-      { status: "Served", paymentStatus: { $ne: "Completed" } },
-    ],
+    paymentStatus: { $ne: "Completed" },
+    status: { $in: ["Pending", "Preparing", "Ready", "Served"] },
+    createdAt: { $gte: since24h },
   })
     .sort({ createdAt: -1 })
     .select("tableId guestName guestPhone status paymentStatus")
@@ -40,30 +54,31 @@ async function reconcileTableOccupancy(businessId) {
 
   const latestByTableId = new Map();
   activeOrders.forEach((order) => {
-    const key = String(order.tableId || "").trim();
-    if (key && !latestByTableId.has(key)) {
-      latestByTableId.set(key, order);
-    }
+    buildOrderTableCandidates(order).forEach((key) => {
+      if (!key) return;
+      if (!latestByTableId.has(key)) {
+        latestByTableId.set(key, order);
+      }
+    });
   });
 
-  // Track latest Served+Completed orders so we can auto-move stale occupied tables
-  // into Cleaning when no active/unpaid orders remain.
-  const servedPaidOrders = await Order.find({
+  // Safety-net: find paid orders from the last 24 hours.
+  // If a table is Occupied but only has paid orders, move it to Cleaning.
+  const paidOrders = await Order.find({
     businessId,
     tableId: { $ne: null },
-    status: "Served",
     paymentStatus: "Completed",
+    createdAt: { $gte: since24h },
   })
-    .sort({ createdAt: -1 })
-    .select("tableId")
+    .sort({ completedAt: -1 })
+    .select("tableId source")
     .lean();
 
-  const latestServedPaidByTableId = new Map();
-  servedPaidOrders.forEach((order) => {
-    const key = String(order.tableId || "").trim();
-    if (key && !latestServedPaidByTableId.has(key)) {
-      latestServedPaidByTableId.set(key, true);
-    }
+  const paidTableKeys = new Set();
+  paidOrders.forEach((order) => {
+    buildOrderTableCandidates(order).forEach((key) => {
+      if (key) paidTableKeys.add(key);
+    });
   });
 
   const tables = await Table.find({ businessId, isActive: true })
@@ -78,38 +93,49 @@ async function reconcileTableOccupancy(businessId) {
       .find(Boolean);
 
     if (matchedOrder) {
-      updates.push({
-        updateOne: {
-          filter: { businessId, tableId: table.tableId },
-          update: {
-            $set: {
-              status: "Occupied",
-              guestName: matchedOrder.guestName || null,
-              guestPhone: matchedOrder.guestPhone || null,
+      // Active unpaid order exists — table must be Occupied,
+      // UNLESS it's already Cleaning or Free (payment was done, don't revert).
+      if (table.status !== "Cleaning" && table.status !== "Free") {
+        updates.push({
+          updateOne: {
+            filter: { businessId, tableId: table.tableId },
+            update: {
+              $set: {
+                status: "Occupied",
+                guestName: matchedOrder.guestName || null,
+                guestPhone: matchedOrder.guestPhone || null,
+              },
             },
           },
-        },
-      });
+        });
+      }
       continue;
     }
 
-    const hasServedPaidOrder = candidates.some((candidate) =>
-      latestServedPaidByTableId.has(candidate),
-    );
-
-    if (table.status === "Occupied" && hasServedPaidOrder) {
-      updates.push({
-        updateOne: {
-          filter: { businessId, tableId: table.tableId },
-          update: {
-            $set: {
-              status: "Cleaning",
-              guestName: null,
-              guestPhone: null,
+    if (table.status === "Occupied") {
+      // No active/unpaid order found within 24h.
+      const hasPaidOrder = candidates.some((c) => paidTableKeys.has(c));
+      if (hasPaidOrder) {
+        // Recent paid order → move to Cleaning
+        updates.push({
+          updateOne: {
+            filter: { businessId, tableId: table.tableId },
+            update: {
+              $set: { status: "Cleaning", guestName: null, guestPhone: null },
             },
           },
-        },
-      });
+        });
+      } else {
+        // No active or paid order within 24h → orphaned Occupied, reset to Free
+        updates.push({
+          updateOne: {
+            filter: { businessId, tableId: table.tableId },
+            update: {
+              $set: { status: "Free", guestName: null, guestPhone: null },
+            },
+          },
+        });
+      }
     }
   }
 
@@ -225,16 +251,86 @@ const guestSchema = z.object({
 
 async function autoFreeCleaning(businessId) {
   const cutoff = new Date(Date.now() - 15 * 60 * 1000); // 15 minutes ago
-  await Table.updateMany(
-    {
-      businessId,
-      status: "Cleaning",
-      updatedAt: { $lte: cutoff },
-    },
-    {
-      $set: { status: "Free", guestName: null, guestPhone: null },
-    },
-  );
+  const cleaningTables = await Table.find({
+    businessId,
+    status: "Cleaning",
+    updatedAt: { $lte: cutoff },
+  })
+    .select("tableId")
+    .lean();
+
+  if (!cleaningTables.length) return;
+
+  const tableCandidateMap = new Map();
+  cleaningTables.forEach((table) => {
+    buildTableIdCandidates(table.tableId).forEach((candidate) => {
+      tableCandidateMap.set(candidate, table.tableId);
+    });
+  });
+
+  const candidateTableIds = Array.from(tableCandidateMap.keys());
+  if (!candidateTableIds.length) return;
+
+  // Only recent orders (last 24h) can revert a Cleaning table back to Occupied.
+  const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const activeOrders = await Order.find({
+    businessId,
+    tableId: { $in: candidateTableIds },
+    createdAt: { $gte: since24h },
+    paymentStatus: { $ne: "Completed" },
+    status: { $in: ["Pending", "Preparing", "Ready", "Served"] },
+  })
+    .select("tableId guestName guestPhone createdAt")
+    .lean();
+
+  const latestOrderByTable = new Map();
+  activeOrders.forEach((order) => {
+    buildOrderTableCandidates(order).forEach((candidate) => {
+      const tableId = tableCandidateMap.get(candidate);
+      if (!tableId) return;
+      const existing = latestOrderByTable.get(tableId);
+      if (
+        !existing ||
+        new Date(order.createdAt).getTime() >
+          new Date(existing.createdAt).getTime()
+      ) {
+        latestOrderByTable.set(tableId, order);
+      }
+    });
+  });
+
+  const updates = [];
+  cleaningTables.forEach((table) => {
+    const activeOrder = latestOrderByTable.get(table.tableId);
+    if (activeOrder) {
+      updates.push({
+        updateOne: {
+          filter: { businessId, tableId: table.tableId },
+          update: {
+            $set: {
+              status: "Occupied",
+              guestName: activeOrder.guestName || null,
+              guestPhone: activeOrder.guestPhone || null,
+            },
+          },
+        },
+      });
+      return;
+    }
+
+    updates.push({
+      updateOne: {
+        filter: { businessId, tableId: table.tableId },
+        update: {
+          $set: { status: "Free", guestName: null, guestPhone: null },
+        },
+      },
+    });
+  });
+
+  if (updates.length > 0) {
+    await Table.bulkWrite(updates, { ordered: false });
+  }
 }
 
 async function getAll(req, res, next) {

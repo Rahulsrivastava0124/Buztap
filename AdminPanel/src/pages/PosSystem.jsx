@@ -26,6 +26,7 @@ import {
   fetchOrders,
   fetchOrderById,
   fetchBusinessProfile,
+  fetchGuestByPhone,
   updateTableStatus,
   updateOrderPayment,
   updateOrderItems,
@@ -90,11 +91,13 @@ export default function PosSystem() {
   const [detailTable, setDetailTable] = useState(null);
   const [guestName, setGuestName] = useState("");
   const [guestPhone, setGuestPhone] = useState("");
+  const [guestLookupState, setGuestLookupState] = useState("idle");
+  const guestAutoFillRef = useRef("");
+  const guestNameManuallyEditedRef = useRef(false);
   const [paymentMode, setPaymentMode] = useState("UPI");
   const [transactionId, setTransactionId] = useState("");
   const [showPayModal, setShowPayModal] = useState(false);
   const [editingOrderId, setEditingOrderId] = useState(null);
-  const [selectedOptionByItemId, setSelectedOptionByItemId] = useState({});
   const searchRef = useRef(null);
   const navigate = useNavigate();
   const { slug } = useParams();
@@ -168,7 +171,15 @@ export default function PosSystem() {
     return (
       orders
         .filter((o) => {
-          if (!candidates.has(String(o.tableId || "").trim())) return false;
+          const sourceCandidates = new Set(
+            buildTableIdCandidates(String(o.source || "").trim()),
+          );
+          const tableMatch =
+            candidates.has(String(o.tableId || "").trim()) ||
+            Array.from(sourceCandidates).some((candidate) =>
+              candidates.has(candidate),
+            );
+          if (!tableMatch) return false;
           if (o.paymentStatus === "Completed") return false;
           return activeStatuses.has(o.status);
         })
@@ -208,6 +219,40 @@ export default function PosSystem() {
       taxPct: Number(businessProfile?.taxPct ?? 0),
     });
   }, [businessProfile?.gstPct, businessProfile?.taxPct, setTaxRates]);
+
+  useEffect(() => {
+    const digits = guestPhone.replace(/\D/g, "");
+    if (digits.length !== 10) {
+      if (guestLookupState !== "idle") setGuestLookupState("idle");
+      return;
+    }
+
+    let cancelled = false;
+    setGuestLookupState("loading");
+    fetchGuestByPhone(digits).then((guest) => {
+      if (cancelled) return;
+      if (guest?.name) {
+        setGuestLookupState("found");
+        const isDefaultName =
+          !guestName || guestName.trim().toLowerCase() === "guest";
+        const isAutoFilled = guestName === guestAutoFillRef.current;
+        if (
+          !guestNameManuallyEditedRef.current ||
+          isDefaultName ||
+          isAutoFilled
+        ) {
+          setGuestName(guest.name);
+          guestAutoFillRef.current = guest.name;
+          guestNameManuallyEditedRef.current = false;
+        }
+      } else {
+        setGuestLookupState("new");
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [guestPhone]);
 
   const upiId = businessProfile?.restroUpi || "";
 
@@ -262,7 +307,6 @@ export default function PosSystem() {
 
   const markPayment = async () => {
     if (!detailOrderSummary?._id) return false;
-    const targetTableId = detailTable?.id;
     const paymentMethodMap = {
       UPI: "Card/UPI",
       Cash: "Cash",
@@ -280,12 +324,8 @@ export default function PosSystem() {
         id: detailOrderSummary._id,
         payload,
       });
-      if (targetTableId) {
-        await statusMutation.mutateAsync({
-          tableId: targetTableId,
-          status: "Cleaning",
-        });
-      }
+      // Do NOT automatically change table status to Cleaning after payment.
+      // Let staff manually mark the table for cleanup when ready.
       return true;
     } catch {
       return false;
@@ -349,10 +389,14 @@ export default function PosSystem() {
     popup.document.close();
   };
 
-  const categories = useMemo(
-    () => ["All", ...new Set(menuItems.map((item) => item.cat))],
-    [menuItems],
-  );
+  const categories = useMemo(() => {
+    const cats = [
+      ...new Set(menuItems.map((item) => item.cat || "Uncategorized")),
+    ];
+    return ["All", ...cats];
+  }, [menuItems]);
+
+  const activeCategory = categories.includes(activeCat) ? activeCat : "All";
 
   const modeOptions = useMemo(
     () =>
@@ -370,13 +414,14 @@ export default function PosSystem() {
 
   const filteredItems = useMemo(() => {
     return menuItems.filter((item) => {
-      const matchesCat = activeCat === "All" || item.cat === activeCat;
+      const matchesCat =
+        activeCategory === "All" || item.cat === activeCategory;
       const matchesSearch = item.name
         .toLowerCase()
         .includes(searchTerm.toLowerCase());
       return matchesCat && matchesSearch;
     });
-  }, [activeCat, menuItems, searchTerm]);
+  }, [activeCategory, menuItems, searchTerm]);
 
   const getPriceOptions = (item) => {
     const options = Array.isArray(item?.priceOptions)
@@ -403,18 +448,7 @@ export default function PosSystem() {
 
   const getSelectedOption = (item) => {
     const options = getPriceOptions(item);
-    const selectedLabel = selectedOptionByItemId[String(item?.id || "")];
-    const wanted = String(selectedLabel || "").toLowerCase();
-    return (
-      options.find((opt) => opt.label.toLowerCase() === wanted) || options[0]
-    );
-  };
-
-  const selectOption = (itemId, label) => {
-    setSelectedOptionByItemId((prev) => ({
-      ...prev,
-      [String(itemId)]: String(label),
-    }));
+    return options[0];
   };
 
   const getItemCartQty = (itemId) =>
@@ -469,7 +503,15 @@ export default function PosSystem() {
     return (
       orders
         .filter((o) => {
-          if (!candidates.has(String(o.tableId || "").trim())) return false;
+          const sourceCandidates = new Set(
+            buildTableIdCandidates(String(o.source || "").trim()),
+          );
+          const tableMatch =
+            candidates.has(String(o.tableId || "").trim()) ||
+            Array.from(sourceCandidates).some((candidate) =>
+              candidates.has(candidate),
+            );
+          if (!tableMatch) return false;
           if (o.paymentStatus === "Completed") return false;
           return activeStatuses.has(o.status);
         })
@@ -483,7 +525,7 @@ export default function PosSystem() {
   const getOrderInfo = (table) => {
     const order = getLatestTableOrder(table);
     if (!order) return null;
-    const rawId = order.id || order.orderId || order._id || "";
+    const rawId = order.orderId || order.id || order._id || "";
     const normalizedId = rawId.startsWith("#")
       ? rawId
       : rawId
@@ -491,7 +533,11 @@ export default function PosSystem() {
         : "";
     return {
       orderId: normalizedId,
-      itemCount: Number(order.items?.length || 0),
+      // order.items from fetchOrders is a number (total quantity), not an array
+      itemCount:
+        typeof order.items === "number"
+          ? order.items
+          : Number(order.items?.length || 0),
       status: order.status || "Pending",
       paymentStatus: order.paymentStatus || "Pending",
     };
@@ -501,7 +547,9 @@ export default function PosSystem() {
     if (table.status === "Occupied") {
       const activeOrder = getLatestTableOrder(table);
       setGuestName(activeOrder?.guestName || "");
-      setGuestPhone(activeOrder?.guestPhone || "");
+      // Normalize to last 10 digits — DB stores phones as +91XXXXXXXXXX
+      const rawPhone = String(activeOrder?.guestPhone || "").replace(/\D/g, "");
+      setGuestPhone(rawPhone.slice(-10));
       setDetailTable(table);
     } else {
       selectTable(table);
@@ -512,6 +560,8 @@ export default function PosSystem() {
     const existingCart = mapOrderItemsToCart(existingOrder);
     if (table?.status === "Occupied" && existingCart.length > 0) {
       setCart(existingCart);
+    } else {
+      clearCart();
     }
     setEditingOrderId(existingOrder?._id || null);
     setSelectedTable(table);
@@ -522,6 +572,7 @@ export default function PosSystem() {
   function changeTable() {
     setDetailTable(null);
     setEditingOrderId(null);
+    clearCart();
     setStep("table");
   }
 
@@ -532,6 +583,8 @@ export default function PosSystem() {
         selectedTable: selectedTable?.id,
         orderType,
         locationLabel,
+        guestName: guestName.trim() || "",
+        guestPhone: guestPhone.trim() || "",
       },
     });
   };
@@ -604,7 +657,7 @@ export default function PosSystem() {
                   const isReadyForPayment =
                     table.status === "Occupied" &&
                     orderInfo &&
-                    ["Ready", "Served"].includes(orderInfo.status) &&
+                    orderInfo.status === "Served" &&
                     orderInfo.paymentStatus !== "Completed";
                   const cardStatusClass = isReadyForPayment
                     ? "border-sage bg-sage-lt text-sage"
@@ -613,9 +666,18 @@ export default function PosSystem() {
                   const statusDotClass = isReadyForPayment
                     ? "bg-sage"
                     : TABLE_STATUS_DOT[table.status] || "bg-muted2";
+                  const orderStatusLabel = orderInfo
+                    ? orderInfo.status === "Ready"
+                      ? "Ready to Serve"
+                      : orderInfo.status === "Pending"
+                        ? "Preparing"
+                        : orderInfo.status
+                    : table.status;
                   const statusLabel = isReadyForPayment
                     ? "Ready to Payment"
-                    : table.status;
+                    : table.status === "Occupied" && orderInfo
+                      ? orderStatusLabel
+                      : table.status;
                   return (
                     <Motion.button
                       key={table.id}
@@ -629,16 +691,6 @@ export default function PosSystem() {
                         isActive ? "ring-2 ring-saffron/30 shadow-md" : ""
                       }`}
                     >
-                      {table.status === "Occupied" && orderInfo && (
-                        <span
-                          className={`absolute top-2 left-2 text-[10px] px-2 py-0.5 rounded-full font-semibold ${
-                            ORDER_STATUS_BADGE[orderInfo.status] ||
-                            "bg-warning text-ink border border-warning/50"
-                          }`}
-                        >
-                          {getOrderStatusLabel(orderInfo.status)}
-                        </span>
-                      )}
                       <span className="text-2xl font-black">{table.id}</span>
                       <span className="flex items-center gap-1.5 text-xs font-medium">
                         <span
@@ -843,7 +895,10 @@ export default function PosSystem() {
                         <input
                           type="text"
                           value={guestName}
-                          onChange={(e) => setGuestName(e.target.value)}
+                          onChange={(e) => {
+                            guestNameManuallyEditedRef.current = true;
+                            setGuestName(e.target.value);
+                          }}
                           placeholder="Guest name"
                           className="w-full pl-8 pr-3 py-2 text-sm border border-border rounded-lg bg-paper focus:outline-none focus:ring-2 focus:ring-saffron/30 focus:border-saffron"
                         />
@@ -856,11 +911,19 @@ export default function PosSystem() {
                         <input
                           type="tel"
                           value={guestPhone}
-                          onChange={(e) => setGuestPhone(e.target.value)}
+                          onChange={(e) => {
+                            guestNameManuallyEditedRef.current = false;
+                            setGuestPhone(e.target.value);
+                          }}
                           placeholder="Guest phone number"
                           className="w-full pl-8 pr-3 py-2 text-sm border border-border rounded-lg bg-paper focus:outline-none focus:ring-2 focus:ring-saffron/30 focus:border-saffron"
                         />
                       </div>
+                      {guestLookupState === "found" && (
+                        <p className="text-xs text-green-700 font-semibold">
+                          Returning customer
+                        </p>
+                      )}
                     </div>
                   </div>
 
@@ -886,7 +949,7 @@ export default function PosSystem() {
                           <p className="text-xs text-green-700 font-semibold text-center py-1">
                             ✓ Payment completed
                           </p>
-                        ) : (
+                        ) : detailOrderSummary?.status === "Served" ? (
                           <button
                             type="button"
                             onClick={() => setShowPayModal(true)}
@@ -895,6 +958,10 @@ export default function PosSystem() {
                             <CreditCard size={16} />
                             Mark Payment Completed
                           </button>
+                        ) : (
+                          <p className="text-xs text-muted text-center py-1">
+                            Payment is available after the order is served.
+                          </p>
                         )}
                       </div>
                     </div>
@@ -1022,6 +1089,9 @@ export default function PosSystem() {
                       const ok = await markPayment();
                       if (ok) {
                         setShowPayModal(false);
+                        setDetailTable(null);
+                        // Force immediate table grid refetch so Cleaning status shows right away
+                        refetchTables();
                       }
                     }}
                     disabled={
@@ -1098,7 +1168,7 @@ export default function PosSystem() {
                 key={cat}
                 onClick={() => setActiveCat(cat)}
                 className={`whitespace-nowrap px-4 py-1.5 rounded-full text-sm font-semibold transition-colors ${
-                  activeCat === cat
+                  activeCategory === cat
                     ? "bg-saffron text-white shadow-sm"
                     : "bg-cream text-muted hover:bg-border"
                 }`}
@@ -1136,7 +1206,6 @@ export default function PosSystem() {
               </p>
             ) : null}
             {filteredItems.map((item) => {
-              const options = getPriceOptions(item);
               const selectedOption = getSelectedOption(item);
               const cartQty = getItemCartQty(item.id);
               const inCart = cartQty > 0;
@@ -1164,11 +1233,17 @@ export default function PosSystem() {
                     </div>
                   )}
                   <div className="h-28 w-full overflow-hidden bg-gray-100 relative">
-                    <img
-                      src={item.img}
-                      alt={item.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
+                    {item.img ? (
+                      <img
+                        src={item.img}
+                        alt={item.name}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-sm font-semibold text-muted">
+                        No image
+                      </div>
+                    )}
                   </div>
                   <div className="p-3">
                     <p className="font-semibold text-sm text-ink leading-tight mb-1 line-clamp-2">

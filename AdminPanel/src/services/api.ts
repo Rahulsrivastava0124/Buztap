@@ -698,7 +698,13 @@ export async function fetchVisitorTrend(
 
 export async function fetchPosCatalog(): Promise<PosMenuItem[]> {
   const rows = await request<Array<any>>("/menu");
-  return rows.map((item) => ({
+  const items = Array.isArray(rows)
+    ? rows
+    : Array.isArray((rows as any)?.items)
+      ? (rows as any).items
+      : [];
+
+  return items.map((item) => ({
     id: item._id,
     name: item.name,
     price: Number(item.price || 0),
@@ -784,6 +790,22 @@ export async function fetchGuestByPhone(
   }
 }
 
+export async function saveGuest(
+  phone: string,
+  name: string,
+  slug: string,
+): Promise<void> {
+  try {
+    await request(
+      `/guests/register?restro=${encodeURIComponent(slug)}`,
+      { method: "POST", body: JSON.stringify({ phone, name, source: "POS" }) },
+      true,
+    );
+  } catch {
+    // Non-critical — saving guest name should never block the order flow
+  }
+}
+
 export async function fetchOrders(): Promise<OrderQueueItem[]> {
   const data = await request<{ orders: Array<any> }>("/orders?limit=100");
   const now = Date.now();
@@ -791,9 +813,10 @@ export async function fetchOrders(): Promise<OrderQueueItem[]> {
     const value = String(raw || "").trim();
     if (!value) return null;
     const digits = value.replace(/\D/g, "");
-    if (!digits) return value;
+    if (!digits) return null;
     return `T-${String(Number(digits)).padStart(2, "0")}`;
   };
+
   return (data.orders || []).map((order) => {
     const minutes = Math.max(
       1,
@@ -810,11 +833,15 @@ export async function fetchOrders(): Promise<OrderQueueItem[]> {
           0,
         )
       : 0;
+    const normalizedTableId =
+      normalizeTableId(order.tableId) || normalizeTableId(order.source);
+    const orderId = order.orderId || String(order._id || "");
     return {
       _id: String(order._id),
-      id: order.orderId,
+      id: orderId,
+      orderId,
       channel: order.source === "QR" ? "QR" : "POS",
-      tableId: normalizeTableId(order.tableId),
+      tableId: normalizedTableId,
       roomId: order.roomId || null,
       source: sourceLabel,
       guestName: order.guestName || "Guest",

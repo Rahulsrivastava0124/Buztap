@@ -69,6 +69,7 @@ const orderSchema = new Schema(
     cancelReason: { type: String, default: null },
     completedAt: { type: Date, default: null },
     cancelledAt: { type: Date, default: null },
+    paymentCompletedAt: { type: Date, default: null },
   },
   { timestamps: true },
 );
