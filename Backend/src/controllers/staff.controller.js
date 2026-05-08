@@ -278,11 +278,11 @@ async function punchIn(req, res, next) {
     });
 
     const now = new Date();
-    
+
     // Calculate late arrival based on shift start time
     const shiftStartTime = member.shiftTiming?.startTime || "09:00";
     const [shiftHour, shiftMinute] = shiftStartTime.split(":").map(Number);
-    
+
     // Use local time so the shift hour matches the server/device local timezone
     const shiftStartDate = new Date(now);
     shiftStartDate.setHours(shiftHour, shiftMinute, 0, 0);
@@ -290,7 +290,7 @@ async function punchIn(req, res, next) {
     const minutesLate = Math.floor((now - shiftStartDate) / (1000 * 60));
     const isLate = minutesLate > 0;
     const lateMinutes = Math.max(0, minutesLate);
-    
+
     // If late by 30+ minutes, mark as half-day; otherwise mark as work
     const status = lateMinutes >= 30 ? "halfDay" : "work";
 

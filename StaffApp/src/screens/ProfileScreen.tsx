@@ -10,7 +10,10 @@ import {
   RefreshControl,
   StatusBar,
 } from "react-native";
-import { useSafeAreaInsets, SafeAreaView } from "react-native-safe-area-context";
+import {
+  useSafeAreaInsets,
+  SafeAreaView,
+} from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 import { attendanceAPI } from "../services/api";
 import { useAuthStore } from "../store/authStore";

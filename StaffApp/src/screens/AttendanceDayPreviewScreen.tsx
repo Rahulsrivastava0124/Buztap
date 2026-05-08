@@ -76,8 +76,8 @@ export const AttendanceDayPreviewScreen = ({ route, navigation }: any) => {
             1000,
         )
       : isPunchedIn
-      ? Math.floor((Date.now() - new Date(record.punchIn).getTime()) / 1000)
-      : 0;
+        ? Math.floor((Date.now() - new Date(record.punchIn).getTime()) / 1000)
+        : 0;
 
   const workedDurationText = isPunchedIn
     ? formatDurationLabel(workedSeconds)
@@ -93,7 +93,12 @@ export const AttendanceDayPreviewScreen = ({ route, navigation }: any) => {
     ? `${shift.name ?? ""} shift timing is ${shift.startTime ?? "--"} - ${shift.endTime ?? "--"}`
     : null;
 
-  const activities: { time: string; label: string; color: string; meta?: string }[] = [];
+  const activities: {
+    time: string;
+    label: string;
+    color: string;
+    meta?: string;
+  }[] = [];
   if (record?.punchIn) {
     activities.push({
       time: format(new Date(record.punchIn), "hh:mm:ss a"),
@@ -105,9 +110,7 @@ export const AttendanceDayPreviewScreen = ({ route, navigation }: any) => {
       activities.push({
         time: format(new Date(record.punchIn), "hh:mm:ss a"),
         label:
-          Number(record?.lateMinutes || 0) >= 30
-            ? "Late (Half Day)"
-            : "Late",
+          Number(record?.lateMinutes || 0) >= 30 ? "Late (Half Day)" : "Late",
         color: "#DC2626",
         meta: `${Number(record?.lateMinutes || 0)} minutes late`,
       });
@@ -132,7 +135,10 @@ export const AttendanceDayPreviewScreen = ({ route, navigation }: any) => {
 
   if (loading) {
     return (
-      <SafeAreaView className="flex-1 bg-sky-50" edges={["top", "left", "right"]}>
+      <SafeAreaView
+        className="flex-1 bg-sky-50"
+        edges={["top", "left", "right"]}
+      >
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color="#2563EB" />
         </View>
@@ -145,7 +151,9 @@ export const AttendanceDayPreviewScreen = ({ route, navigation }: any) => {
       <ScrollView
         className="flex-1"
         contentContainerStyle={{ paddingBottom: 40 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
         showsVerticalScrollIndicator={false}
       >
         {/* Header — same as Dashboard but with back button */}
@@ -159,7 +167,10 @@ export const AttendanceDayPreviewScreen = ({ route, navigation }: any) => {
             </TouchableOpacity>
             <View>
               <Text className="text-slate-500 text-xs">Attendance</Text>
-              <Text className="text-slate-800 text-2xl font-semibold" numberOfLines={1}>
+              <Text
+                className="text-slate-800 text-2xl font-semibold"
+                numberOfLines={1}
+              >
                 {format(dateObj, "dd MMM yyyy")}
               </Text>
             </View>
@@ -179,19 +190,27 @@ export const AttendanceDayPreviewScreen = ({ route, navigation }: any) => {
           </Text>
           <View className="flex-row items-center">
             <View className="w-20 h-[72px] bg-slate-700 rounded-2xl items-center justify-center">
-              <Text className="text-slate-50 text-[28px] font-bold tracking-wider">{hh}</Text>
+              <Text className="text-slate-50 text-[28px] font-bold tracking-wider">
+                {hh}
+              </Text>
             </View>
             <Text className="text-slate-400 text-[28px] font-bold mx-2">:</Text>
             <View className="w-20 h-[72px] bg-slate-700 rounded-2xl items-center justify-center">
-              <Text className="text-slate-50 text-[28px] font-bold tracking-wider">{mm}</Text>
+              <Text className="text-slate-50 text-[28px] font-bold tracking-wider">
+                {mm}
+              </Text>
             </View>
             <Text className="text-slate-400 text-[28px] font-bold mx-2">:</Text>
             <View className="w-20 h-[72px] bg-slate-700 rounded-2xl items-center justify-center">
-              <Text className="text-slate-50 text-[28px] font-bold tracking-wider">{ss}</Text>
+              <Text className="text-slate-50 text-[28px] font-bold tracking-wider">
+                {ss}
+              </Text>
             </View>
           </View>
           <View className="w-full flex-row justify-around px-1 mt-2 mb-4">
-            <Text className="text-slate-400 text-xs w-20 text-center">Hour</Text>
+            <Text className="text-slate-400 text-xs w-20 text-center">
+              Hour
+            </Text>
             <Text className="text-slate-400 text-xs w-20 text-center">Min</Text>
             <Text className="text-slate-400 text-xs w-20 text-center">Sec</Text>
           </View>
@@ -234,11 +253,18 @@ export const AttendanceDayPreviewScreen = ({ route, navigation }: any) => {
                   borderBottomColor: "#F1F5F9",
                 }}
               >
-                <View className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: a.color }} />
+                <View
+                  className="w-2.5 h-2.5 rounded-full"
+                  style={{ backgroundColor: a.color }}
+                />
                 <View className="flex-1 ml-3">
-                  <Text className="text-slate-800 text-sm font-medium">{a.label}</Text>
+                  <Text className="text-slate-800 text-sm font-medium">
+                    {a.label}
+                  </Text>
                   {a.meta ? (
-                    <Text className="text-slate-400 text-[11px] mt-0.5">{a.meta}</Text>
+                    <Text className="text-slate-400 text-[11px] mt-0.5">
+                      {a.meta}
+                    </Text>
                   ) : null}
                 </View>
                 <Text className="text-slate-500 text-xs">{a.time}</Text>

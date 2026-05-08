@@ -196,8 +196,7 @@ export const DashboardScreen = ({ navigation }: any) => {
 
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () =>
-        !swipeLoading,
+      onStartShouldSetPanResponder: () => !swipeLoading,
       onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 5,
       onPanResponderMove: (_, g) => {
         const x = Math.max(0, Math.min(g.dx, SWIPE_THRESHOLD));
@@ -276,7 +275,7 @@ export const DashboardScreen = ({ navigation }: any) => {
       color: "#16A34A",
       meta: `Status: ${todayStatus.status ?? "work"}`,
     });
-    
+
     // Add late mark if applicable
     if (
       todayStatus?.isLate === true ||
