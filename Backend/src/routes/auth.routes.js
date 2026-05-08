@@ -25,8 +25,11 @@ router.post("/password/reset", resetPassword);
 router.post("/register", register);
 router.post("/login", login);
 router.post("/staff/login", staffLogin);
+router.post("/staff", requestStaffOtp);
 router.post("/staff/request-otp", requestStaffOtp);
+router.post("/staff/requestOtp", requestStaffOtp);
 router.post("/staff/verify-otp", verifyStaffOtp);
+router.post("/staff/verifyOtp", verifyStaffOtp);
 router.post("/logout", authenticate, logout);
 router.get("/me", authenticate, me);
 
