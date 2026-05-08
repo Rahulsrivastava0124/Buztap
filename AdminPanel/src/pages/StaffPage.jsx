@@ -28,6 +28,15 @@ import ErrorBoundary from "../components/shared/ErrorBoundary";
 import PageShell from "../components/layout/PageShell";
 
 // ─── Designation config ───────────────────────────────────────────────────────
+const DESIGNATION_ROLE_MAP = {
+  Admin: "admin",
+  Manager: "manager",
+  Receptionist: "cashier",
+  Kitchen: "cashier",
+  Waiter: "cashier",
+  Employee: "cashier",
+};
+
 const DESIGNATIONS = [
   { value: "Manager", label: "Manager" },
   { value: "Receptionist", label: "Receptionist" },
@@ -547,6 +556,8 @@ function StaffFormPanel({ mode, initial, onClose, onSave, isSaving }) {
     payload.salaryMonthly = Number(form.salaryMonthly || 0);
     payload.leaveAllowance = Number(form.leaveAllowance || 0);
     payload.leavesTaken = Number(form.leavesTaken || 0);
+    // Always include role so older backend deployments don't fail with "role - Required"
+    payload.role = DESIGNATION_ROLE_MAP[form.designation] || "cashier";
     if (form.joiningDate) {
       payload.joiningDate = form.joiningDate;
     } else {
