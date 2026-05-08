@@ -134,7 +134,15 @@ app.use("/api/business", businessRoutes);
 app.use("/api/offers", offersRoutes);
 
 // 404
-app.use((_req, res) => res.status(404).json({ error: "Route not found" }));
+app.use((req, res) =>
+  res
+    .status(404)
+    .json({
+      error: "Route not found",
+      method: req.method,
+      path: req.originalUrl,
+    }),
+);
 
 // Global error handler
 app.use(errorHandler);
