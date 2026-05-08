@@ -384,7 +384,11 @@ async function punchOut(req, res, next) {
     const punchInDeviceId =
       member.attendanceRecords[targetIndex].punchInDeviceId || null;
 
-    if (punchInDeviceId && punchOutDeviceId && punchInDeviceId !== punchOutDeviceId) {
+    if (
+      punchInDeviceId &&
+      punchOutDeviceId &&
+      punchInDeviceId !== punchOutDeviceId
+    ) {
       return res.status(403).json({
         error:
           "Device mismatch: you must punch out from the same device used to punch in.",

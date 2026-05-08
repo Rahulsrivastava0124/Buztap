@@ -286,7 +286,6 @@ export const DashboardScreen = ({ navigation }: any) => {
       color: "#16A34A",
       meta: `Status: ${todayStatus.status ?? "work"}`,
     });
-
   }
   if (todayStatus?.punchOut) {
     activities.push({
