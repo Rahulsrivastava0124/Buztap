@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useFocusEffect } from "@react-navigation/native";
 import { format } from "date-fns";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { attendanceAPI } from "../services/api";
@@ -43,7 +44,7 @@ const getRecordByDate = (attendanceRecords: any[] = [], dateKey: string) => {
 };
 
 export const DashboardScreen = ({ navigation }: any) => {
-  const { staff, setStaff, selectedAttendanceDate } = useAuthStore();
+  const { staff, setStaff } = useAuthStore();
   const [refreshing, setRefreshing] = useState(false);
   const [todayStatus, setTodayStatus] = useState<any>(null);
   const [swipeLoading, setSwipeLoading] = useState(false);
@@ -57,18 +58,13 @@ export const DashboardScreen = ({ navigation }: any) => {
   const isPunchedOutRef = useRef(false);
   const handlePunchInRef = useRef<() => Promise<void>>(async () => {});
   const handlePunchOutRef = useRef<() => Promise<void>>(async () => {});
-  const isViewingTodayRef = useRef(true);
 
   const todayDateKey = toDateKey(new Date());
-  const activeDateKey = selectedAttendanceDate || todayDateKey;
-  const isViewingToday = activeDateKey === todayDateKey;
-  const activeDateObj = selectedAttendanceDate
-    ? new Date(`${selectedAttendanceDate}T00:00:00`)
-    : new Date();
+  const activeDateObj = new Date();
 
   // ── Working Hours Timer ──────────────────────────────────────────────────────
   useEffect(() => {
-    if (isViewingToday && todayStatus?.punchIn && !todayStatus?.punchOut) {
+    if (todayStatus?.punchIn && !todayStatus?.punchOut) {
       const start = new Date(todayStatus.punchIn).getTime();
       timerRef.current = setInterval(() => {
         setElapsed(Math.floor((Date.now() - start) / 1000));
@@ -83,7 +79,7 @@ export const DashboardScreen = ({ navigation }: any) => {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [isViewingToday, todayStatus]);
+  }, [todayStatus]);
 
   const formatElapsed = (secs: number, isPunchedIn: boolean) => {
     if (!isPunchedIn && secs === 0) {
@@ -112,18 +108,20 @@ export const DashboardScreen = ({ navigation }: any) => {
       const response = await attendanceAPI.getAttendance(staff.id);
       const todayRecord = getRecordByDate(
         response.data.attendanceRecords,
-        activeDateKey,
+        todayDateKey,
       );
       setTodayStatus(todayRecord ?? null);
       setStaff(response.data);
     } catch (error) {
       console.error("Failed to fetch attendance:", error);
     }
-  }, [activeDateKey, setStaff, staff?.id]);
+  }, [todayDateKey, setStaff, staff?.id]);
 
-  useEffect(() => {
-    fetchTodayAttendance();
-  }, [fetchTodayAttendance]);
+  useFocusEffect(
+    useCallback(() => {
+      fetchTodayAttendance();
+    }, [fetchTodayAttendance]),
+  );
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -143,11 +141,6 @@ export const DashboardScreen = ({ navigation }: any) => {
         "Error",
         "Session not loaded. Please log out and log in again.",
       );
-      resetSwipe();
-      return;
-    }
-    if (!isViewingToday) {
-      Alert.alert("Info", "Punch actions are available for today only.");
       resetSwipe();
       return;
     }
@@ -171,11 +164,6 @@ export const DashboardScreen = ({ navigation }: any) => {
         "Error",
         "Session not loaded. Please log out and log in again.",
       );
-      resetSwipe();
-      return;
-    }
-    if (!isViewingToday) {
-      Alert.alert("Info", "Punch actions are available for today only.");
       resetSwipe();
       return;
     }
@@ -209,7 +197,7 @@ export const DashboardScreen = ({ navigation }: any) => {
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () =>
-        !swipeLoading && isViewingTodayRef.current,
+        !swipeLoading,
       onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 5,
       onPanResponderMove: (_, g) => {
         const x = Math.max(0, Math.min(g.dx, SWIPE_THRESHOLD));
@@ -245,10 +233,6 @@ export const DashboardScreen = ({ navigation }: any) => {
   }, [isPunchedIn, isPunchedOut]);
 
   useEffect(() => {
-    isViewingTodayRef.current = isViewingToday;
-  }, [isViewingToday]);
-
-  useEffect(() => {
     handlePunchInRef.current = handlePunchIn;
     handlePunchOutRef.current = handlePunchOut;
   }, [handlePunchIn, handlePunchOut]);
@@ -259,21 +243,17 @@ export const DashboardScreen = ({ navigation }: any) => {
     ? `${shift.name ?? ""} shift timing is ${shift.startTime ?? "--"} - ${shift.endTime ?? "--"}`
     : null;
 
-  const swipeLabel = !isViewingToday
-    ? "Viewing selected date"
-    : isPunchedOut
-      ? " Done for today"
-      : isPunchedIn
-        ? "Swipe To Punch Out"
-        : "Swipe To Punch";
+  const swipeLabel = isPunchedOut
+    ? " Done for today"
+    : isPunchedIn
+      ? "Swipe To Punch Out"
+      : "Swipe To Punch";
 
-  const swipeColor = !isViewingToday
-    ? "#64748B"
-    : isPunchedOut
-      ? "#6B7280"
-      : isPunchedIn
-        ? "#F97316"
-        : "#2563EB";
+  const swipeColor = isPunchedOut
+    ? "#6B7280"
+    : isPunchedIn
+      ? "#F97316"
+      : "#2563EB";
 
   const workedDurationText = isPunchedIn
     ? formatDurationLabel(elapsed)
@@ -296,6 +276,22 @@ export const DashboardScreen = ({ navigation }: any) => {
       color: "#16A34A",
       meta: `Status: ${todayStatus.status ?? "work"}`,
     });
+    
+    // Add late mark if applicable
+    if (
+      todayStatus?.isLate === true ||
+      Number(todayStatus?.lateMinutes || 0) > 0
+    ) {
+      activities.push({
+        time: format(new Date(todayStatus.punchIn), "hh:mm:ss a"),
+        label:
+          Number(todayStatus?.lateMinutes || 0) >= 30
+            ? "Late (Half Day)"
+            : "Late",
+        color: "#DC2626",
+        meta: `${Number(todayStatus?.lateMinutes || 0)} minutes late`,
+      });
+    }
   }
   if (todayStatus?.punchOut) {
     activities.push({
@@ -403,9 +399,7 @@ export const DashboardScreen = ({ navigation }: any) => {
         )}
 
         <Text className="text-slate-700 text-2xl font-semibold mx-5 mt-8 mb-3">
-          {isViewingToday
-            ? "Today's activity"
-            : `Activity • ${format(activeDateObj, "dd MMM yyyy")}`}
+          Today's activity
         </Text>
 
         {activities.length === 0 ? (

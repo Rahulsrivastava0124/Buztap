@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -10,7 +10,8 @@ import {
   RefreshControl,
   StatusBar,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useSafeAreaInsets, SafeAreaView } from "react-native-safe-area-context";
+import { useFocusEffect } from "@react-navigation/native";
 import { attendanceAPI } from "../services/api";
 import { useAuthStore } from "../store/authStore";
 import { format } from "date-fns";
@@ -23,11 +24,7 @@ export const ProfileScreen = ({ navigation }: any) => {
   const [currentMonthAttendance, setCurrentMonthAttendance] =
     useState<any>(null);
 
-  useEffect(() => {
-    fetchAttendanceStats();
-  }, []);
-
-  const fetchAttendanceStats = async () => {
+  const fetchAttendanceStats = useCallback(async () => {
     if (!staff?.id) return;
 
     try {
@@ -51,7 +48,13 @@ export const ProfileScreen = ({ navigation }: any) => {
     } catch (error) {
       console.error("Failed to fetch attendance stats:", error);
     }
-  };
+  }, [staff?.id, setStaff]);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchAttendanceStats();
+    }, [fetchAttendanceStats]),
+  );
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -73,9 +76,9 @@ export const ProfileScreen = ({ navigation }: any) => {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
       <StatusBar backgroundColor="#1a237e" barStyle="light-content" />
-      <View style={[styles.profileHeader, { paddingTop: insets.top + 16 }]}>
+      <View style={styles.profileHeader}>
         <View style={styles.avatar}>
           <Text style={styles.avatarText}>
             {staff?.name?.charAt(0).toUpperCase()}
@@ -186,14 +189,14 @@ export const ProfileScreen = ({ navigation }: any) => {
 
         <View style={{ height: 20 }} />
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: "#1a237e",
   },
   scrollContent: {
     flex: 1,

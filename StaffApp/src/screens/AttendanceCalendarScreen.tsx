@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -17,6 +17,7 @@ import {
   startOfMonth,
   subMonths,
 } from "date-fns";
+import { useFocusEffect } from "@react-navigation/native";
 import { attendanceAPI } from "../services/api";
 import { useAuthStore } from "../store/authStore";
 
@@ -42,6 +43,8 @@ type AttendanceRecord = {
   punchIn?: string | null;
   punchOut?: string | null;
   note?: string;
+  isLate?: boolean;
+  lateMinutes?: number;
 };
 
 const statusStyle = (status?: string) => {
@@ -79,9 +82,11 @@ export const AttendanceCalendarScreen = ({ navigation }: any) => {
     }
   }, [staff?.id]);
 
-  useEffect(() => {
-    loadAttendance();
-  }, [loadAttendance]);
+  useFocusEffect(
+    useCallback(() => {
+      loadAttendance();
+    }, [loadAttendance]),
+  );
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -223,30 +228,34 @@ export const AttendanceCalendarScreen = ({ navigation }: any) => {
               const isPastDate = key < todayKey;
               const isWeekOff = cell.date.getDay() === 0;
               const isBeforeJoinDate = joinKey != null && key < joinKey;
-              const effectiveStatus = workedOnDate
-                ? "work"
-                : record?.status ||
-                  (isWeekOff
+              // Use the real record status (halfDay, work, etc.) when available;
+              // fall back to derived status only when no record exists.
+              const effectiveStatus = record?.status
+                ? record.status
+                : workedOnDate
+                  ? "work"
+                  : isWeekOff
                     ? "weekOff"
                     : isBeforeJoinDate
                       ? undefined
                       : isPastDate
                         ? "absent"
-                        : undefined);
+                        : undefined;
               const style = statusStyle(effectiveStatus);
               const showPunchError =
-                effectiveStatus === "work" && hasIncompletePunch;
+                (effectiveStatus === "work" || effectiveStatus === "halfDay") &&
+                hasIncompletePunch;
+              // Show late mark if backend flagged isLate, OR if lateMinutes > 0
+              const showLateMark =
+                (record?.isLate === true || (record?.lateMinutes ?? 0) > 0) &&
+                !hasIncompletePunch;
               const isSelected = selectedAttendanceDate === key;
 
               return (
                 <TouchableOpacity
                   key={key}
                   onPress={() => {
-                    setSelectedAttendanceDate(key);
-                    const parent = (navigation as any)?.getParent?.();
-                    if (parent?.navigate) {
-                      parent.navigate("HomeTab");
-                    }
+                    navigation.push("AttendanceDayPreview", { dateKey: key });
                   }}
                   style={{
                     width: CELL_SIZE,
@@ -275,6 +284,14 @@ export const AttendanceCalendarScreen = ({ navigation }: any) => {
                       size={14}
                       color="#FACC15"
                       style={{ position: "absolute", bottom: 6 }}
+                    />
+                  ) : null}
+                  {showLateMark ? (
+                    <Ionicons
+                      name="alert-circle"
+                      size={14}
+                      color="#DC2626"
+                      style={{ position: "absolute", top: 4, right: 4 }}
                     />
                   ) : null}
                 </TouchableOpacity>
@@ -370,6 +387,15 @@ export const AttendanceCalendarScreen = ({ navigation }: any) => {
                   style={{ marginRight: 8 }}
                 />
                 <Text className="text-slate-700 text-[12px]">Punch Error</Text>
+              </View>
+              <View className="flex-row items-center">
+                <Ionicons
+                  name="alert-circle-outline"
+                  size={14}
+                  color="#DC2626"
+                  style={{ marginRight: 8 }}
+                />
+                <Text className="text-slate-700 text-[12px]">Late Mark</Text>
               </View>
             </View>
           </View>

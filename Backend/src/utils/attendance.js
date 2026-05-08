@@ -17,6 +17,8 @@ function normalizeAttendanceRecord(record, fallbackDate) {
     note: record?.note || "",
     punchIn: record?.punchIn || null,
     punchOut: record?.punchOut || null,
+    isLate: record?.isLate === true,
+    lateMinutes: Number(record?.lateMinutes || 0),
     ...(record?.isBusinessHoliday ? { isBusinessHoliday: true } : {}),
   };
 }
@@ -41,6 +43,8 @@ function mergeAttendanceRecords(existingRecords = [], incomingRecords = []) {
       note: "",
       punchIn: null,
       punchOut: null,
+      isLate: false,
+      lateMinutes: 0,
     };
 
     const merged = {
@@ -49,11 +53,12 @@ function mergeAttendanceRecords(existingRecords = [], incomingRecords = []) {
       note: normalized.note ?? previous.note,
       punchIn: normalized.punchIn || previous.punchIn || null,
       punchOut: normalized.punchOut || previous.punchOut || null,
+      isLate: normalized.isLate || previous.isLate || false,
+      lateMinutes: Math.max(
+        Number(normalized.lateMinutes || 0),
+        Number(previous.lateMinutes || 0),
+      ),
     };
-
-    if (merged.punchIn || merged.punchOut) {
-      merged.status = "work";
-    }
 
     byDate.set(key, merged);
   }

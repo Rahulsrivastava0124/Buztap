@@ -55,6 +55,8 @@ const userSchema = new Schema(
           note: { type: String, trim: true },
           punchIn: { type: Date },
           punchOut: { type: Date },
+          isLate: { type: Boolean, default: false },
+          lateMinutes: { type: Number, min: 0, default: 0 },
         },
       ],
       default: [],

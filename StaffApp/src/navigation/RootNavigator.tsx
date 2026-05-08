@@ -2,11 +2,13 @@ import React, { useEffect, useRef } from "react";
 import { NavigationContainer, LinkingOptions } from "@react-navigation/native";
 import { createStackNavigator } from "@react-navigation/stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuthStore } from "../store/authStore";
 import { LoginScreen } from "../screens/LoginScreen";
 import { DashboardScreen } from "../screens/DashboardScreen";
 import { ProfileScreen } from "../screens/ProfileScreen";
 import { AttendanceCalendarScreen } from "../screens/AttendanceCalendarScreen";
+import { AttendanceDayPreviewScreen } from "../screens/AttendanceDayPreviewScreen";
 import Ionicons from "@expo/vector-icons/Ionicons";
 
 Ionicons.loadFont().catch(() => {});
@@ -37,6 +39,10 @@ const AttendanceStack = () => (
       name="AttendanceCalendarHome"
       component={AttendanceCalendarScreen}
     />
+    <AppStack.Screen
+      name="AttendanceDayPreview"
+      component={AttendanceDayPreviewScreen}
+    />
   </AppStack.Navigator>
 );
 
@@ -55,52 +61,54 @@ const TAB_ICONS: Record<string, [string, string]> = {
 };
 
 const AppTabs = () => (
-  <TabNavigator.Navigator
-    initialRouteName="HomeTab"
-    screenOptions={({ route }) => ({
-      headerShown: false,
-      tabBarIcon: ({ focused, color, size }: TabIcon) => {
-        const [active, inactive] = TAB_ICONS[route.name] ?? [
-          "ellipse",
-          "ellipse-outline",
-        ];
-        return (
-          <Ionicons
-            name={(focused ? active : inactive) as any}
-            size={size}
-            color={color}
-          />
-        );
-      },
-      tabBarActiveTintColor: "#2563EB",
-      tabBarInactiveTintColor: "#94A3B8",
-      tabBarStyle: {
-        borderTopColor: "#E2E8F0",
-        borderTopWidth: 1,
-        height: 64,
-        paddingBottom: 8,
-        paddingTop: 8,
-        backgroundColor: "#fff",
-      },
-      tabBarLabelStyle: { fontSize: 11, marginTop: 2 },
-    })}
-  >
-    <TabNavigator.Screen
-      name="AttendanceTab"
-      component={AttendanceStack}
-      options={{ tabBarLabel: "Calendar" }}
-    />
-    <TabNavigator.Screen
-      name="HomeTab"
-      component={DashboardStack}
-      options={{ tabBarLabel: "Home" }}
-    />
-    <TabNavigator.Screen
-      name="ProfileTab"
-      component={ProfileStack}
-      options={{ tabBarLabel: "Profile" }}
-    />
-  </TabNavigator.Navigator>
+  <SafeAreaView style={{ flex: 1 }} edges={["bottom", "left", "right"]}>
+    <TabNavigator.Navigator
+      initialRouteName="HomeTab"
+      screenOptions={({ route }) => ({
+        headerShown: false,
+        tabBarIcon: ({ focused, color, size }: TabIcon) => {
+          const [active, inactive] = TAB_ICONS[route.name] ?? [
+            "ellipse",
+            "ellipse-outline",
+          ];
+          return (
+            <Ionicons
+              name={(focused ? active : inactive) as any}
+              size={size}
+              color={color}
+            />
+          );
+        },
+        tabBarActiveTintColor: "#2563EB",
+        tabBarInactiveTintColor: "#94A3B8",
+        tabBarStyle: {
+          borderTopColor: "#E2E8F0",
+          borderTopWidth: 1,
+          height: 64,
+          paddingBottom: 8,
+          paddingTop: 8,
+          backgroundColor: "#fff",
+        },
+        tabBarLabelStyle: { fontSize: 11, marginTop: 2 },
+      })}
+    >
+      <TabNavigator.Screen
+        name="AttendanceTab"
+        component={AttendanceStack}
+        options={{ tabBarLabel: "Calendar" }}
+      />
+      <TabNavigator.Screen
+        name="HomeTab"
+        component={DashboardStack}
+        options={{ tabBarLabel: "Home" }}
+      />
+      <TabNavigator.Screen
+        name="ProfileTab"
+        component={ProfileStack}
+        options={{ tabBarLabel: "Profile" }}
+      />
+    </TabNavigator.Navigator>
+  </SafeAreaView>
 );
 
 export const RootNavigator = () => {

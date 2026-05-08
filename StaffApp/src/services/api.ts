@@ -49,6 +49,8 @@ export interface AttendanceRecord {
   note?: string;
   punchIn?: string;
   punchOut?: string;
+  isLate?: boolean;
+  lateMinutes?: number;
 }
 
 export interface Staff {

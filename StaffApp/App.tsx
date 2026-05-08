@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { StyleSheet, View, AppRegistry } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import "./global.css";
 import * as SplashScreen from "expo-splash-screen";
 import { useFonts } from "expo-font";
@@ -51,10 +52,10 @@ function App() {
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
       <StatusBar animated={true} />
       <RootNavigator />
-    </View>
+    </SafeAreaView>
   );
 }
 

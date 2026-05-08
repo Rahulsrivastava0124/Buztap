@@ -270,6 +270,8 @@ export interface StaffAttendanceRecord {
   note?: string;
   punchIn?: string;
   punchOut?: string;
+  isLate?: boolean;
+  lateMinutes?: number;
   isBusinessHoliday?: boolean;
 }
 
@@ -952,6 +954,8 @@ function mapStaff(member: any): StaffRecord {
             note: record.note || "",
             punchIn: record.punchIn || undefined,
             punchOut: record.punchOut || undefined,
+            isLate: record.isLate === true,
+            lateMinutes: Number(record.lateMinutes || 0),
             isBusinessHoliday: record.isBusinessHoliday === true,
           };
         }

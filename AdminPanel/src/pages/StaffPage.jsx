@@ -229,7 +229,16 @@ function AttendanceCalendarModal({
     const record = storedRecordDetailsByDate[key];
     const showIncompleteWarning =
       key < todayKey && !!record?.punchIn && !record?.punchOut;
-    cells.push({ day, status, dateObj, showIncompleteWarning });
+    const showLateMark =
+      record?.isLate === true || Number(record?.lateMinutes || 0) > 0;
+    cells.push({
+      day,
+      status,
+      dateObj,
+      showIncompleteWarning,
+      showLateMark,
+      lateMinutes: Number(record?.lateMinutes || 0),
+    });
   }
 
   const selectedCell =
@@ -311,6 +320,10 @@ function AttendanceCalendarModal({
                 <span className="inline-block w-2 h-2 rounded-full bg-orange-500" />
                 Incomplete Punch
               </span>
+              <span className="px-2 py-1 text-xs rounded-full border bg-red-50 text-red-700 border-red-200 flex items-center gap-1">
+                <span className="inline-block w-2 h-2 rounded-full bg-red-500" />
+                Late Mark
+              </span>
             </div>
 
             <div className="grid grid-cols-7 gap-2 mb-2">
@@ -352,6 +365,16 @@ function AttendanceCalendarModal({
                       <span
                         title="Punched in but not punched out"
                         className="absolute top-0.5 right-0.5 w-2 h-2 rounded-full bg-orange-500"
+                      />
+                    )}
+                    {cell.showLateMark && (
+                      <span
+                        title={
+                          cell.lateMinutes >= 30
+                            ? `Late by ${cell.lateMinutes} mins (Half Day)`
+                            : `Late by ${cell.lateMinutes} mins`
+                        }
+                        className="absolute top-0.5 left-0.5 w-2 h-2 rounded-full bg-red-500"
                       />
                     )}
                   </button>
@@ -451,6 +474,18 @@ function AttendanceCalendarModal({
                     </p>
                   </div>
                 </div>
+
+                {(selectedRecord?.isLate === true ||
+                  Number(selectedRecord?.lateMinutes || 0) > 0) && (
+                  <div className="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2">
+                    <p className="text-[11px] text-red-600">Late Attendance</p>
+                    <p className="text-sm font-semibold text-red-700 mt-0.5">
+                      {Number(selectedRecord?.lateMinutes || 0) >= 30
+                        ? `Late by ${Number(selectedRecord?.lateMinutes || 0)} mins (Half Day)`
+                        : `Late by ${Number(selectedRecord?.lateMinutes || 0)} mins`}
+                    </p>
+                  </div>
+                )}
 
                 <div className="flex items-center gap-2 mt-3">
                   <button

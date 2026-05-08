@@ -21,6 +21,8 @@ export interface Staff {
     status: string;
     punchIn?: string;
     punchOut?: string;
+    isLate?: boolean;
+    lateMinutes?: number;
   }>;
   isActive: boolean;
 }
