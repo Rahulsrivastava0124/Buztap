@@ -294,12 +294,15 @@ async function punchIn(req, res, next) {
     // If late by 30+ minutes, mark as half-day; otherwise mark as work
     const status = lateMinutes >= 30 ? "halfDay" : "work";
 
+    const deviceId = req.body?.deviceId || null;
+
     if (existingIndex !== -1) {
       // Update existing record with punch in time
       member.attendanceRecords[existingIndex].punchIn = now;
       member.attendanceRecords[existingIndex].status = status;
       member.attendanceRecords[existingIndex].isLate = isLate;
       member.attendanceRecords[existingIndex].lateMinutes = lateMinutes;
+      member.attendanceRecords[existingIndex].punchInDeviceId = deviceId;
     } else {
       // Create new record for today
       member.attendanceRecords.push({
@@ -308,6 +311,7 @@ async function punchIn(req, res, next) {
         punchIn: now,
         isLate: isLate,
         lateMinutes: lateMinutes,
+        punchInDeviceId: deviceId,
       });
     }
 
@@ -373,6 +377,19 @@ async function punchOut(req, res, next) {
       return res
         .status(400)
         .json({ error: "Punch out already recorded for this shift." });
+    }
+
+    // ── Device security check ─────────────────────────────────────────────
+    const punchOutDeviceId = req.body?.deviceId || null;
+    const punchInDeviceId =
+      member.attendanceRecords[targetIndex].punchInDeviceId || null;
+
+    if (punchInDeviceId && punchOutDeviceId && punchInDeviceId !== punchOutDeviceId) {
+      return res.status(403).json({
+        error:
+          "Device mismatch: you must punch out from the same device used to punch in.",
+        code: "DEVICE_MISMATCH",
+      });
     }
 
     const now = new Date();

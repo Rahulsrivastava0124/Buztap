@@ -106,15 +106,6 @@ export const AttendanceDayPreviewScreen = ({ route, navigation }: any) => {
       color: "#16A34A",
       meta: `Status: ${record.status ?? "work"}`,
     });
-    if (record?.isLate === true || Number(record?.lateMinutes || 0) > 0) {
-      activities.push({
-        time: format(new Date(record.punchIn), "hh:mm:ss a"),
-        label:
-          Number(record?.lateMinutes || 0) >= 30 ? "Late (Half Day)" : "Late",
-        color: "#DC2626",
-        meta: `${Number(record?.lateMinutes || 0)} minutes late`,
-      });
-    }
   }
   if (record?.punchOut) {
     activities.push({

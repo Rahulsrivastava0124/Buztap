@@ -17,6 +17,7 @@ import { format } from "date-fns";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { attendanceAPI } from "../services/api";
 import { useAuthStore } from "../store/authStore";
+import { getDeviceId } from "../utils/deviceId";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const SWIPE_TRACK_WIDTH = SCREEN_WIDTH - 48;
@@ -146,7 +147,8 @@ export const DashboardScreen = ({ navigation }: any) => {
     }
     setSwipeLoading(true);
     try {
-      const response = await attendanceAPI.punchIn(staff.id);
+      const deviceId = await getDeviceId();
+      const response = await attendanceAPI.punchIn(staff.id, deviceId);
       setStaff(response.data);
       setTodayStatus(getTodayRecord(response.data.attendanceRecords));
       fetchTodayAttendance();
@@ -179,15 +181,24 @@ export const DashboardScreen = ({ navigation }: any) => {
     }
     setSwipeLoading(true);
     try {
-      const response = await attendanceAPI.punchOut(staff.id);
+      const deviceId = await getDeviceId();
+      const response = await attendanceAPI.punchOut(staff.id, deviceId);
       setStaff(response.data);
       setTodayStatus(getTodayRecord(response.data.attendanceRecords));
       fetchTodayAttendance();
     } catch (error: any) {
-      Alert.alert(
-        "Error",
-        error.response?.data?.error || "Failed to punch out",
-      );
+      const code = error.response?.data?.code;
+      if (code === "DEVICE_MISMATCH") {
+        Alert.alert(
+          "Device Mismatch",
+          "You must punch out from the same device you used to punch in. Contact your manager if you need assistance.",
+        );
+      } else {
+        Alert.alert(
+          "Error",
+          error.response?.data?.error || "Failed to punch out",
+        );
+      }
     } finally {
       setSwipeLoading(false);
       resetSwipe();
@@ -276,21 +287,6 @@ export const DashboardScreen = ({ navigation }: any) => {
       meta: `Status: ${todayStatus.status ?? "work"}`,
     });
 
-    // Add late mark if applicable
-    if (
-      todayStatus?.isLate === true ||
-      Number(todayStatus?.lateMinutes || 0) > 0
-    ) {
-      activities.push({
-        time: format(new Date(todayStatus.punchIn), "hh:mm:ss a"),
-        label:
-          Number(todayStatus?.lateMinutes || 0) >= 30
-            ? "Late (Half Day)"
-            : "Late",
-        color: "#DC2626",
-        meta: `${Number(todayStatus?.lateMinutes || 0)} minutes late`,
-      });
-    }
   }
   if (todayStatus?.punchOut) {
     activities.push({

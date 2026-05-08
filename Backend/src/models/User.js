@@ -57,6 +57,7 @@ const userSchema = new Schema(
           punchOut: { type: Date },
           isLate: { type: Boolean, default: false },
           lateMinutes: { type: Number, min: 0, default: 0 },
+          punchInDeviceId: { type: String, default: null },
         },
       ],
       default: [],
