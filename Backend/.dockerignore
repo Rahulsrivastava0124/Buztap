@@ -5,5 +5,4 @@ dist/
 .git/
 .github/
 coverage/
-*.md
 .dockerignore

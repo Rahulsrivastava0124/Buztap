@@ -115,7 +115,9 @@ const authLimiter = rateLimit({
 app.use("/api/auth/login", authLimiter);
 app.use("/api/auth/otp/request", authLimiter);
 app.use("/api/auth/password/reset", authLimiter);
-app.get("/api/health", (_req, res) => res.json({ status: "ok" }));
+app.get("/api/health", (_req, res) =>
+  res.json({ status: "ok", version: require("../package.json").version }),
+);
 
 // Routes
 app.use("/api/auth", authRoutes);
@@ -135,13 +137,11 @@ app.use("/api/offers", offersRoutes);
 
 // 404
 app.use((req, res) =>
-  res
-    .status(404)
-    .json({
-      error: "Route not found",
-      method: req.method,
-      path: req.originalUrl,
-    }),
+  res.status(404).json({
+    error: "Route not found",
+    method: req.method,
+    path: req.originalUrl,
+  }),
 );
 
 // Global error handler
