@@ -47,8 +47,8 @@ USER buztap
 # Expose the API port (default 5000, overrideable via PORT env)
 EXPOSE 5000
 
-# Healthcheck — hits the info route every 30s
-HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+# Healthcheck — hits the health route every 30s, allows 40s for startup
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
   CMD wget -qO- http://localhost:5000/api/health || exit 1
 
 ENTRYPOINT ["dumb-init", "--"]

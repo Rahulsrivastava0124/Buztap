@@ -22,6 +22,8 @@ function printBanner(port) {
 function startServer(port, retriesLeft = 5) {
   const server = app.listen(port, HOST, () => {
     printBanner(port);
+    // Start DB connection in the background — server is already accepting requests.
+    connectDB();
   });
 
   server.on("error", (err) => {
@@ -39,11 +41,4 @@ function startServer(port, retriesLeft = 5) {
   });
 }
 
-connectDB()
-  .then(() => {
-    startServer(BASE_PORT);
-  })
-  .catch((err) => {
-    console.error("Database connection failed:", err.message);
-    process.exit(1);
-  });
+startServer(BASE_PORT);

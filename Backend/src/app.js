@@ -61,15 +61,30 @@ const allowedOrigins = (process.env.ALLOWED_ORIGINS || "")
   .split(",")
   .map((o) => o.trim())
   .filter(Boolean);
-const allowedOriginSet = new Set(allowedOrigins);
+
+// Convert each entry to a matcher: exact string or wildcard regex (*.domain.com)
+const originMatchers = allowedOrigins.map((o) => {
+  if (o.startsWith("*.")) {
+    // e.g. https://*.buztap.com → match any subdomain
+    const escaped = o.slice(2).replace(/\./g, "\\.");
+    return new RegExp(`^https?:\/\/[^.]+\.${escaped}$`);
+  }
+  return o; // exact match
+});
+
+function isOriginAllowed(origin) {
+  return originMatchers.some((m) =>
+    m instanceof RegExp ? m.test(origin) : m === origin,
+  );
+}
 
 app.use(
   cors({
     origin: (origin, cb) => {
-      // Allow requests with no origin (e.g. curl, Postman).
+      // Allow requests with no origin (mobile apps, curl, Postman).
       if (!origin) return cb(null, true);
 
-      if (allowedOriginSet.has(origin)) {
+      if (isOriginAllowed(origin)) {
         return cb(null, true);
       }
 
@@ -115,9 +130,15 @@ const authLimiter = rateLimit({
 app.use("/api/auth/login", authLimiter);
 app.use("/api/auth/otp/request", authLimiter);
 app.use("/api/auth/password/reset", authLimiter);
-app.get("/api/health", (_req, res) =>
-  res.json({ status: "ok", version: require("../package.json").version }),
-);
+app.get("/api/health", (_req, res) => {
+  const mongoose = require("mongoose");
+  const dbStates = ["disconnected", "connected", "connecting", "disconnecting"];
+  res.json({
+    status: "ok",
+    version: require("../package.json").version,
+    db: dbStates[mongoose.connection.readyState] ?? "unknown",
+  });
+});
 
 // Routes
 app.use("/api/auth", authRoutes);
