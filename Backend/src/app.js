@@ -62,12 +62,14 @@ const allowedOrigins = (process.env.ALLOWED_ORIGINS || "")
   .map((o) => o.trim())
   .filter(Boolean);
 
-// Convert each entry to a matcher: exact string or wildcard regex (*.domain.com)
+// Convert each entry to a matcher: exact string or wildcard regex (https://*.domain.com)
 const originMatchers = allowedOrigins.map((o) => {
-  if (o.startsWith("*.")) {
-    // e.g. https://*.buztap.com → match any subdomain
-    const escaped = o.slice(2).replace(/\./g, "\\.");
-    return new RegExp(`^https?:\/\/[^.]+\.${escaped}$`);
+  if (o.includes("*")) {
+    // e.g. https://*.buztap.com → match any single subdomain
+    const escaped = o
+      .replace(/[.+?^${}()|[\]\\]/g, "\\$&") // escape regex special chars
+      .replace("\\*", "[^.]+");               // turn \* back into wildcard
+    return new RegExp(`^${escaped}$`);
   }
   return o; // exact match
 });

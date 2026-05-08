@@ -47,9 +47,9 @@ USER buztap
 # Expose the API port (default 5000, overrideable via PORT env)
 EXPOSE 5000
 
-# Healthcheck — hits the health route every 30s, allows 40s for startup
+# Healthcheck — uses node so Docker SIGTERM (exit 143) can't kill wget mid-check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-  CMD wget -qO- http://localhost:5000/api/health || exit 1
+  CMD node -e "const p=process.env.PORT||5000;const r=require('http').get({hostname:'localhost',port:p,path:'/api/health',timeout:8000},(res)=>process.exit(res.statusCode===200?0:1));r.on('error',()=>process.exit(1));r.on('timeout',()=>{r.destroy();process.exit(1)});"
 
 ENTRYPOINT ["dumb-init", "--"]
 CMD ["node", "server.js"]
