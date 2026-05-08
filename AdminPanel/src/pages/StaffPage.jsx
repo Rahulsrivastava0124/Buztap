@@ -14,9 +14,11 @@ import { useQueryClient, useQuery, useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import toast from "react-hot-toast";
 import {
+  fetchBusinessProfile,
   fetchStaff,
   createStaffMember,
   updateStaffMember,
+  updateBusinessProfile,
   deleteStaffMember,
   punchInStaff,
   punchOutStaff,
@@ -130,6 +132,17 @@ function getAttendanceStatus(
 
 function formatCurrency(amount) {
   return `₹${Number(amount || 0).toLocaleString("en-IN")}`;
+}
+
+function formatHolidayDate(dateValue) {
+  const date = new Date(dateValue);
+  if (Number.isNaN(date.getTime())) return "-";
+  return date.toLocaleDateString("en-IN", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
 }
 
 function AttendanceCalendarModal({
@@ -868,12 +881,14 @@ function StaffFormPanel({ mode, initial, onClose, onSave, isSaving }) {
 }
 
 // ─── Holidays Modal ───────────────────────────────────────────────────────────
-function HolidaysModal({ team, onApply, isApplying, onClose }) {
+function HolidaysModal({ holidays, onSave, isSaving, onClose }) {
   const [holidayDate, setHolidayDate] = useState(
     new Date().toISOString().slice(0, 10),
   );
   const [holidayName, setHolidayName] = useState("");
-  const [pendingHolidays, setPendingHolidays] = useState([]);
+  const [pendingHolidays, setPendingHolidays] = useState(() =>
+    Array.isArray(holidays) ? holidays : [],
+  );
 
   function addToPending() {
     if (!holidayDate) return;
@@ -904,7 +919,7 @@ function HolidaysModal({ team, onApply, isApplying, onClose }) {
           <div>
             <h3 className="font-bold text-ink text-lg">Manage Holidays</h3>
             <p className="text-sm text-muted">
-              Add holidays to apply across all staff members
+              Add and manage the business holiday list used in staff attendance
             </p>
           </div>
           <button onClick={onClose} className="btn btn-ghost btn-sm btn-circle">
@@ -928,15 +943,7 @@ function HolidaysModal({ team, onApply, isApplying, onClose }) {
                     <div>
                       <p className="text-sm font-semibold text-ink">{h.name}</p>
                       <p className="text-xs text-muted">
-                        {new Date(`${h.date}T00:00:00`).toLocaleDateString(
-                          "en-IN",
-                          {
-                            weekday: "short",
-                            day: "numeric",
-                            month: "short",
-                            year: "numeric",
-                          },
-                        )}
+                        {formatHolidayDate(h.date)}
                       </p>
                     </div>
                     <button
@@ -951,14 +958,14 @@ function HolidaysModal({ team, onApply, isApplying, onClose }) {
               </div>
               <button
                 type="button"
-                onClick={() => onApply(pendingHolidays)}
-                disabled={isApplying || team.length === 0}
+                onClick={() => onSave(pendingHolidays)}
+                disabled={isSaving}
                 className="btn btn-warning btn-sm w-full gap-1.5"
               >
-                {isApplying && (
+                {isSaving && (
                   <span className="loading loading-spinner loading-xs" />
                 )}
-                Apply to All {team.length} Staff Members
+                Save Holiday List
               </button>
             </div>
           ) : (
@@ -1082,6 +1089,11 @@ export default function StaffPage() {
     refetchInterval: 60_000,
   });
 
+  const { data: businessProfile } = useQuery({
+    queryKey: ["business-profile"],
+    queryFn: fetchBusinessProfile,
+  });
+
   const createMutation = useMutation({
     mutationFn: createStaffMember,
     onSuccess: () => {
@@ -1147,36 +1159,18 @@ export default function StaffPage() {
   });
 
   const applyHolidaysMutation = useMutation({
-    mutationFn: async (holidays) => {
-      await Promise.all(
-        team.map(async (member) => {
-          const existing = [...(member.attendanceRecords || [])];
-          for (const holiday of holidays) {
-            const dateObj = new Date(`${holiday.date}T00:00:00Z`);
-            const dateKey = toDateKey(dateObj);
-            const idx = existing.findIndex((r) => {
-              const d = new Date(r.date);
-              return !Number.isNaN(d.getTime()) && toDateKey(d) === dateKey;
-            });
-            const record = {
-              date: dateObj.toISOString(),
-              status: "holiday",
-              note: holiday.name,
-            };
-            if (idx >= 0) {
-              existing[idx] = { ...existing[idx], ...record };
-            } else {
-              existing.push(record);
-            }
-          }
-          return updateStaffMember(member.id, { attendanceRecords: existing });
-        }),
-      );
-    },
+    mutationFn: (holidays) =>
+      updateBusinessProfile({
+        holidays: holidays.map((holiday) => ({
+          date: holiday.date,
+          name: holiday.name,
+        })),
+      }),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["business-profile"] });
       queryClient.invalidateQueries({ queryKey: ["staff"] });
       setShowHolidaysModal(false);
-      toast.success(`Holiday(s) applied to all ${team.length} staff members.`);
+      toast.success("Holiday list updated.");
     },
     onError: (err) => toast.error(err?.message || "Failed to apply holidays."),
   });
@@ -1222,6 +1216,7 @@ export default function StaffPage() {
 
     const storedMap = (attendanceTarget.attendanceRecords || []).reduce(
       (acc, record) => {
+        if (record.isBusinessHoliday) return acc;
         const d = new Date(record.date);
         if (!Number.isNaN(d.getTime())) {
           acc[toDateKey(d)] = record.status;
@@ -1232,6 +1227,7 @@ export default function StaffPage() {
     );
     const storedDetailMap = (attendanceTarget.attendanceRecords || []).reduce(
       (acc, record) => {
+        if (record.isBusinessHoliday) return acc;
         const d = new Date(record.date);
         if (!Number.isNaN(d.getTime())) {
           acc[toDateKey(d)] = record;
@@ -1244,6 +1240,7 @@ export default function StaffPage() {
 
     const retainedRecords = (attendanceTarget.attendanceRecords || []).filter(
       (record) => {
+        if (record.isBusinessHoliday) return false;
         const d = new Date(record.date);
         if (Number.isNaN(d.getTime())) return false;
         return !toDateKey(d).startsWith(monthPrefix);
@@ -1291,6 +1288,17 @@ export default function StaffPage() {
   }
 
   const activeCount = team.filter((m) => m.isActive).length;
+  const holidayList = businessProfile?.holidays || [];
+  const upcomingHolidays = holidayList.filter((holiday) => {
+    const holidayDate = new Date(holiday.date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return !Number.isNaN(holidayDate.getTime()) && holidayDate >= today;
+  });
+  const holidayPreview =
+    upcomingHolidays.length > 0
+      ? upcomingHolidays.slice(0, 4)
+      : holidayList.slice(0, 4);
   const filteredTeam =
     filterDesig === "All"
       ? team
@@ -1320,10 +1328,58 @@ export default function StaffPage() {
             value={String(activeCount * 4)}
             icon={ClipboardCheck}
           />
+          <StatCard
+            title="Holidays"
+            value={String(holidayList.length)}
+            icon={CalendarDays}
+          />
+        </div>
+
+        <div className="bg-white border border-border rounded-xl p-5 mt-4">
+          <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
+            <div>
+              <h2 className="font-bold text-ink text-lg">Holiday List</h2>
+              <p className="text-sm text-muted">
+                These holidays are applied globally in staff attendance.
+              </p>
+            </div>
+            <button
+              onClick={() => setShowHolidaysModal(true)}
+              className="btn btn-outline btn-sm gap-1.5"
+            >
+              <CalendarDays size={15} /> Manage Holidays
+            </button>
+          </div>
+
+          {holidayList.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-border bg-paper/50 px-4 py-8 text-center">
+              <CalendarDays
+                size={28}
+                className="mx-auto text-muted opacity-40 mb-2"
+              />
+              <p className="text-sm text-muted">No holidays added yet.</p>
+            </div>
+          ) : (
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              {holidayPreview.map((holiday) => (
+                <div
+                  key={holiday.date}
+                  className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3"
+                >
+                  <p className="text-sm font-semibold text-ink">
+                    {holiday.name}
+                  </p>
+                  <p className="text-xs text-muted mt-1">
+                    {formatHolidayDate(holiday.date)}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Team section */}
-        <div className="bg-white border border-border rounded-xl p-5">
+        <div className="bg-white border border-border rounded-xl p-5 mt-4">
           {/* Header row */}
           <div className="flex items-center justify-between gap-3 mb-5 flex-wrap">
             <h2 className="font-bold text-ink text-lg">Staff Members</h2>
@@ -1344,7 +1400,7 @@ export default function StaffPage() {
                 onClick={() => setShowHolidaysModal(true)}
                 className="btn btn-outline btn-sm gap-1.5"
               >
-                <CalendarDays size={15} /> Holidays
+                <CalendarDays size={15} /> Holidays ({holidayList.length})
               </button>
               <button
                 onClick={openAdd}
@@ -1572,9 +1628,9 @@ export default function StaffPage() {
         <AnimatePresence>
           {showHolidaysModal && (
             <HolidaysModal
-              team={team}
-              onApply={(holidays) => applyHolidaysMutation.mutate(holidays)}
-              isApplying={applyHolidaysMutation.isPending}
+              holidays={holidayList}
+              onSave={(holidays) => applyHolidaysMutation.mutate(holidays)}
+              isSaving={applyHolidaysMutation.isPending}
               onClose={() => setShowHolidaysModal(false)}
             />
           )}

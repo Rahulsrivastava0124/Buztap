@@ -33,6 +33,15 @@ const businessSchema = new Schema(
     restroUpi: { type: String, trim: true, default: "" },
     headerImage: { type: String, trim: true, default: "" },
     logoImage: { type: String, trim: true, default: "" },
+    holidays: {
+      type: [
+        {
+          date: { type: Date, required: true },
+          name: { type: String, trim: true, default: "Holiday" },
+        },
+      ],
+      default: [],
+    },
     isActive: { type: Boolean, default: true },
   },
   { timestamps: true },

@@ -93,6 +93,7 @@ export interface BusinessProfile {
   restroUpi: string;
   headerImage: string;
   logoImage: string;
+  holidays: Array<{ date: string; name: string }>;
   isActive: boolean;
 }
 
@@ -111,6 +112,7 @@ export interface UpdateBusinessProfileInput {
   restroUpi?: string;
   headerImage?: string;
   logoImage?: string;
+  holidays?: Array<{ date: string; name?: string }>;
 }
 
 export interface PosMenuItem {
@@ -268,6 +270,7 @@ export interface StaffAttendanceRecord {
   note?: string;
   punchIn?: string;
   punchOut?: string;
+  isBusinessHoliday?: boolean;
 }
 
 export interface StaffRecord {
@@ -480,6 +483,7 @@ function getFallbackBusinessProfile(): BusinessProfile {
     restroUpi: "",
     headerImage: "",
     logoImage: "",
+    holidays: [],
     isActive: true,
   };
 }
@@ -948,6 +952,7 @@ function mapStaff(member: any): StaffRecord {
             note: record.note || "",
             punchIn: record.punchIn || undefined,
             punchOut: record.punchOut || undefined,
+            isBusinessHoliday: record.isBusinessHoliday === true,
           };
         }
         return acc;

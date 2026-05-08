@@ -1,6 +1,7 @@
 const { z } = require("zod");
 const Business = require("../models/Business");
 const Table = require("../models/Table");
+const { normalizeHolidayList } = require("../utils/attendance");
 
 function slugify(value) {
   return String(value || "")
@@ -16,6 +17,11 @@ const socialLinksSchema = z.object({
   facebook: z.string().trim().url().optional().or(z.literal("")),
   x: z.string().trim().url().optional().or(z.literal("")),
   googleReview: z.string().trim().url().optional().or(z.literal("")),
+});
+
+const holidaySchema = z.object({
+  date: z.coerce.date(),
+  name: z.string().trim().max(120).optional().or(z.literal("")),
 });
 
 const updateBusinessSchema = z
@@ -40,6 +46,7 @@ const updateBusinessSchema = z
     socialLinks: socialLinksSchema.optional(),
     headerImage: z.string().trim().url().optional().or(z.literal("")),
     logoImage: z.string().trim().url().optional().or(z.literal("")),
+    holidays: z.array(holidaySchema).optional(),
   })
   .refine((value) => Object.keys(value).length > 0, {
     message: "At least one field is required",
@@ -69,6 +76,7 @@ function mapBusinessProfile(business) {
     restroUpi: business.restroUpi || "",
     headerImage: business.headerImage || "",
     logoImage: business.logoImage || "",
+    holidays: normalizeHolidayList(business.holidays || []),
     isActive: Boolean(business.isActive),
   };
 }
@@ -240,6 +248,9 @@ async function updateBusinessProfile(req, res, next) {
         : {}),
       ...(payload.logoImage !== undefined
         ? { logoImage: payload.logoImage }
+        : {}),
+      ...(payload.holidays !== undefined
+        ? { holidays: normalizeHolidayList(payload.holidays) }
         : {}),
     };
 

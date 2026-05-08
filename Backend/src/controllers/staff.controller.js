@@ -1,6 +1,12 @@
 const bcrypt = require("bcryptjs");
 const { z } = require("zod");
 const User = require("../models/User");
+const Business = require("../models/Business");
+const {
+  applyBusinessHolidays,
+  mergeAttendanceRecords,
+  toUtcDateKey,
+} = require("../utils/attendance");
 
 // Designation → minimum permission role mapping
 const DESIGNATION_ROLE_MAP = {
@@ -66,64 +72,11 @@ const updateSchema = z.object({
   password: z.string().min(6).optional(),
 });
 
-function toUtcDateKey(value) {
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return "";
-  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
-}
-
-function mergeAttendanceRecords(existingRecords = [], incomingRecords = []) {
-  const byDate = new Map();
-
-  for (const record of existingRecords) {
-    const key = toUtcDateKey(record?.date);
-    if (!key) continue;
-    byDate.set(key, {
-      date: record.date,
-      status: record.status,
-      note: record.note || "",
-      punchIn: record.punchIn || null,
-      punchOut: record.punchOut || null,
-    });
-  }
-
-  for (const record of incomingRecords) {
-    const key = toUtcDateKey(record?.date);
-    if (!key) continue;
-
-    const prev = byDate.get(key) || {
-      date: record.date,
-      status: undefined,
-      note: "",
-      punchIn: null,
-      punchOut: null,
-    };
-
-    const merged = {
-      date: record.date || prev.date,
-      status: record.status || prev.status,
-      note: record.note ?? prev.note,
-      // Preserve existing punches if incoming payload does not include them.
-      punchIn: record.punchIn || prev.punchIn || null,
-      punchOut: record.punchOut || prev.punchOut || null,
-    };
-
-    // If any punch exists for the day, treat it as a worked day.
-    if (merged.punchIn || merged.punchOut) {
-      merged.status = "work";
-    }
-
-    byDate.set(key, merged);
-  }
-
-  return Array.from(byDate.values());
-}
-
-function mapMember(member) {
+function mapMember(member, holidays = []) {
   // Deduplicate attendance records by date
-  const deduplicatedRecords = mergeAttendanceRecords(
-    [],
+  const deduplicatedRecords = applyBusinessHolidays(
     member.attendanceRecords || [],
+    holidays,
   );
 
   return {
@@ -153,11 +106,16 @@ function mapMember(member) {
 
 async function getAll(req, res, next) {
   try {
-    const staff = await User.find({ businessId: req.user.businessId })
-      .select("-passwordHash")
-      .sort({ name: 1 })
-      .lean();
-    res.json(staff.map(mapMember));
+    const [staff, business] = await Promise.all([
+      User.find({ businessId: req.user.businessId })
+        .select("-passwordHash")
+        .sort({ name: 1 })
+        .lean(),
+      Business.findById(req.user.businessId).select("holidays").lean(),
+    ]);
+    res.json(
+      staff.map((member) => mapMember(member, business?.holidays || [])),
+    );
   } catch (err) {
     next(err);
   }
@@ -165,15 +123,18 @@ async function getAll(req, res, next) {
 
 async function getOne(req, res, next) {
   try {
-    const member = await User.findOne({
-      _id: req.params.id,
-      businessId: req.user.businessId,
-    })
-      .select("-passwordHash")
-      .lean();
+    const [member, business] = await Promise.all([
+      User.findOne({
+        _id: req.params.id,
+        businessId: req.user.businessId,
+      })
+        .select("-passwordHash")
+        .lean(),
+      Business.findById(req.user.businessId).select("holidays").lean(),
+    ]);
     if (!member)
       return res.status(404).json({ error: "Staff member not found" });
-    res.json(mapMember(member));
+    res.json(mapMember(member, business?.holidays || []));
   } catch (err) {
     next(err);
   }
@@ -206,7 +167,12 @@ async function create(req, res, next) {
       passwordHash,
       businessId: req.user.businessId,
     });
-    res.status(201).json(mapMember(member.toObject()));
+    const business = await Business.findById(req.user.businessId)
+      .select("holidays")
+      .lean();
+    res
+      .status(201)
+      .json(mapMember(member.toObject(), business?.holidays || []));
   } catch (err) {
     if (err.code === 11000) {
       return res
@@ -251,7 +217,10 @@ async function update(req, res, next) {
 
     const response = member.toObject();
     delete response.passwordHash;
-    res.json(mapMember(response));
+    const business = await Business.findById(req.user.businessId)
+      .select("holidays")
+      .lean();
+    res.json(mapMember(response, business?.holidays || []));
   } catch (err) {
     next(err);
   }
@@ -316,7 +285,10 @@ async function punchIn(req, res, next) {
     }
 
     await member.save();
-    res.json(mapMember(member.toObject()));
+    const business = await Business.findById(req.user.businessId)
+      .select("holidays")
+      .lean();
+    res.json(mapMember(member.toObject(), business?.holidays || []));
   } catch (err) {
     next(err);
   }
@@ -382,7 +354,10 @@ async function punchOut(req, res, next) {
     member.attendanceRecords[targetIndex].status = "work";
 
     await member.save();
-    res.json(mapMember(member.toObject()));
+    const business = await Business.findById(req.user.businessId)
+      .select("holidays")
+      .lean();
+    res.json(mapMember(member.toObject(), business?.holidays || []));
   } catch (err) {
     next(err);
   }
