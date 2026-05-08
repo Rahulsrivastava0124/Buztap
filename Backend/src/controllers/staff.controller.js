@@ -39,21 +39,27 @@ const shiftTimingSchema = z.object({
     .optional(),
 });
 
-const createSchema = z.object({
-  username: z.string().min(1),
-  password: z.string().min(6),
-  name: z.string().min(1),
-  designation: z.enum(VALID_DESIGNATIONS),
-  role: z.enum(["admin", "manager", "cashier"]).optional(),
-  shiftTiming: shiftTimingSchema.optional(),
-  email: z.string().email().optional().or(z.literal("")),
-  phone: z.string().optional(),
-  salaryMonthly: z.number().min(0).optional(),
-  leaveAllowance: z.number().min(0).optional(),
-  leavesTaken: z.number().min(0).optional(),
-  joiningDate: z.coerce.date().optional(),
-  attendanceRecords: z.array(attendanceRecordSchema).optional(),
-});
+const createSchema = z
+  .object({
+    username: z.string().min(1),
+    password: z.string().min(6),
+    name: z.string().min(1),
+    designation: z.enum(VALID_DESIGNATIONS),
+    role: z.enum(["admin", "manager", "cashier"]).optional(),
+    shiftTiming: shiftTimingSchema.optional(),
+    email: z.string().email().optional().or(z.literal("")),
+    phone: z.string().optional(),
+    salaryMonthly: z.number().min(0).optional(),
+    leaveAllowance: z.number().min(0).optional(),
+    leavesTaken: z.number().min(0).optional(),
+    joiningDate: z.coerce.date().optional(),
+    attendanceRecords: z.array(attendanceRecordSchema).optional(),
+  })
+  .transform((data) => ({
+    ...data,
+    // Auto-derive role from designation when not explicitly provided
+    role: data.role || DESIGNATION_ROLE_MAP[data.designation] || "cashier",
+  }));
 
 const updateSchema = z.object({
   name: z.string().min(1).optional(),
@@ -144,14 +150,12 @@ async function create(req, res, next) {
   try {
     const data = createSchema.parse(req.body);
     const passwordHash = await bcrypt.hash(data.password, 10);
-    // Auto-derive role from designation unless explicitly provided
-    const role =
-      data.role || DESIGNATION_ROLE_MAP[data.designation] || "cashier";
+    // role is guaranteed by createSchema transform (auto-derived from designation if missing)
     const member = await User.create({
       username: data.username,
       name: data.name,
       designation: data.designation,
-      role,
+      role: data.role,
       shiftTiming: data.shiftTiming || {
         name: "Morning",
         startTime: "09:00",
