@@ -12,11 +12,10 @@ import {
   Smartphone,
   Star,
   Users,
-  Utensils,
   WandSparkles,
   X,
 } from "lucide-react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 
 import {
   NAV_ITEMS,
@@ -48,6 +47,8 @@ const stagger = { show: { transition: { staggerChildren: 0.1 } } };
 
 export default function Landing() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [activeSection, setActiveSection] = useState("home");
   /* scroll-reveal */
   useEffect(() => {
     const els = document.querySelectorAll(".reveal");
@@ -75,14 +76,6 @@ export default function Landing() {
     return () => clearInterval(t);
   }, []);
 
-  /* scroll shadow */
-  const [scrolled, setScrolled] = useState(false);
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 12);
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
-
   /* FAQ */
   const [openFaq, setOpenFaq] = useState(null);
 
@@ -92,54 +85,101 @@ export default function Landing() {
   /* smooth-scroll */
   const scrollTo = (id) => {
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
+    setActiveSection(id);
     setMobileOpen(false);
   };
 
+  useEffect(() => {
+    const sectionIds = NAV_ITEMS.filter((item) => item.id).map(
+      (item) => item.id,
+    );
+    const sections = sectionIds
+      .map((id) => document.getElementById(id))
+      .filter(Boolean);
+
+    if (!sections.length) return undefined;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visibleEntries = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
+
+        if (visibleEntries.length) {
+          setActiveSection(visibleEntries[0].target.id);
+        }
+      },
+      {
+        rootMargin: "-35% 0px -45% 0px",
+        threshold: [0.2, 0.35, 0.5, 0.7],
+      },
+    );
+
+    sections.forEach((section) => observer.observe(section));
+    return () => observer.disconnect();
+  }, []);
+
   return (
-    <div className="bg-[#faf7f2] text-[#0f0e0b] font-[Inter,sans-serif] overflow-x-hidden">
+    <div className="bg-paper text-ink font-[Inter,sans-serif] overflow-x-hidden">
       {/* ════════════════ 1. NAVBAR ════════════════════════════════ */}
-      <header
-        className={`sticky top-0 z-50 bg-[#faf7f2] border-b border-[#e0d9ce] transition-shadow duration-300 ${scrolled ? "shadow-[0_4px_24px_rgba(15,14,11,0.09)]" : ""}`}
-      >
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-[68px] flex items-center justify-between gap-6">
+      <header className="fixed top-0 inset-x-0 z-50 bg-paper border-b border-border">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-17 flex items-center justify-between gap-6">
           {/* ── Logo ── */}
-          <a href="#" className="flex items-center gap-2.5 flex-shrink-0">
-            <span className="w-9 h-9 bg-[#e8720c] rounded-lg flex items-center justify-center shadow-[0_2px_10px_rgba(232,114,12,0.32)]">
-              <Utensils size={17} className="text-white" strokeWidth={2.2} />
-            </span>
-            <span className="font-display font-bold text-[#0f0e0b] text-xl tracking-tight">
-              restro<span className="text-[#e8720c]">Menu</span>
+          <a href="#" className="flex items-center gap-2.5 shrink-0">
+            <span className="rounded-2xl overflow-hidden bg-white border border-border shadow-sm p-1">
+              <img
+                src="/logo.jpeg"
+                alt="BuzTap logo"
+                className="h-12 w-auto max-w-48 object-contain"
+              />
             </span>
           </a>
 
           {/* ── Desktop Nav ── */}
           <nav className="hidden lg:flex items-center gap-0.5 flex-1 justify-center">
-            {NAV_ITEMS.map((item) => (
-              <button
-                key={item.label}
-                onClick={() => {
-                  if (item.path) navigate(item.path);
-                  else if (item.id) scrollTo(item.id);
-                }}
-                className="px-3.5 py-2 text-sm font-medium text-[#2a2720] hover:text-[#0f0e0b] hover:bg-[#f0ebe0] transition-colors rounded-md"
-              >
-                {item.label}
-              </button>
-            ))}
+            {NAV_ITEMS.map((item) => {
+              const isActive = item.path
+                ? location.pathname === item.path
+                : activeSection === item.id;
+
+              return (
+                <button
+                  key={item.label}
+                  onClick={() => {
+                    if (item.path) navigate(item.path);
+                    else if (item.id) scrollTo(item.id);
+                  }}
+                  className={`group relative px-3.5 py-2 text-sm font-medium transition-colors rounded-md ${
+                    isActive
+                      ? "text-ink"
+                      : "text-ink2 hover:text-ink hover:bg-cream"
+                  }`}
+                >
+                  {item.label}
+                  <span
+                    className={`absolute left-3.5 right-3.5 -bottom-0.5 h-0.5 rounded-full bg-saffron transition-transform duration-200 ${
+                      isActive
+                        ? "scale-x-100"
+                        : "scale-x-0 group-hover:scale-x-100"
+                    }`}
+                  />
+                </button>
+              );
+            })}
           </nav>
 
           {/* ── Desktop Right Actions ── */}
-          <div className="hidden lg:flex items-center gap-1 flex-shrink-0">
+          <div className="hidden lg:flex items-center gap-1 shrink-0">
             <button
               onClick={() => navigate("/auth")}
-              className="px-4 py-2 text-sm font-medium text-[#2a2720] hover:text-[#e8720c] hover:bg-[#fef0e4] rounded-md transition-colors"
+              className="px-4 py-2 text-sm font-medium text-ink2 hover:text-saffron hover:bg-saffron-lt rounded-md transition-colors"
             >
               Sign In
             </button>
-            <div className="w-px h-5 bg-[#e0d9ce] mx-1" />
+            <div className="w-px h-5 bg-border mx-1" />
             <button
               onClick={() => navigate("/auth")}
-              className="flex items-center gap-1.5 px-5 py-2.5 bg-[#e8720c] hover:bg-[#d4620a] text-white text-sm font-semibold rounded-lg transition-colors shadow-[0_2px_10px_rgba(232,114,12,0.28)]"
+              className="flex items-center gap-1.5 px-5 py-2.5 bg-saffron hover:bg-saffron2 text-white text-sm font-semibold rounded-lg transition-colors shadow-[0_2px_10px_rgba(232,114,12,0.28)]"
             >
               Get Started Free <ArrowRight size={14} />
             </button>
@@ -147,7 +187,7 @@ export default function Landing() {
 
           {/* ── Mobile Toggle ── */}
           <button
-            className="lg:hidden p-2 rounded-lg hover:bg-[#fef0e4] transition-colors"
+            className="lg:hidden p-2 rounded-lg hover:bg-saffron-lt transition-colors"
             onClick={() => setMobileOpen((v) => !v)}
           >
             {mobileOpen ? <X size={21} /> : <Menu size={21} />}
@@ -162,7 +202,7 @@ export default function Landing() {
               animate={{ height: "auto", opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
               transition={{ duration: 0.25 }}
-              className="lg:hidden absolute top-[68px] left-0 w-full overflow-hidden border-t border-b border-[#e0d9ce] bg-white shadow-2xl"
+              className="lg:hidden absolute top-17 left-0 w-full overflow-hidden border-t border-b border-border bg-white shadow-2xl"
             >
               <div className="px-4 py-4 flex flex-col gap-0.5">
                 {NAV_ITEMS.map((item) => (
@@ -173,21 +213,21 @@ export default function Landing() {
                       else if (item.id) scrollTo(item.id);
                       setMobileOpen(false);
                     }}
-                    className="w-full flex items-center px-3 py-2.5 text-sm font-semibold text-[#0f0e0b] rounded-lg hover:bg-[#faf7f2] transition-colors text-left"
+                    className="w-full flex items-center px-3 py-2.5 text-sm font-semibold text-ink rounded-lg hover:bg-paper transition-colors text-left"
                   >
                     {item.label}
                   </button>
                 ))}
-                <div className="border-t border-[#e0d9ce] mt-3 pt-3 flex flex-col gap-2">
+                <div className="border-t border-border mt-3 pt-3 flex flex-col gap-2">
                   <button
                     onClick={() => navigate("/auth")}
-                    className="w-full py-2.5 text-sm font-semibold text-[#0f0e0b] border border-[#e0d9ce] rounded-lg hover:border-[#e8720c] hover:text-[#e8720c] transition-colors"
+                    className="w-full py-2.5 text-sm font-semibold text-ink border border-border rounded-lg hover:border-saffron hover:text-saffron transition-colors"
                   >
                     Sign In
                   </button>
                   <button
                     onClick={() => navigate("/auth")}
-                    className="w-full py-3 text-sm font-bold text-white bg-[#e8720c] hover:bg-[#d4620a] rounded-lg transition-colors flex items-center justify-center gap-2"
+                    className="w-full py-3 text-sm font-bold text-white bg-saffron hover:bg-saffron2 rounded-lg transition-colors flex items-center justify-center gap-2"
                   >
                     Get Started Free <ArrowRight size={15} />
                   </button>
@@ -198,8 +238,13 @@ export default function Landing() {
         </AnimatePresence>
       </header>
 
+      <div className="h-17" aria-hidden="true" />
+
       {/* ════════════════ 2. HERO ══════════════════════════════════ */}
-      <section className="max-w-6xl mx-auto px-4 sm:px-6 pt-20 pb-24 grid md:grid-cols-2 gap-12 items-center">
+      <section
+        id="home"
+        className="max-w-6xl mx-auto px-4 sm:px-6 pt-20 pb-24 grid md:grid-cols-2 gap-12 items-center"
+      >
         {/* text */}
         <div>
           <Motion.span
@@ -207,9 +252,9 @@ export default function Landing() {
             initial="hidden"
             whileInView="show"
             viewport={{ once: true }}
-            className="inline-flex items-center gap-2 bg-[#fef0e4] text-[#e8720c] text-xs font-semibold px-3 py-1.5 rounded-full mb-5"
+            className="inline-flex items-center gap-2 bg-saffron-lt text-saffron text-xs font-semibold px-3 py-1.5 rounded-full mb-5"
           >
-            <span className="w-1.5 h-1.5 rounded-full bg-[#e8720c] pulse-dot" />
+            <span className="w-1.5 h-1.5 rounded-full bg-saffron pulse-dot" />
             Trusted by 12 000+ restaurants & hotels across India
           </Motion.span>
 
@@ -219,11 +264,11 @@ export default function Landing() {
             whileInView="show"
             viewport={{ once: true }}
             transition={{ duration: 0.5, delay: 0.08 }}
-            className="font-display text-4xl sm:text-5xl lg:text-6xl font-bold leading-[1.12] tracking-wide text-[#0f0e0b] mb-5"
+            className="font-display text-4xl sm:text-5xl lg:text-6xl font-bold leading-[1.12] tracking-wide text-ink mb-5"
           >
             Digital Menus.
             <br />
-            <span className="text-[#e8720c]">Table Orders.</span>
+            <span className="text-saffron">Table Orders.</span>
             <br />
             Zero Friction.
           </Motion.h1>
@@ -1089,11 +1134,12 @@ export default function Landing() {
           {/* brand */}
           <div className="col-span-2 md:col-span-1">
             <div className="flex items-center gap-2 mb-4">
-              <span className="w-8 h-8 bg-[#e8720c] rounded-md flex items-center justify-center">
-                <Utensils size={16} className="text-white" />
-              </span>
-              <span className="font-display font-bold text-[#0f0e0b] text-lg">
-                BuzTap
+              <span className="rounded-2xl overflow-hidden">
+                <img
+                  src="/logo.jpeg"
+                  alt="BuzTap logo"
+                  className="h-10 w-auto max-w-[160px] object-contain"
+                />
               </span>
             </div>
             <p className="text-sm leading-relaxed mb-4">

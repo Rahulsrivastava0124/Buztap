@@ -2,11 +2,14 @@ import { useEffect } from "react";
 import {
   updatePageMeta,
   updateCanonicalURL,
+  updateOGImage,
+  updateRobotsMeta,
   addStructuredData,
   pageMetaConfig,
 } from "../utils/seo";
 
-const PRIMARY_DOMAIN = "https://restro.buzingbee.com";
+const PRIMARY_DOMAIN =
+  import.meta.env.VITE_SITE_URL || "https://restro.buzingbee.com";
 
 /**
  * Hook to update page SEO meta tags and structured data
@@ -32,13 +35,24 @@ export const useSEO = (config) => {
           pageConfig.description,
           pageConfig.keywords,
         );
-        updateCanonicalURL(
-          `${PRIMARY_DOMAIN}/${config === "landing" ? "" : config}`,
-        );
+        updateCanonicalURL(`${PRIMARY_DOMAIN}${pageConfig.url || "/"}`);
+        updateRobotsMeta(pageConfig.robots);
+
+        if (pageConfig.structuredData) {
+          addStructuredData(pageConfig.structuredData);
+        }
       }
     } else if (typeof config === "object") {
       // Use custom config
-      const { title, description, keywords, url, structuredData } = config;
+      const {
+        title,
+        description,
+        keywords,
+        url,
+        structuredData,
+        robots,
+        ogImage,
+      } = config;
 
       if (title && description) {
         updatePageMeta(title, description, keywords);
@@ -46,6 +60,12 @@ export const useSEO = (config) => {
 
       if (url) {
         updateCanonicalURL(`${PRIMARY_DOMAIN}${url}`);
+      }
+
+      updateRobotsMeta(robots);
+
+      if (ogImage) {
+        updateOGImage(ogImage);
       }
 
       if (structuredData) {

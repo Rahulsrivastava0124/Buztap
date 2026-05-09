@@ -1,19 +1,14 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import {
-  Utensils,
-  Mail,
-  Phone,
-  Lock,
-  ArrowRight,
-  Eye,
-  EyeOff,
-} from "lucide-react";
+import { Mail, Phone, Lock, ArrowRight, Eye, EyeOff } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "../context/AuthContext";
 import { requestLoginOtp, verifyEmailOtp } from "../services/api";
+import useSEO from "../hooks/useSEO";
 
 export default function AuthPage() {
+  useSEO("auth");
+
   const [loginMethod, setLoginMethod] = useState("phone");
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
@@ -267,15 +262,13 @@ export default function AuthPage() {
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
 
         <div className="absolute inset-0 p-12 flex flex-col justify-between">
-          <Link
-            to="/"
-            className="flex items-center gap-2.5 flex-shrink-0 w-fit"
-          >
-            <span className="w-10 h-10 bg-[#e8720c] rounded-xl flex items-center justify-center shadow-[0_2px_15px_rgba(232,114,12,0.4)]">
-              <Utensils size={20} className="text-white" strokeWidth={2.2} />
-            </span>
-            <span className="font-display font-bold text-white text-2xl tracking-tight">
-              BuzTap
+          <Link to="/" className="flex items-center gap-2.5 shrink-0 w-fit">
+            <span className="rounded-2xl overflow-hidden bg-white/10 border border-white/15 shadow-sm p-1">
+              <img
+                src="/logo.jpeg"
+                alt="BuzTap logo"
+                className="h-12 w-auto max-w-52 object-contain"
+              />
             </span>
           </Link>
 
@@ -283,9 +276,9 @@ export default function AuthPage() {
             <h2 className="font-display text-4xl lg:text-5xl font-bold text-white leading-[1.1] mb-6">
               Turn tables faster.
               <br />
-              <span className="text-[#e8720c]">Delight guests.</span>
+              <span className="text-saffron">Delight guests.</span>
             </h2>
-            <p className="text-[#e8e0d4] text-lg max-w-md leading-relaxed selection:bg-[#e8720c]/30">
+            <p className="text-[#e8e0d4] text-lg max-w-md leading-relaxed selection:bg-saffron/30">
               Join thousands of restaurants revolutionizing the dining
               experience with instant digital ordering.
             </p>
@@ -297,12 +290,13 @@ export default function AuthPage() {
       <div className="flex flex-col justify-center p-6 sm:p-12 lg:p-20 relative bg-white min-h-screen md:min-h-0">
         {/* Mobile Header */}
         <div className="md:hidden absolute top-6 left-6 right-6 flex items-center justify-end">
-          <Link to="/" className="flex items-center gap-2 flex-shrink-0">
-            <span className="font-display font-bold text-[#0f0e0b] text-xl tracking-tight">
-              BuzTap
-            </span>
-            <span className="w-8 h-8 bg-[#e8720c] rounded-lg flex items-center justify-center shadow-[0_2px_10px_rgba(232,114,12,0.3)]">
-              <Utensils size={16} className="text-white" strokeWidth={2.2} />
+          <Link to="/" className="flex items-center gap-2 shrink-0">
+            <span className="rounded-xl overflow-hidden bg-white shadow-sm p-1">
+              <img
+                src="/logo.jpeg"
+                alt="BuzTap logo"
+                className="h-9 w-auto max-w-40 object-contain"
+              />
             </span>
           </Link>
         </div>

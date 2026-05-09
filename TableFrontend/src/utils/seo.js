@@ -4,8 +4,11 @@
  */
 
 const SITE_NAME = "BuzTap";
-const SITE_URL = "https://restro.buzingbee.com";
-const SITE_LOGO = `${SITE_URL}/logo.png`;
+const SITE_URL =
+  import.meta.env.VITE_SITE_URL || "https://restro.buzingbee.com";
+const SITE_LOGO = `${SITE_URL}/logo.jpeg`;
+const DEFAULT_ROBOTS =
+  "index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1";
 
 /**
  * Update meta tag content
@@ -39,10 +42,13 @@ export const updatePageMeta = (title, description, keywords = null) => {
   }
 
   // Update Open Graph
+  updateMetaTag("type", "website", "og:type");
+  updateMetaTag("site_name", SITE_NAME, "og:site_name");
   updateMetaTag("title", title, "og:title");
   updateMetaTag("description", description, "og:description");
 
   // Update Twitter
+  updateMetaTag("card", "summary_large_image", "twitter:card");
   updateMetaTag("title", title, "twitter:title");
   updateMetaTag("description", description, "twitter:description");
 };
@@ -69,16 +75,36 @@ export const updateCanonicalURL = (url) => {
 
   // Also update og:url
   updateMetaTag("url", url, "og:url");
+  updateMetaTag("url", url, "twitter:url");
+};
+
+/**
+ * Update robots directives
+ */
+export const updateRobotsMeta = (robots = DEFAULT_ROBOTS) => {
+  updateMetaTag("robots", robots);
 };
 
 /**
  * Add JSON-LD Structured Data
  */
 export const addStructuredData = (data) => {
-  const script = document.createElement("script");
-  script.type = "application/ld+json";
-  script.textContent = JSON.stringify(data);
-  document.head.appendChild(script);
+  const payloads = Array.isArray(data) ? data : [data];
+
+  document
+    .querySelectorAll(
+      'script[type="application/ld+json"][data-seo-dynamic="true"]',
+    )
+    .forEach((node) => node.remove());
+
+  payloads.filter(Boolean).forEach((item, index) => {
+    const script = document.createElement("script");
+    script.type = "application/ld+json";
+    script.setAttribute("data-seo-dynamic", "true");
+    script.setAttribute("data-seo-index", String(index));
+    script.textContent = JSON.stringify(item);
+    document.head.appendChild(script);
+  });
 };
 
 /**
@@ -91,6 +117,8 @@ export const pageMetaConfig = {
       "BuzTap: Enable contactless table ordering, integrated POS billing, and seamless guest experience with QR code menus. Trusted by 12,000+ restaurants & hotels in India. Free setup in 5 minutes.",
     keywords:
       "QR code menu, digital menu, restaurant ordering system, table ordering system, POS system, hotel room service, contactless menu, digital restaurant technology, QR menu software, digital ordering system",
+    url: "/",
+    robots: DEFAULT_ROBOTS,
   },
   features: {
     title: "Features & Benefits",
@@ -117,12 +145,16 @@ export const pageMetaConfig = {
     description:
       "Experience the BuzTap guest interface firsthand. Scan the QR code or click to try the interactive demo now.",
     keywords: "QR menu demo, restaurant demo, table ordering demo",
+    url: "/demo",
+    robots: "noindex, nofollow, noarchive, nosnippet",
   },
   auth: {
     title: "Sign In / Create Account",
     description:
       "Sign in to your BuzTap dashboard or create a free account to start managing your restaurant's digital menu.",
     keywords: "sign in, create account, restaurant dashboard",
+    url: "/auth",
+    robots: DEFAULT_ROBOTS,
   },
   dashboard: {
     title: "Restaurant Dashboard",
@@ -135,6 +167,43 @@ export const pageMetaConfig = {
     description:
       "Get in touch with the BuzTap team. We're here to help your restaurant succeed.",
     keywords: "contact support, customer service, restaurant support",
+    url: "/contact",
+    robots: DEFAULT_ROBOTS,
+  },
+  order: {
+    title: "Order Menu",
+    description: "Browse the live QR menu and place your order in a few taps.",
+    keywords: "qr menu order, table ordering",
+    url: "/order",
+    robots: "noindex, nofollow, noarchive, nosnippet",
+  },
+  cart: {
+    title: "Your Cart",
+    description: "Review your selected items and continue checkout.",
+    keywords: "cart, checkout",
+    url: "/cart",
+    robots: "noindex, nofollow, noarchive, nosnippet",
+  },
+  tracking: {
+    title: "Track Order",
+    description: "Track preparation and live status for your current order.",
+    keywords: "order tracking",
+    url: "/tracking",
+    robots: "noindex, nofollow, noarchive, nosnippet",
+  },
+  history: {
+    title: "Order History",
+    description: "View your previous orders and invoices.",
+    keywords: "order history",
+    url: "/history",
+    robots: "noindex, nofollow, noarchive, nosnippet",
+  },
+  search: {
+    title: "Restaurant Search",
+    description: "Find restaurants, cuisines, and dishes nearby.",
+    keywords: "restaurant search, food discovery",
+    url: "/search",
+    robots: "noindex, nofollow, noarchive, nosnippet",
   },
 };
 
@@ -298,6 +367,7 @@ export default {
   updatePageMeta,
   updateOGImage,
   updateCanonicalURL,
+  updateRobotsMeta,
   addStructuredData,
   pageMetaConfig,
   getProductStructuredData,

@@ -10,7 +10,6 @@ import {
   LayoutDashboard,
   MonitorSmartphone,
   Settings,
-  Utensils,
   LogOut,
   Menu,
   Bell,
@@ -123,30 +122,15 @@ function SidebarContent({
       >
         <Link
           to={`/${slug}/dashboard/overview`}
-          className={`flex items-center ${compactSidebar ? "justify-center" : "gap-2.5"}`}
+          className="flex items-center justify-center"
         >
-          <span
-            className={`w-10 h-10 rounded-lg overflow-hidden flex items-center justify-center shrink-0 ${
-              logoImage
-                ? "bg-transparent border border-border/30"
-                : "bg-saffron border border-saffron-lt"
-            }`}
-          >
-            {logoImage ? (
-              <img
-                src={logoImage}
-                alt={brandName || "Restaurant logo"}
-                className="w-full h-full object-contain"
-              />
-            ) : (
-              <Utensils size={18} className="text-white" strokeWidth={2.2} />
-            )}
+          <span className="rounded-2xl overflow-hidden">
+            <img
+              src={logoImage}
+              alt={brandName || "BuzTap logo"}
+              className={`h-13 w-auto object-contain ${compactSidebar ? "max-w-16" : "max-w-44"}`}
+            />
           </span>
-          {!compactSidebar ? (
-            <span className="font-display font-bold text-ink text-xl tracking-tight">
-              {brandName}
-            </span>
-          ) : null}
         </Link>
       </div>
 
@@ -170,10 +154,10 @@ function SidebarContent({
               key={`${fullPath}-${dynamicLabel}`}
               to={fullPath}
               title={compactSidebar ? dynamicLabel : undefined}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium text-sm transition-colors ${
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg border-l-4 font-medium text-sm transition-colors ${
                 isActive
-                  ? "bg-saffron-lt text-saffron"
-                  : "text-muted hover:bg-paper hover:text-ink"
+                  ? "bg-saffron-lt text-saffron border-saffron"
+                  : "text-muted border-transparent hover:bg-paper hover:text-ink"
               } ${compactSidebar ? "justify-center" : ""}`}
             >
               <item.icon size={18} />
@@ -224,7 +208,7 @@ export default function AdminLayout() {
   });
 
   const brandName = businessProfile?.name || businessName || "BuzTap";
-  const brandLogo = businessProfile?.logoImage || "";
+  const brandLogo = businessProfile?.logoImage || "/logo.jpeg";
 
   const isHotelMode = businessType === "hotel";
   const roleLabel = role

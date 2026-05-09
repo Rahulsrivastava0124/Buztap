@@ -15,8 +15,11 @@ import {
   verifyEmailOtp,
   resetAdminPassword,
 } from "../services/api";
+import useSEO from "../hooks/useSEO";
 
 export default function ForgotPasswordPage() {
+  useSEO("forgotPassword");
+
   const navigate = useNavigate();
 
   const [step, setStep] = useState(1);

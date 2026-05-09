@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { fetchGuestOrders } from "../services/api";
 import { getPreviousNavigation } from "../utils/navigationHistory";
+import useSEO from "../hooks/useSEO";
 
 const formatCurrency = (value = 0) => `₹${Number(value || 0)}`;
 
@@ -235,6 +236,14 @@ function collectAllOrders(phone, scopeKey = "") {
 
 export default function OrderHistory() {
   const location = useLocation();
+  useSEO({
+    title: "Order History",
+    description: "View your recent orders and invoices.",
+    keywords: "order history, invoices",
+    url: "/history",
+    robots: "noindex, nofollow, noarchive, nosnippet",
+  });
+
   const navigate = useNavigate();
   const goBackToGuestFlow = () => {
     const previousRoute = getPreviousNavigation(location);

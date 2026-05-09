@@ -27,6 +27,7 @@ import {
 } from "../services/api";
 import ActiveOrderBanner from "../components/shared/ActiveOrderBanner";
 import { getPreviousNavigation } from "../utils/navigationHistory";
+import useSEO from "../hooks/useSEO";
 
 // ── In-memory cache (per page load) ─────────────────────────────────────────
 // Prevents redundant network calls on re-renders / React strict-mode double
@@ -558,6 +559,28 @@ const ScratchCard = ({
 export default function DemoMenu() {
   const navigate = useNavigate();
   const location = useLocation();
+  const isCartPath = location.pathname === "/cart";
+  const isTrackingPath = location.pathname === "/tracking";
+  const isDemoPath = location.pathname === "/demo";
+
+  useSEO({
+    title: isTrackingPath
+      ? "Track Order"
+      : isCartPath
+        ? "Your Cart"
+        : isDemoPath
+          ? "Live Demo Menu"
+          : "Order Menu",
+    description: isTrackingPath
+      ? "Track your order progress in real time."
+      : isCartPath
+        ? "Review selected items and continue to place your order."
+        : "Browse the live QR menu and place your order in a few taps.",
+    keywords: "qr menu, table ordering, guest ordering",
+    url: location.pathname,
+    robots: "noindex, nofollow, noarchive, nosnippet",
+  });
+
   const queryParams = new URLSearchParams(window.location.search);
   const rawTableParam = queryParams.get("table");
   const rawBusinessParam = queryParams.get("biz");
@@ -576,10 +599,7 @@ export default function DemoMenu() {
   const currentTableId = queryParams.get("table") || "04";
   const currentBusinessId = queryParams.get("biz") || "";
   const currentRestroSlug = queryParams.get("restro") || "";
-  const isCartPath = location.pathname === "/cart";
-  const isTrackingPath = location.pathname === "/tracking";
   const rawDemoParam = String(queryParams.get("demo") || "").toLowerCase();
-  const isDemoPath = location.pathname === "/demo";
   const isForcedDemo =
     isDemoPath || rawDemoParam === "1" || rawDemoParam === "true";
   const isDemoLink = isForcedDemo || (!currentBusinessId && !currentRestroSlug);
@@ -2562,7 +2582,7 @@ export default function DemoMenu() {
                             {recommendedItems.map((item) => (
                               <div
                                 key={item.id}
-                                className="w-[148px] min-w-[148px] rounded-xl border border-border bg-paper p-2.5 shrink-0 snap-start"
+                                className="w-37 min-w-37 rounded-xl border border-border bg-paper p-2.5 shrink-0 snap-start"
                               >
                                 <div className="w-full h-20 rounded-lg overflow-hidden mb-2">
                                   <img
@@ -3018,7 +3038,7 @@ export default function DemoMenu() {
                                 <div key={step} className="relative pl-9">
                                   {/* Connector line */}
                                   {step < 2 && (
-                                    <div className="absolute left-[7px] top-[22px] w-[2px] h-[calc(100%+4px)] bg-cream" />
+                                    <div className="absolute left-1.75 top-5.5 w-0.5 h-[calc(100%+4px)] bg-cream" />
                                   )}
                                   {/* Dot */}
                                   {done ? (
@@ -3373,7 +3393,7 @@ export default function DemoMenu() {
               className="bg-white rounded-3xl max-w-sm w-full p-6 text-center relative"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="w-20 h-20 bg-linear-to-br from-[#e8720c] to-[#d4620a] rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
+              <div className="w-20 h-20 bg-linear-to-br from-saffron to-saffron2 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
                 <Star className="w-10 h-10 text-white fill-white" />
               </div>
 
@@ -3407,8 +3427,8 @@ export default function DemoMenu() {
                 }}
               >
                 {/* Scratch Layer */}
-                <div className="w-full h-full bg-linear-to-br from-[#e8720c] via-[#f97316] to-[#d4620a] rounded-xl flex items-center justify-center relative overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse"></div>
+                <div className="w-full h-full bg-linear-to-br from-saffron via-[#f97316] to-saffron2 rounded-xl flex items-center justify-center relative overflow-hidden">
+                  <div className="absolute inset-0 bg-linear-to-r from-transparent via-white/20 to-transparent animate-pulse"></div>
                   <div className="text-white text-center z-10">
                     <div className="text-3xl">🎁</div>
                   </div>
@@ -3416,7 +3436,7 @@ export default function DemoMenu() {
 
                 {/* Reward Layer */}
                 <div className="w-full h-full bg-linear-to-br from-green-500 to-green-600 rounded-xl flex flex-col items-center justify-center text-white relative overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
+                  <div className="absolute inset-0 bg-linear-to-r from-transparent via-white/10 to-transparent"></div>
                   <div className="text-center z-10">
                     <div className="text-3xl mb-2">🎉</div>
                     <div className="text-lg font-bold mb-1">FREE ITEM!</div>

@@ -1,17 +1,21 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion as Motion } from "framer-motion";
-import { Utensils, ArrowRight, ArrowLeft } from "lucide-react";
+import { ArrowRight, ArrowLeft } from "lucide-react";
 import RegistrationModal from "../components/registration/RegistrationModal";
+import useSEO from "../hooks/useSEO";
 
 export default function AuthPage() {
+  useSEO("auth");
+
   const [registrationModalOpen, setRegistrationModalOpen] = useState(false);
-  const loginUrl = import.meta.env.VITE_ADMIN_URL || "https://restroadmin.buzingbee.com";
+  const loginUrl =
+    import.meta.env.VITE_ADMIN_URL || "https://restroadmin.buzingbee.com";
 
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-[#faf7f2] flex flex-col md:grid md:grid-cols-2 font-[Inter,sans-serif]">
+    <div className="min-h-screen bg-paper flex flex-col md:grid md:grid-cols-2 font-[Inter,sans-serif]">
       {/* ── Left Side Image / Brand ── */}
       <div className="hidden md:flex flex-col relative bg-black">
         <img
@@ -19,18 +23,16 @@ export default function AuthPage() {
           alt="Restaurant kitchen"
           className="w-full h-full object-cover opacity-70"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
+        <div className="absolute inset-0 bg-linear-to-t from-black/90 via-black/40 to-transparent" />
 
         <div className="absolute inset-0 p-12 flex flex-col justify-between">
-          <Link
-            to="/"
-            className="flex items-center gap-2.5 flex-shrink-0 w-fit"
-          >
-            <span className="w-10 h-10 bg-[#e8720c] rounded-xl flex items-center justify-center shadow-[0_2px_15px_rgba(232,114,12,0.4)]">
-              <Utensils size={20} className="text-white" strokeWidth={2.2} />
-            </span>
-            <span className="font-display font-bold text-white text-2xl tracking-tight">
-              BuzTap
+          <Link to="/" className="flex items-center gap-2.5 shrink-0 w-fit">
+            <span className="rounded-2xl overflow-hidden">
+              <img
+                src="/logo.jpeg"
+                alt="BuzTap logo"
+                className="h-12 w-auto max-w-52 object-contain"
+              />
             </span>
           </Link>
 
@@ -38,9 +40,9 @@ export default function AuthPage() {
             <h2 className="font-display text-4xl lg:text-5xl font-bold text-white leading-[1.1] mb-6">
               Turn tables faster.
               <br />
-              <span className="text-[#e8720c]">Delight guests.</span>
+              <span className="text-saffron">Delight guests.</span>
             </h2>
-            <p className="text-[#e8e0d4] text-lg max-w-md leading-relaxed selection:bg-[#e8720c]/30">
+            <p className="text-[#e8e0d4] text-lg max-w-md leading-relaxed selection:bg-saffron/30">
               Join thousands of restaurants revolutionizing the dining
               experience with instant digital ordering.
             </p>
@@ -53,7 +55,7 @@ export default function AuthPage() {
         {/* Desktop Back Button */}
         <button
           onClick={() => navigate("/")}
-          className="hidden md:flex absolute top-8 right-8 items-center gap-2 text-sm font-semibold text-[#857c6e] hover:text-[#0f0e0b] transition-colors"
+          className="hidden md:flex absolute top-8 right-8 items-center gap-2 text-sm font-semibold text-muted hover:text-ink transition-colors"
         >
           <ArrowLeft size={18} /> Back to Home
         </button>
@@ -62,17 +64,18 @@ export default function AuthPage() {
         <div className="md:hidden absolute top-6 left-6 right-6 flex items-center justify-between">
           <button
             onClick={() => navigate("/")}
-            className="flex items-center justify-center w-8 h-8 rounded-full bg-[#f5f0e8] text-[#0f0e0b] hover:bg-[#e0d9ce] transition-colors"
+            className="flex items-center justify-center w-8 h-8 rounded-full bg-cream text-ink hover:bg-border transition-colors"
           >
             <ArrowLeft size={18} />
           </button>
 
-          <Link to="/" className="flex items-center gap-2 flex-shrink-0">
-            <span className="font-display font-bold text-[#0f0e0b] text-xl tracking-tight">
-              BuzTap
-            </span>
-            <span className="w-8 h-8 bg-[#e8720c] rounded-lg flex items-center justify-center shadow-[0_2px_10px_rgba(232,114,12,0.3)]">
-              <Utensils size={16} className="text-white" strokeWidth={2.2} />
+          <Link to="/" className="flex items-center gap-2 shrink-0">
+            <span className="rounded-xl overflow-hidden">
+              <img
+                src="/logo.jpeg"
+                alt="BuzTap logo"
+                className="h-9 w-auto max-w-40 object-contain"
+              />
             </span>
           </Link>
         </div>
@@ -85,17 +88,17 @@ export default function AuthPage() {
             transition={{ duration: 0.2 }}
           >
             <div className="mb-8">
-              <h1 className="font-display text-3xl font-bold text-[#0f0e0b] mb-2">
+              <h1 className="font-display text-3xl font-bold text-ink mb-2">
                 Get started free
               </h1>
-              <p className="text-[#857c6e] text-sm">
+              <p className="text-muted text-sm">
                 Set up your restaurant in minutes. No credit card required.
               </p>
             </div>
 
             <div className="space-y-5">
               {/* Feature highlights */}
-              <div className="rounded-2xl bg-[#faf7f2] border border-[#e0d9ce] p-5 space-y-3">
+              <div className="rounded-2xl bg-paper border border-border p-5 space-y-3">
                 {[
                   { icon: "🍽️", text: "Digital menu with QR ordering" },
                   { icon: "📊", text: "Real-time orders & table management" },
@@ -104,7 +107,7 @@ export default function AuthPage() {
                 ].map((f) => (
                   <div key={f.text} className="flex items-center gap-3">
                     <span className="text-lg">{f.icon}</span>
-                    <span className="text-sm text-[#3d3730]">{f.text}</span>
+                    <span className="text-sm text-ink2">{f.text}</span>
                   </div>
                 ))}
               </div>
@@ -112,28 +115,28 @@ export default function AuthPage() {
               <button
                 type="button"
                 onClick={() => setRegistrationModalOpen(true)}
-                className="w-full py-3 bg-[#e8720c] hover:bg-[#d4620a] text-white text-sm font-semibold rounded-lg transition-colors shadow-[0_4px_14px_rgba(232,114,12,0.25)] flex items-center justify-center gap-2"
+                className="w-full py-3 bg-saffron hover:bg-saffron2 text-white text-sm font-semibold rounded-lg transition-colors shadow-[0_4px_14px_rgba(232,114,12,0.25)] flex items-center justify-center gap-2"
               >
                 Register your Restaurant <ArrowRight size={16} />
               </button>
 
-              <p className="text-center text-sm text-[#857c6e]">
+              <p className="text-center text-sm text-muted">
                 Already have an account?{" "}
                 <a
                   href={loginUrl}
-                  className="font-semibold text-[#e8720c] hover:underline"
+                  className="font-semibold text-saffron hover:underline"
                 >
                   Sign In
                 </a>
               </p>
 
-              <p className="text-center text-xs text-[#857c6e]">
+              <p className="text-center text-xs text-muted">
                 By registering, you agree to our{" "}
-                <a href="#" className="underline hover:text-[#0f0e0b]">
+                <a href="#" className="underline hover:text-ink">
                   Terms of Service
                 </a>{" "}
                 and{" "}
-                <a href="#" className="underline hover:text-[#0f0e0b]">
+                <a href="#" className="underline hover:text-ink">
                   Privacy Policy
                 </a>
                 .

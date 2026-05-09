@@ -12,11 +12,10 @@ import {
   Smartphone,
   Star,
   Users,
-  Utensils,
   WandSparkles,
   X,
 } from "lucide-react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 
 import {
   NAV_ITEMS,
@@ -37,6 +36,12 @@ import {
   DesktopAdminScreen,
   PosWorkflowMock,
 } from "../components/landing";
+import useSEO from "../hooks/useSEO";
+import {
+  getFAQStructuredData,
+  getOrganizationStructuredData,
+  getProductStructuredData,
+} from "../utils/seo";
 
 const Motion = motion;
 
@@ -49,6 +54,23 @@ const stagger = { show: { transition: { staggerChildren: 0.1 } } };
 
 export default function Landing() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [activeSection, setActiveSection] = useState("home");
+
+  useSEO({
+    title: "Digital QR Menus for Restaurants & Hotels",
+    description:
+      "BuzTap helps restaurants and hotels launch QR code menus, table ordering, and POS workflows in 5 minutes. Trusted by 12,000+ businesses in India.",
+    keywords:
+      "QR code menu, digital menu, restaurant ordering system, table ordering, POS system, hotel room service",
+    url: "/",
+    structuredData: [
+      getOrganizationStructuredData(),
+      getProductStructuredData(),
+      getFAQStructuredData(FAQS),
+    ],
+  });
+
   const openRegister = () => {
     navigate("/auth");
   };
@@ -80,14 +102,6 @@ export default function Landing() {
     return () => clearInterval(t);
   }, []);
 
-  /* scroll shadow */
-  const [scrolled, setScrolled] = useState(false);
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 12);
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
-
   /* FAQ */
   const [openFaq, setOpenFaq] = useState(null);
 
@@ -97,47 +111,94 @@ export default function Landing() {
   /* smooth-scroll */
   const scrollTo = (id) => {
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
+    setActiveSection(id);
     setMobileOpen(false);
   };
 
+  useEffect(() => {
+    const sectionIds = NAV_ITEMS.filter((item) => item.id).map(
+      (item) => item.id,
+    );
+    const sections = sectionIds
+      .map((id) => document.getElementById(id))
+      .filter(Boolean);
+
+    if (!sections.length) return undefined;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visibleEntries = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
+
+        if (visibleEntries.length) {
+          setActiveSection(visibleEntries[0].target.id);
+        }
+      },
+      {
+        rootMargin: "-35% 0px -45% 0px",
+        threshold: [0.2, 0.35, 0.5, 0.7],
+      },
+    );
+
+    sections.forEach((section) => observer.observe(section));
+    return () => observer.disconnect();
+  }, []);
+
   return (
-    <div className="bg-[#faf7f2] text-[#0f0e0b] font-[Inter,sans-serif] overflow-x-hidden">
+    <div className="bg-paper text-ink font-[Inter,sans-serif] overflow-x-hidden">
       {/* ════════════════ 1. NAVBAR ════════════════════════════════ */}
-      <header
-        className={`sticky top-0 z-50 bg-[#faf7f2] border-b border-[#e0d9ce] transition-shadow duration-300 ${scrolled ? "shadow-[0_4px_24px_rgba(15,14,11,0.09)]" : ""}`}
-      >
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-[68px] flex items-center justify-between gap-6">
+      <header className="fixed top-0 inset-x-0 z-50 bg-paper border-b border-border">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-17 flex items-center justify-between gap-6">
           {/* ── Logo ── */}
-          <a href="#" className="flex items-center gap-2.5 flex-shrink-0">
-            <span className="w-9 h-9 bg-[#e8720c] rounded-lg flex items-center justify-center shadow-[0_2px_10px_rgba(232,114,12,0.32)]">
-              <Utensils size={17} className="text-white" strokeWidth={2.2} />
-            </span>
-            <span className="font-display font-bold text-[#0f0e0b] text-xl tracking-tight">
-              restro<span className="text-[#e8720c]">Menu</span>
+          <a href="#" className="flex items-center gap-2.5 shrink-0">
+            <span className="rounded-2xl overflow-hidden">
+              <img
+                src="/logo.jpeg"
+                alt="BuzTap logo"
+                className="h-12 w-auto max-w-48 object-contain"
+              />
             </span>
           </a>
 
           {/* ── Desktop Nav ── */}
           <nav className="hidden lg:flex items-center gap-0.5 flex-1 justify-center">
-            {NAV_ITEMS.map((item) => (
-              <button
-                key={item.label}
-                onClick={() => {
-                  if (item.path) navigate(item.path);
-                  else if (item.id) scrollTo(item.id);
-                }}
-                className="px-3.5 py-2 text-sm font-medium text-[#2a2720] hover:text-[#0f0e0b] hover:bg-[#f0ebe0] transition-colors rounded-md"
-              >
-                {item.label}
-              </button>
-            ))}
+            {NAV_ITEMS.map((item) => {
+              const isActive = item.path
+                ? location.pathname === item.path
+                : activeSection === item.id;
+
+              return (
+                <button
+                  key={item.label}
+                  onClick={() => {
+                    if (item.path) navigate(item.path);
+                    else if (item.id) scrollTo(item.id);
+                  }}
+                  className={`group relative px-3.5 py-2 text-sm font-medium transition-colors rounded-md ${
+                    isActive
+                      ? "text-ink"
+                      : "text-ink2 hover:text-ink hover:bg-cream"
+                  }`}
+                >
+                  {item.label}
+                  <span
+                    className={`absolute left-3.5 right-3.5 -bottom-0.5 h-0.5 rounded-full bg-saffron transition-transform duration-200 ${
+                      isActive
+                        ? "scale-x-100"
+                        : "scale-x-0 group-hover:scale-x-100"
+                    }`}
+                  />
+                </button>
+              );
+            })}
           </nav>
 
           {/* ── Desktop Right Actions ── */}
-          <div className="hidden lg:flex items-center gap-1 flex-shrink-0">
+          <div className="hidden lg:flex items-center gap-1 shrink-0">
             <button
               onClick={openRegister}
-              className="flex items-center gap-1.5 px-5 py-2.5 bg-[#e8720c] hover:bg-[#d4620a] text-white text-sm font-semibold rounded-lg transition-colors shadow-[0_2px_10px_rgba(232,114,12,0.28)]"
+              className="flex items-center gap-1.5 px-5 py-2.5 bg-saffron hover:bg-saffron2 text-white text-sm font-semibold rounded-lg transition-colors shadow-[0_2px_10px_rgba(232,114,12,0.28)]"
             >
               Register <ArrowRight size={14} />
             </button>
@@ -145,7 +206,7 @@ export default function Landing() {
 
           {/* ── Mobile Toggle ── */}
           <button
-            className="lg:hidden p-2 rounded-lg hover:bg-[#fef0e4] transition-colors"
+            className="lg:hidden p-2 rounded-lg hover:bg-saffron-lt transition-colors"
             onClick={() => setMobileOpen((v) => !v)}
           >
             {mobileOpen ? <X size={21} /> : <Menu size={21} />}
@@ -160,7 +221,7 @@ export default function Landing() {
               animate={{ height: "auto", opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
               transition={{ duration: 0.25 }}
-              className="lg:hidden absolute top-[68px] left-0 w-full overflow-hidden border-t border-b border-[#e0d9ce] bg-white shadow-2xl"
+              className="lg:hidden absolute top-17 left-0 w-full overflow-hidden border-t border-b border-border bg-white shadow-2xl"
             >
               <div className="px-4 py-4 flex flex-col gap-0.5">
                 {NAV_ITEMS.map((item) => (
@@ -171,15 +232,15 @@ export default function Landing() {
                       else if (item.id) scrollTo(item.id);
                       setMobileOpen(false);
                     }}
-                    className="w-full flex items-center px-3 py-2.5 text-sm font-semibold text-[#0f0e0b] rounded-lg hover:bg-[#faf7f2] transition-colors text-left"
+                    className="w-full flex items-center px-3 py-2.5 text-sm font-semibold text-ink rounded-lg hover:bg-paper transition-colors text-left"
                   >
                     {item.label}
                   </button>
                 ))}
-                <div className="border-t border-[#e0d9ce] mt-3 pt-3 flex flex-col gap-2">
+                <div className="border-t border-border mt-3 pt-3 flex flex-col gap-2">
                   <button
                     onClick={openRegister}
-                    className="w-full py-3 text-sm font-bold text-white bg-[#e8720c] hover:bg-[#d4620a] rounded-lg transition-colors flex items-center justify-center gap-2"
+                    className="w-full py-3 text-sm font-bold text-white bg-saffron hover:bg-saffron2 rounded-lg transition-colors flex items-center justify-center gap-2"
                   >
                     Register <ArrowRight size={15} />
                   </button>
@@ -190,8 +251,13 @@ export default function Landing() {
         </AnimatePresence>
       </header>
 
+      <div className="h-17" aria-hidden="true" />
+
       {/* ════════════════ 2. HERO ══════════════════════════════════ */}
-      <section className="max-w-6xl mx-auto px-4 sm:px-6 pt-20 pb-24 grid md:grid-cols-2 gap-12 items-center">
+      <section
+        id="home"
+        className="max-w-6xl mx-auto px-4 sm:px-6 pt-20 pb-24 grid md:grid-cols-2 gap-12 items-center"
+      >
         {/* text */}
         <div>
           <Motion.span
@@ -199,9 +265,9 @@ export default function Landing() {
             initial="hidden"
             whileInView="show"
             viewport={{ once: true }}
-            className="inline-flex items-center gap-2 bg-[#fef0e4] text-[#e8720c] text-xs font-semibold px-3 py-1.5 rounded-full mb-5"
+            className="inline-flex items-center gap-2 bg-saffron-lt text-saffron text-xs font-semibold px-3 py-1.5 rounded-full mb-5"
           >
-            <span className="w-1.5 h-1.5 rounded-full bg-[#e8720c] pulse-dot" />
+            <span className="w-1.5 h-1.5 rounded-full bg-saffron pulse-dot" />
             Trusted by 12 000+ restaurants & hotels across India
           </Motion.span>
 
@@ -211,11 +277,11 @@ export default function Landing() {
             whileInView="show"
             viewport={{ once: true }}
             transition={{ duration: 0.5, delay: 0.08 }}
-            className="font-display text-4xl sm:text-5xl lg:text-6xl font-bold leading-[1.12] tracking-wide text-[#0f0e0b] mb-5"
+            className="font-display text-4xl sm:text-5xl lg:text-6xl font-bold leading-[1.12] tracking-wide text-ink mb-5"
           >
             Digital Menus.
             <br />
-            <span className="text-[#e8720c]">Table Orders.</span>
+            <span className="text-saffron">Table Orders.</span>
             <br />
             Zero Friction.
           </Motion.h1>
@@ -226,7 +292,7 @@ export default function Landing() {
             whileInView="show"
             viewport={{ once: true }}
             transition={{ duration: 0.5, delay: 0.16 }}
-            className="text-[#857c6e] text-lg leading-relaxed mb-8 max-w-md"
+            className="text-muted text-lg leading-relaxed mb-8 max-w-md"
           >
             Give every table its own QR code. Guests scan, browse your live menu
             and order — all from their phone. Plus, manage billing with built-in
@@ -243,13 +309,13 @@ export default function Landing() {
           >
             <button
               onClick={openRegister}
-              className="bg-[#e8720c] hover:bg-[#d4620a] text-white font-semibold px-7 py-3 rounded-md flex items-center gap-2 transition-colors"
+              className="bg-saffron hover:bg-saffron2 text-white font-semibold px-7 py-3 rounded-md flex items-center gap-2 transition-colors"
             >
               Start Free <ArrowRight size={16} />
             </button>
             <button
               onClick={() => navigate("/demo")}
-              className="border border-[#e0d9ce] text-[#0f0e0b] font-semibold px-7 py-3 rounded-md hover:border-[#e8720c] hover:text-[#e8720c] transition-colors"
+              className="border border-border text-ink font-semibold px-7 py-3 rounded-md hover:border-saffron hover:text-saffron transition-colors"
             >
               View Live Demo
             </button>
@@ -267,17 +333,15 @@ export default function Landing() {
               {["PS", "RM", "AS", "KT"].map((init) => (
                 <div
                   key={init}
-                  className="w-8 h-8 rounded-full bg-[#e0d9ce] border-2 border-[#faf7f2] flex items-center justify-center"
+                  className="w-8 h-8 rounded-full bg-border border-2 border-paper flex items-center justify-center"
                 >
-                  <span className="text-[9px] font-bold text-[#0f0e0b]">
-                    {init}
-                  </span>
+                  <span className="text-[9px] font-bold text-ink">{init}</span>
                 </div>
               ))}
             </div>
-            <p className="text-sm text-[#857c6e]">
-              <span className="font-semibold text-[#0f0e0b]">4.9 / 5</span> from
-              2 800+ reviews
+            <p className="text-sm text-muted">
+              <span className="font-semibold text-ink">4.9 / 5</span> from 2
+              800+ reviews
             </p>
           </Motion.div>
         </div>
@@ -288,17 +352,17 @@ export default function Landing() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.55, delay: 0.1 }}
-          className="flex justify-center w-full min-h-[550px]"
+          className="flex justify-center w-full min-h-137.5"
         >
           <GuestJourneyAnimation />
         </Motion.div>
       </section>
 
       {/* ════════════════ 2.5. DEMO QR STRIP ════════════════════════ */}
-      <section className="bg-[#e8720c] z-10 relative mt-10 mb-20 w-full overflow-hidden">
+      <section className="bg-saffron z-10 relative mt-10 mb-20 w-full overflow-hidden">
         {/* Background glow effects */}
-        <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-white/10 blur-[120px] rounded-full pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-black/10 blur-[100px] rounded-full pointer-events-none" />
+        <div className="absolute top-0 right-0 w-150 h-150 bg-white/10 blur-[120px] rounded-full pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-100 h-100 bg-black/10 blur-[100px] rounded-full pointer-events-none" />
 
         <Motion.div
           initial={{ opacity: 0, y: 30 }}
@@ -349,10 +413,10 @@ export default function Landing() {
           {/* Right QR Code */}
           <div
             onClick={() => navigate("/demo")}
-            className="flex-shrink-0 bg-white p-2.5 sm:p-3 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] relative z-10 group overflow-hidden border border-white cursor-pointer hover:scale-[1.02] transition-transform"
+            className="shrink-0 bg-white p-2.5 sm:p-3 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] relative z-10 group overflow-hidden border border-white cursor-pointer hover:scale-[1.02] transition-transform"
           >
-            <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-transparent via-[#e8720c]/15 to-transparent scan-line pointer-events-none" />
-            <div className="border border-[#e0d9ce]/50 rounded-xl overflow-hidden bg-white group-hover:border-[#e8720c]/50 transition-colors">
+            <div className="absolute top-0 left-0 w-full h-full bg-linear-to-b from-transparent via-saffron/15 to-transparent scan-line pointer-events-none" />
+            <div className="border border-border/50 rounded-xl overflow-hidden bg-white group-hover:border-saffron/50 transition-colors">
               <img
                 src={`https://api.qrserver.com/v1/create-qr-code/?size=350x350&data=${encodeURIComponent(window.location.origin + "/demo")}&bgcolor=ffffff&color=0f0e0b`}
                 alt="Live Demo QR"
@@ -360,10 +424,10 @@ export default function Landing() {
               />
             </div>
             <div className="text-center mt-3 mb-1">
-              <p className="font-bold text-[#0f0e0b] text-sm uppercase tracking-widest flex items-center justify-center gap-2">
-                <QrCode size={16} className="text-[#e8720c]" /> Scan or Click
+              <p className="font-bold text-ink text-sm uppercase tracking-widest flex items-center justify-center gap-2">
+                <QrCode size={16} className="text-saffron" /> Scan or Click
               </p>
-              <p className="text-[10px] text-[#857c6e] mt-1 font-medium uppercase tracking-wider">
+              <p className="text-[10px] text-muted mt-1 font-medium uppercase tracking-wider">
                 Demo Link
               </p>
             </div>
@@ -372,21 +436,21 @@ export default function Landing() {
       </section>
 
       {/* ════════════════ 3. STATS BAR ═════════════════════════════ */}
-      <section className="bg-white border-y border-[#e0d9ce]">
+      <section className="bg-white border-y border-border">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10 grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
           {STATS.map((s) => (
             <div key={s.label}>
-              <p className="font-roboto text-3xl font-bold text-[#e8720c] tracking-tight">
+              <p className="font-roboto text-3xl font-bold text-saffron tracking-tight">
                 {s.value}
               </p>
-              <p className="text-sm text-[#857c6e] mt-1">{s.label}</p>
+              <p className="text-sm text-muted mt-1">{s.label}</p>
             </div>
           ))}
         </div>
       </section>
 
       {/* ════════════════ 3.5. HOTEL ROOM SERVICE ════════════════ */}
-      <section className="py-24 bg-white border-b border-[#e0d9ce] overflow-hidden">
+      <section className="py-24 bg-white border-b border-border overflow-hidden">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div className="flex flex-col md:flex-row items-center gap-16">
             <div className="flex-1 order-2 md:order-1">
@@ -396,14 +460,14 @@ export default function Landing() {
                 viewport={{ once: true }}
                 transition={{ duration: 0.6 }}
               >
-                <p className="inline-flex items-center gap-2 bg-[#fef0e4] text-[#e8720c] text-xs font-bold px-3 py-1.5 rounded-full mb-5 uppercase tracking-widest">
+                <p className="inline-flex items-center gap-2 bg-saffron-lt text-saffron text-xs font-bold px-3 py-1.5 rounded-full mb-5 uppercase tracking-widest">
                   Beyond Restaurants
                 </p>
-                <h2 className="font-display text-4xl sm:text-5xl font-bold text-[#0f0e0b] mb-6 leading-tight">
+                <h2 className="font-display text-4xl sm:text-5xl font-bold text-ink mb-6 leading-tight">
                   Seamless Room Service for{" "}
-                  <span className="text-[#e8720c]">Modern Hotels</span>
+                  <span className="text-saffron">Modern Hotels</span>
                 </h2>
-                {/* <p className="text-[#857c6e] text-lg leading-relaxed mb-8">
+                {/* <p className="text-muted text-lg leading-relaxed mb-8">
                   Elevate your guest experience with our QR-based room service
                   solution. Guests scan the QR in their room to place orders
                   directly. 
@@ -430,16 +494,14 @@ export default function Landing() {
                   ].map((feature, idx) => (
                     <div
                       key={idx}
-                      className="flex items-start gap-4 p-4 rounded-xl border border-[#e0d9ce] bg-[#faf7f2] hover:border-[#e8720c]/50 transition-colors"
+                      className="flex items-start gap-4 p-4 rounded-xl border border-border bg-paper hover:border-saffron/50 transition-colors"
                     >
-                      <div className="w-10 h-10 rounded-lg bg-white border border-[#e0d9ce] flex items-center justify-center flex-shrink-0 text-[#e8720c] font-bold text-lg">
+                      <div className="w-10 h-10 rounded-lg bg-white border border-border flex items-center justify-center shrink-0 text-saffron font-bold text-lg">
                         0{idx + 1}
                       </div>
                       <div>
-                        <p className="font-bold text-[#0f0e0b]">
-                          {feature.title}
-                        </p>
-                        <p className="text-sm text-[#857c6e] mt-1">
+                        <p className="font-bold text-ink">{feature.title}</p>
+                        <p className="text-sm text-muted mt-1">
                           {feature.desc}
                         </p>
                       </div>
@@ -454,14 +516,14 @@ export default function Landing() {
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.6 }}
-                className="relative w-full max-w-md aspect-[4/5] rounded-3xl overflow-hidden shadow-2xl"
+                className="relative w-full max-w-md aspect-4/5 rounded-3xl overflow-hidden shadow-2xl"
               >
                 <img
                   src="https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=800&q=80"
                   alt="Luxury Hotel Room"
                   className="w-full h-full object-cover"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#0f0e0b]/80 via-transparent to-transparent" />
+                <div className="absolute inset-0 bg-linear-to-t from-ink/80 via-transparent to-transparent" />
                 <div className="absolute bottom-6 left-6 right-6 bg-white/10 backdrop-blur-md border border-white/20 p-5 rounded-2xl text-white shadow-lg">
                   <div className="flex items-center gap-3 mb-2">
                     <span className="w-2.5 h-2.5 rounded-full bg-[#27c93f] pulse-dot"></span>
@@ -483,19 +545,19 @@ export default function Landing() {
       {/* ════════════════ 4. FEATURES ══════════════════════════════ */}
       <section
         id="features"
-        className="bg-[#faf7f2] py-24 relative overflow-hidden"
+        className="bg-paper py-24 relative overflow-hidden"
       >
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(232,114,12,0.08),transparent_40%)] pointer-events-none" />
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-14 relative z-10">
-            <p className="text-xs font-semibold text-[#e8720c] tracking-widest uppercase mb-4">
+            <p className="text-xs font-semibold text-saffron tracking-widest uppercase mb-4">
               Everything Free
             </p>
-            <h2 className="font-display text-xl sm:text-2xl lg:text-5xl font-bold text-[#0f0e0b] leading-tight">
+            <h2 className="font-display text-xl sm:text-2xl lg:text-5xl font-bold text-ink leading-tight">
               All Features,{" "}
-              <span className="bg-linear-to-r text-[#e8720c] ">Zero Cost</span>
+              <span className="bg-linear-to-r text-saffron ">Zero Cost</span>
             </h2>
-            <p className="text-[#857c6e] mt-5 max-w-3xl mx-auto text-lg leading-relaxed">
+            <p className="text-muted mt-5 max-w-3xl mx-auto text-lg leading-relaxed">
               Every feature below is completely free. No premium tiers, no
               paywalls, no upgrade-to-unlock nonsense. Your success is our
               success.
@@ -517,8 +579,8 @@ export default function Landing() {
           </Motion.div>
 
           <div className="mt-10 flex justify-center relative z-10">
-            <div className="inline-flex items-center gap-2 rounded-full border border-[#eadfce] bg-white/90 px-4 py-2 text-sm font-medium text-[#857c6e] shadow-[0_8px_24px_rgba(15,14,11,0.05)]">
-              <span className="w-2 h-2 rounded-full bg-[#3a6348]" />
+            <div className="inline-flex items-center gap-2 rounded-full border border-border bg-white/90 px-4 py-2 text-sm font-medium text-muted shadow-[0_8px_24px_rgba(15,14,11,0.05)]">
+              <span className="w-2 h-2 rounded-full bg-sage" />
               No setup fee • No monthly charge • No hidden cost
             </div>
           </div>
@@ -526,9 +588,9 @@ export default function Landing() {
       </section>
 
       {/* ════════════════ 4.5. ADVANTAGES ════════════════════════════ */}
-      <section className="bg-[#e8720c] py-24 relative overflow-hidden">
+      <section className="bg-saffron py-24 relative overflow-hidden">
         {/* Subtle background glow to fit theme */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-4xl h-[400px] bg-white opacity-10 blur-[120px] pointer-events-none" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-4xl h-100 bg-white opacity-10 blur-[120px] pointer-events-none" />
 
         <div className="max-w-6xl mx-auto px-4 sm:px-6 relative z-10">
           <div className="text-center mb-16 reveal visible">
@@ -538,7 +600,7 @@ export default function Landing() {
             <h2 className="font-display text-4xl sm:text-5xl font-bold text-white mb-5 max-w-3xl mx-auto leading-tight">
               Transforming Dining with Digital QR Code Menu Advantages
             </h2>
-            <p className="text-[#fef0e4] text-lg max-w-2xl mx-auto leading-relaxed">
+            <p className="text-saffron-lt text-lg max-w-2xl mx-auto leading-relaxed">
               Provides a faster, smarter, and more interactive dining experience
               while simplifying restaurant operations.
             </p>
@@ -559,18 +621,18 @@ export default function Landing() {
                   alt="Staff holding tablet"
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-white via-white/50 to-transparent" />
+                <div className="absolute inset-0 bg-linear-to-t from-white via-white/50 to-transparent" />
               </div>
               <div className="p-8 pt-4 flex-1 flex flex-col relative z-10">
-                <h3 className="text-[17px] font-bold text-[#0f0e0b] mb-3 tracking-tight">
+                <h3 className="text-[17px] font-bold text-ink mb-3 tracking-tight">
                   Enhancing Customer Experience
                 </h3>
-                <p className="text-[#857c6e] text-sm leading-relaxed mb-6 flex-1">
+                <p className="text-muted text-sm leading-relaxed mb-6 flex-1">
                   Digital menus load faster, are easier to use, and provide more
                   useful information to customers, including dish ingredients
                   and allergen warnings directly in their hands.
                 </p>
-                <button className="text-[#e8720c] font-semibold text-[13px] flex items-center gap-1.5 hover:gap-2.5 transition-all self-start">
+                <button className="text-saffron font-semibold text-[13px] flex items-center gap-1.5 hover:gap-2.5 transition-all self-start">
                   Read more <ArrowRight size={14} />
                 </button>
               </div>
@@ -591,18 +653,18 @@ export default function Landing() {
                   alt="Restaurant storefront"
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-white via-white/50 to-transparent" />
+                <div className="absolute inset-0 bg-linear-to-t from-white via-white/50 to-transparent" />
               </div>
               <div className="p-8 pt-4 flex-1 flex flex-col relative z-10">
-                <h3 className="text-[17px] font-bold text-[#0f0e0b] mb-3 tracking-tight">
+                <h3 className="text-[17px] font-bold text-ink mb-3 tracking-tight">
                   Attracting New Customers
                 </h3>
-                <p className="text-[#857c6e] text-sm leading-relaxed mb-6 flex-1">
+                <p className="text-muted text-sm leading-relaxed mb-6 flex-1">
                   Guests can leave reviews directly through the QR menu. Plus,
                   built-in multilingual support helps attract foreign customers
                   and turn foot traffic into loyal dining patrons.
                 </p>
-                <button className="text-[#e8720c] font-semibold text-[13px] flex items-center gap-1.5 hover:gap-2.5 transition-all self-start">
+                <button className="text-saffron font-semibold text-[13px] flex items-center gap-1.5 hover:gap-2.5 transition-all self-start">
                   Read more <ArrowRight size={14} />
                 </button>
               </div>
@@ -623,18 +685,18 @@ export default function Landing() {
                   alt="Customers scanning QR code"
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-white via-white/50 to-transparent" />
+                <div className="absolute inset-0 bg-linear-to-t from-white via-white/50 to-transparent" />
               </div>
               <div className="p-8 pt-4 flex-1 flex flex-col relative z-10">
-                <h3 className="text-[17px] font-bold text-[#0f0e0b] mb-3 tracking-tight">
+                <h3 className="text-[17px] font-bold text-ink mb-3 tracking-tight">
                   QR Code Menu Increases Sales
                 </h3>
-                <p className="text-[#857c6e] text-sm leading-relaxed mb-6 flex-1">
+                <p className="text-muted text-sm leading-relaxed mb-6 flex-1">
                   Food photos and an interactive menu presentation encourage
                   customers to order more items and upsells, meaningfully
                   increasing the average bill amount effortlessly.
                 </p>
-                <button className="text-[#e8720c] font-semibold text-[13px] flex items-center gap-1.5 hover:gap-2.5 transition-all self-start">
+                <button className="text-saffron font-semibold text-[13px] flex items-center gap-1.5 hover:gap-2.5 transition-all self-start">
                   Read more <ArrowRight size={14} />
                 </button>
               </div>
@@ -644,16 +706,16 @@ export default function Landing() {
       </section>
 
       {/* ════════════════ 5. HOW IT WORKS ═════════════════════════ */}
-      <section id="how-it-works" className="bg-[#f5f0e8] py-24">
+      <section id="how-it-works" className="bg-cream py-24">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-14">
-            <p className="text-xs font-semibold text-[#e8720c] tracking-widest uppercase mb-3">
+            <p className="text-xs font-semibold text-saffron tracking-widest uppercase mb-3">
               How It Works
             </p>
-            <h2 className="font-display text-4xl font-bold text-[#0f0e0b]">
+            <h2 className="font-display text-4xl font-bold text-ink">
               Live in 5 minutes
             </h2>
-            <p className="text-[#857c6e] mt-3 max-w-lg mx-auto">
+            <p className="text-muted mt-3 max-w-lg mx-auto">
               Watch how BuzTap works step by step — from creating your menu to
               receiving your first order.
             </p>
@@ -668,31 +730,29 @@ export default function Landing() {
                   onClick={() => setActiveStep(i)}
                   className={`w-full flex items-start gap-4 p-4 rounded-xl border text-left transition-all ${
                     activeStep === i
-                      ? "border-[#e8720c] bg-white"
-                      : "border-[#e0d9ce] bg-transparent hover:border-[#e8720c]/50"
+                      ? "border-saffron bg-white"
+                      : "border-border bg-transparent hover:border-saffron/50"
                   }`}
                 >
                   <div
-                    className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors ${
-                      activeStep === i ? "bg-[#e8720c]" : "bg-[#e0d9ce]"
+                    className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
+                      activeStep === i ? "bg-saffron" : "bg-border"
                     }`}
                   >
                     <s.icon
                       size={18}
-                      className={
-                        activeStep === i ? "text-white" : "text-[#857c6e]"
-                      }
+                      className={activeStep === i ? "text-white" : "text-muted"}
                     />
                   </div>
                   <div>
-                    <p className="text-xs font-semibold text-[#e8720c] mb-0.5">
+                    <p className="text-xs font-semibold text-saffron mb-0.5">
                       {s.step}
                     </p>
-                    <p className="font-semibold text-[#0f0e0b]">{s.title}</p>
-                    <p className="text-sm text-[#857c6e] mt-0.5">{s.desc}</p>
+                    <p className="font-semibold text-ink">{s.title}</p>
+                    <p className="text-sm text-muted mt-0.5">{s.desc}</p>
                   </div>
                   {activeStep === i && (
-                    <div className="ml-auto w-1.5 h-1.5 rounded-full bg-[#e8720c] mt-1.5 flex-shrink-0 pulse-dot" />
+                    <div className="ml-auto w-1.5 h-1.5 rounded-full bg-saffron mt-1.5 shrink-0 pulse-dot" />
                   )}
                 </button>
               ))}
@@ -707,16 +767,16 @@ export default function Landing() {
       </section>
 
       {/* ════════════════ 5.5. POS WORKFLOW ══════════════════════ */}
-      <section className="bg-white py-24 border-y border-[#e0d9ce]">
+      <section className="bg-white py-24 border-y border-border">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-14 reveal">
-            <p className="text-xs font-semibold text-[#e8720c] tracking-widest uppercase mb-3">
+            <p className="text-xs font-semibold text-saffron tracking-widest uppercase mb-3">
               POS Steps
             </p>
-            <h2 className="font-display text-4xl font-bold text-[#0f0e0b]">
+            <h2 className="font-display text-4xl font-bold text-ink">
               From menu to payment in seconds
             </h2>
-            <p className="text-[#857c6e] mt-3 max-w-2xl mx-auto">
+            <p className="text-muted mt-3 max-w-2xl mx-auto">
               Track each POS stage live — build the order, confirm checkout, and
               close payment with invoice sharing.
             </p>
@@ -729,13 +789,13 @@ export default function Landing() {
       {/* ════════════════ 6. LIVE DEMO ════════════════════════════ */}
       <section id="live-demo" className="max-w-6xl mx-auto px-4 sm:px-6 py-24">
         <div className="text-center mb-14 reveal">
-          <p className="text-xs font-semibold text-[#e8720c] tracking-widest uppercase mb-3">
+          <p className="text-xs font-semibold text-saffron tracking-widest uppercase mb-3">
             Live Demo
           </p>
-          <h2 className="font-display text-4xl font-bold text-[#0f0e0b]">
+          <h2 className="font-display text-4xl font-bold text-ink">
             Try the guest experience
           </h2>
-          <p className="text-[#857c6e] mt-3 max-w-lg mx-auto">
+          <p className="text-muted mt-3 max-w-lg mx-auto">
             This is exactly what your guests see when they scan a table QR. Tap
             "+ Add" and place a demo order.
           </p>
@@ -752,12 +812,12 @@ export default function Landing() {
               whileInView="show"
               viewport={{ once: true }}
               onClick={() => navigate("/demo")}
-              className="bg-[#fef0e4] border border-[#e8720c]/30 p-5 rounded-2xl flex items-center gap-5 relative overflow-hidden cursor-pointer"
+              className="bg-saffron-lt border border-saffron/30 p-5 rounded-2xl flex items-center gap-5 relative overflow-hidden cursor-pointer"
             >
               {/* Decorative scan line */}
-              <div className="absolute top-0 left-6 w-16 h-full bg-gradient-to-b from-transparent via-[#e8720c]/10 to-transparent scan-line" />
+              <div className="absolute top-0 left-6 w-16 h-full bg-linear-to-b from-transparent via-saffron/10 to-transparent scan-line" />
 
-              <div className="w-20 h-20 bg-white p-1.5 rounded-xl shadow-[0_2px_10px_rgba(232,114,12,0.15)] flex-shrink-0 relative z-10 border border-[#e8720c]/20">
+              <div className="w-20 h-20 bg-white p-1.5 rounded-xl shadow-[0_2px_10px_rgba(232,114,12,0.15)] shrink-0 relative z-10 border border-saffron/20">
                 <img
                   src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(window.location.origin + "/demo")}&bgcolor=ffffff&color=0f0e0b`}
                   alt="Scan to view responsive demo"
@@ -765,14 +825,14 @@ export default function Landing() {
                 />
               </div>
               <div className="relative z-10">
-                <p className="text-[10px] font-bold text-[#e8720c] uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#e8720c] pulse-dot" />{" "}
+                <p className="text-[10px] font-bold text-saffron uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-saffron pulse-dot" />{" "}
                   Interactive Demo
                 </p>
-                <p className="font-bold text-[#0f0e0b] text-[15px] mb-1.5 leading-tight tracking-tight">
+                <p className="font-bold text-ink text-[15px] mb-1.5 leading-tight tracking-tight">
                   Scan with your phone
                 </p>
-                <p className="text-xs text-[#857c6e] leading-snug">
+                <p className="text-xs text-muted leading-snug">
                   Experience the fast, responsive guest menu exactly as they do.
                 </p>
               </div>
@@ -809,12 +869,12 @@ export default function Landing() {
                 transition={{ delay: i * 0.1 }}
                 className="flex items-start gap-4"
               >
-                <div className="w-10 h-10 rounded-lg bg-[#fef0e4] flex items-center justify-center flex-shrink-0">
-                  <item.icon size={19} className="text-[#e8720c]" />
+                <div className="w-10 h-10 rounded-lg bg-saffron-lt flex items-center justify-center shrink-0">
+                  <item.icon size={19} className="text-saffron" />
                 </div>
                 <div>
-                  <p className="font-semibold text-[#0f0e0b]">{item.title}</p>
-                  <p className="text-sm text-[#857c6e] mt-0.5">{item.body}</p>
+                  <p className="font-semibold text-ink">{item.title}</p>
+                  <p className="text-sm text-muted mt-0.5">{item.body}</p>
                 </div>
               </Motion.div>
             ))}
@@ -823,16 +883,16 @@ export default function Landing() {
       </section>
 
       {/* ════════════════ 7. PRICING ══════════════════════════════ */}
-      <section id="pricing" className="bg-[#f5f0e8] py-24">
+      <section id="pricing" className="bg-cream py-24">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-14 reveal">
-            <p className="text-xs font-semibold text-[#e8720c] tracking-widest uppercase mb-3">
+            <p className="text-xs font-semibold text-saffron tracking-widest uppercase mb-3">
               Pricing
             </p>
-            <h2 className="font-display text-4xl font-bold text-[#0f0e0b]">
+            <h2 className="font-display text-4xl font-bold text-ink">
               Simple, honest pricing
             </h2>
-            <p className="text-[#857c6e] mt-3">
+            <p className="text-muted mt-3">
               Start free. Upgrade when you grow. No hidden fees.
             </p>
           </div>
@@ -850,17 +910,17 @@ export default function Landing() {
                 variants={fadeUp}
                 className={`rounded-xl p-7 flex flex-col ${
                   plan.highlight
-                    ? "bg-[#3a6348] text-white shadow-xl"
-                    : "bg-white border border-[#e0d9ce] text-[#0f0e0b]"
+                    ? "bg-sage text-white shadow-xl"
+                    : "bg-white border border-border text-ink"
                 }`}
               >
                 {plan.badge && (
-                  <span className="self-start text-xs font-semibold bg-[#e8720c] text-white px-3 py-1 rounded-full mb-4">
+                  <span className="self-start text-xs font-semibold bg-saffron text-white px-3 py-1 rounded-full mb-4">
                     {plan.badge}
                   </span>
                 )}
                 <p
-                  className={`font-semibold text-sm mb-1 ${plan.highlight ? "text-[#e8e0d4]" : "text-[#857c6e]"}`}
+                  className={`font-semibold text-sm mb-1 ${plan.highlight ? "text-[#e8e0d4]" : "text-muted"}`}
                 >
                   {plan.name}
                 </p>
@@ -869,7 +929,7 @@ export default function Landing() {
                     {plan.price}
                   </span>
                   <span
-                    className={`text-sm mb-1.5 ${plan.highlight ? "text-[#e8e0d4]" : "text-[#857c6e]"}`}
+                    className={`text-sm mb-1.5 ${plan.highlight ? "text-[#e8e0d4]" : "text-muted"}`}
                   >
                     {plan.period}
                   </span>
@@ -881,13 +941,13 @@ export default function Landing() {
                         size={15}
                         className={
                           plan.highlight
-                            ? "text-[#e8720c] flex-shrink-0"
-                            : "text-[#3a6348] flex-shrink-0"
+                            ? "text-saffron shrink-0"
+                            : "text-sage shrink-0"
                         }
                       />
                       <span
                         className={
-                          plan.highlight ? "text-[#e8e0d4]" : "text-[#2a2720]"
+                          plan.highlight ? "text-[#e8e0d4]" : "text-ink2"
                         }
                       >
                         {f}
@@ -899,8 +959,8 @@ export default function Landing() {
                   onClick={openRegister}
                   className={`w-full py-3 rounded-md font-semibold text-sm transition-colors ${
                     plan.highlight
-                      ? "bg-[#e8720c] hover:bg-[#d4620a] text-white"
-                      : "border border-[#e0d9ce] hover:border-[#e8720c] hover:text-[#e8720c] text-[#0f0e0b]"
+                      ? "bg-saffron hover:bg-saffron2 text-white"
+                      : "border border-border hover:border-saffron hover:text-saffron text-ink"
                   }`}
                 >
                   {plan.cta}
@@ -914,10 +974,10 @@ export default function Landing() {
       {/* ════════════════ 8. TESTIMONIALS ═════════════════════════ */}
       <section className="max-w-6xl mx-auto px-4 sm:px-6 py-24">
         <div className="text-center mb-14 reveal">
-          <p className="text-xs font-semibold text-[#e8720c] tracking-widest uppercase mb-3">
+          <p className="text-xs font-semibold text-saffron tracking-widest uppercase mb-3">
             Social Proof
           </p>
-          <h2 className="font-display text-4xl font-bold text-[#0f0e0b]">
+          <h2 className="font-display text-4xl font-bold text-ink">
             Loved by restaurateurs
           </h2>
         </div>
@@ -933,31 +993,29 @@ export default function Landing() {
             <Motion.div
               key={t.name}
               variants={fadeUp}
-              className="bg-white border border-[#e0d9ce] rounded-xl p-7 flex flex-col gap-4"
+              className="bg-white border border-border rounded-xl p-7 flex flex-col gap-4"
             >
               <div className="flex gap-0.5">
                 {Array.from({ length: t.stars }).map((_, i) => (
                   <Star
                     key={i}
                     size={14}
-                    className="text-[#e8720c] fill-[#e8720c]"
+                    className="text-saffron fill-saffron"
                   />
                 ))}
               </div>
-              <p className="text-sm text-[#2a2720] leading-relaxed flex-1">
+              <p className="text-sm text-ink2 leading-relaxed flex-1">
                 "{t.quote}"
               </p>
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-full bg-[#fef0e4] border border-[#e8720c]/20 flex items-center justify-center">
-                  <span className="text-[10px] font-bold text-[#e8720c]">
+                <div className="w-9 h-9 rounded-full bg-saffron-lt border border-saffron/20 flex items-center justify-center">
+                  <span className="text-[10px] font-bold text-saffron">
                     {t.avatar}
                   </span>
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-[#0f0e0b]">
-                    {t.name}
-                  </p>
-                  <p className="text-xs text-[#857c6e]">{t.role}</p>
+                  <p className="text-sm font-semibold text-ink">{t.name}</p>
+                  <p className="text-xs text-muted">{t.role}</p>
                 </div>
               </div>
             </Motion.div>
@@ -965,11 +1023,11 @@ export default function Landing() {
         </Motion.div>
 
         {/* logo strip */}
-        <div className="mt-14 border-t border-[#e0d9ce] pt-10">
-          <p className="text-center text-xs font-semibold text-[#b0a898] tracking-widest uppercase mb-6">
+        <div className="mt-14 border-t border-border pt-10">
+          <p className="text-center text-xs font-semibold text-muted2 tracking-widest uppercase mb-6">
             Trusted by teams from
           </p>
-          <div className="flex flex-wrap items-center justify-center gap-8 text-[#b0a898]">
+          <div className="flex flex-wrap items-center justify-center gap-8 text-muted2">
             {[
               "ITC Hotels",
               "Haldiram's",
@@ -987,19 +1045,19 @@ export default function Landing() {
       </section>
 
       {/* ════════════════ 9. ADMIN PANEL MOCKUP ════════════════════ */}
-      <section className="bg-[#f5f0e8] py-24">
+      <section className="bg-cream py-24">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-16">
             <div className="max-w-xl">
-              <p className="text-xs font-semibold text-[#e8720c] tracking-widest uppercase mb-4">
+              <p className="text-xs font-semibold text-saffron tracking-widest uppercase mb-4">
                 Analytics Dashboard
               </p>
-              <h2 className="font-display text-4xl sm:text-5xl font-bold text-[#0f0e0b] mb-5 leading-tight">
+              <h2 className="font-display text-4xl sm:text-5xl font-bold text-ink mb-5 leading-tight">
                 Understand your hotel's
                 <br />
                 performance instantly
               </h2>
-              <p className="text-[#857c6e] leading-relaxed text-lg">
+              <p className="text-muted leading-relaxed text-lg">
                 View live revenue, track order volumes, and identify your
                 best-selling items at a glance with our Resporto Hotel
                 analytics.
@@ -1008,7 +1066,7 @@ export default function Landing() {
             <div className="flex gap-3 mt-8">
               <button
                 onClick={() => navigate("/demo")}
-                className="flex items-center gap-2 bg-[#e8720c] hover:bg-[#d4620a] text-white text-sm font-bold px-6 py-3 rounded-md transition-colors"
+                className="flex items-center gap-2 bg-saffron hover:bg-saffron2 text-white text-sm font-bold px-6 py-3 rounded-md transition-colors"
               >
                 View Live Demo
               </button>
@@ -1016,7 +1074,7 @@ export default function Landing() {
           </div>
 
           <div className="flex flex-col lg:flex-row gap-12 lg:gap-16 items-center justify-between">
-            <div className="w-full lg:w-[300px] flex-shrink-0">
+            <div className="w-full lg:w-75 shrink-0">
               <ul className="space-y-5 mb-10">
                 {[
                   "Real-time revenue tracking and hour-by-hour insights",
@@ -1026,19 +1084,16 @@ export default function Landing() {
                 ].map((item) => (
                   <li
                     key={item}
-                    className="flex items-center gap-3 text-base text-[#2a2720]"
+                    className="flex items-center gap-3 text-base text-ink2"
                   >
-                    <CheckCircle2
-                      size={20}
-                      className="text-[#e8720c] flex-shrink-0"
-                    />
+                    <CheckCircle2 size={20} className="text-saffron shrink-0" />
                     {item}
                   </li>
                 ))}
               </ul>
             </div>
 
-            <div className="hidden md:flex w-full max-w-[800px] justify-center lg:justify-end overflow-hidden">
+            <div className="hidden md:flex w-full max-w-200 justify-center lg:justify-end overflow-hidden">
               <div className=" w-full shadow-2xl rounded-2xl">
                 <DesktopAdminScreen />
               </div>
@@ -1050,10 +1105,10 @@ export default function Landing() {
       {/* ════════════════ 10. FAQ ══════════════════════════════════ */}
       <section id="faq" className="max-w-3xl mx-auto px-4 sm:px-6 py-24">
         <div className="text-center mb-12 reveal">
-          <p className="text-xs font-semibold text-[#e8720c] tracking-widest uppercase mb-3">
+          <p className="text-xs font-semibold text-saffron tracking-widest uppercase mb-3">
             FAQ
           </p>
-          <h2 className="font-display text-4xl font-bold text-[#0f0e0b]">
+          <h2 className="font-display text-4xl font-bold text-ink">
             Common questions
           </h2>
         </div>
@@ -1071,7 +1126,7 @@ export default function Landing() {
       </section>
 
       {/* ════════════════ 11. FINAL CTA ═══════════════════════════ */}
-      <section className="bg-[#e8720c] py-24">
+      <section className="bg-saffron py-24">
         <Motion.div
           initial={{ opacity: 0, y: 24 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -1089,7 +1144,7 @@ export default function Landing() {
             12 000+ restaurants already on BuzTap.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <button className="bg-white text-[#e8720c] font-bold text-base px-8 py-4 rounded-md hover:bg-[#fef0e4] transition-colors flex items-center justify-center gap-2">
+            <button className="bg-white text-saffron font-bold text-base px-8 py-4 rounded-md hover:bg-saffron-lt transition-colors flex items-center justify-center gap-2">
               Create Free Account <ArrowRight size={18} />
             </button>
             <button className="border-2 border-white/40 text-white font-semibold text-base px-8 py-4 rounded-md hover:border-white transition-colors">
@@ -1103,16 +1158,17 @@ export default function Landing() {
       </section>
 
       {/* ════════════════ 12. FOOTER ══════════════════════════════ */}
-      <footer className="bg-[#faf7f2] border-t border-[#e0d9ce] text-[#857c6e]">
+      <footer className="bg-paper border-t border-border text-muted">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 grid grid-cols-2 md:grid-cols-4 gap-10">
           {/* brand */}
           <div className="col-span-2 md:col-span-1">
             <div className="flex items-center gap-2 mb-4">
-              <span className="w-8 h-8 bg-[#e8720c] rounded-md flex items-center justify-center">
-                <Utensils size={16} className="text-white" />
-              </span>
-              <span className="font-display font-bold text-[#0f0e0b] text-lg">
-                BuzTap
+              <span className="rounded-2xl overflow-hidden">
+                <img
+                  src="/logo.jpeg"
+                  alt="BuzTap logo"
+                  className="h-10 w-auto max-w-40 object-contain"
+                />
               </span>
             </div>
             <p className="text-sm leading-relaxed mb-4">
@@ -1123,9 +1179,9 @@ export default function Landing() {
               {[Users, Globe, Smartphone].map((Icon, i) => (
                 <div
                   key={i}
-                  className="w-8 h-8 rounded-md bg-white border border-[#e0d9ce] flex items-center justify-center hover:bg-[#fef0e4] hover:border-[#e8720c] transition-colors cursor-pointer"
+                  className="w-8 h-8 rounded-md bg-white border border-border flex items-center justify-center hover:bg-saffron-lt hover:border-saffron transition-colors cursor-pointer"
                 >
-                  <Icon size={14} className="text-[#0f0e0b]" />
+                  <Icon size={14} className="text-ink" />
                 </div>
               ))}
             </div>
@@ -1133,7 +1189,7 @@ export default function Landing() {
 
           {/* product */}
           <div>
-            <p className="text-xs font-semibold text-[#0f0e0b] tracking-widest uppercase mb-4">
+            <p className="text-xs font-semibold text-ink tracking-widest uppercase mb-4">
               Product
             </p>
             <ul className="space-y-2.5 text-sm">
@@ -1145,10 +1201,7 @@ export default function Landing() {
                 "Changelog",
               ].map((l) => (
                 <li key={l}>
-                  <a
-                    href="#"
-                    className="hover:text-[#e8720c] transition-colors"
-                  >
+                  <a href="#" className="hover:text-saffron transition-colors">
                     {l}
                   </a>
                 </li>
@@ -1158,7 +1211,7 @@ export default function Landing() {
 
           {/* resources */}
           <div>
-            <p className="text-xs font-semibold text-[#0f0e0b] tracking-widest uppercase mb-4">
+            <p className="text-xs font-semibold text-ink tracking-widest uppercase mb-4">
               Resources
             </p>
             <ul className="space-y-2.5 text-sm">
@@ -1170,10 +1223,7 @@ export default function Landing() {
                 "Help Center",
               ].map((l) => (
                 <li key={l}>
-                  <a
-                    href="#"
-                    className="hover:text-[#e8720c] transition-colors"
-                  >
+                  <a href="#" className="hover:text-saffron transition-colors">
                     {l}
                   </a>
                 </li>
@@ -1183,7 +1233,7 @@ export default function Landing() {
 
           {/* company */}
           <div>
-            <p className="text-xs font-semibold text-[#0f0e0b] tracking-widest uppercase mb-4">
+            <p className="text-xs font-semibold text-ink tracking-widest uppercase mb-4">
               Company
             </p>
             <ul className="space-y-2.5 text-sm">
@@ -1198,14 +1248,14 @@ export default function Landing() {
                   {l.to.startsWith("/") ? (
                     <Link
                       to={l.to}
-                      className="hover:text-[#e8720c] transition-colors"
+                      className="hover:text-saffron transition-colors"
                     >
                       {l.label}
                     </Link>
                   ) : (
                     <a
                       href={l.to}
-                      className="hover:text-[#e8720c] transition-colors"
+                      className="hover:text-saffron transition-colors"
                     >
                       {l.label}
                     </a>
@@ -1216,10 +1266,10 @@ export default function Landing() {
           </div>
         </div>
 
-        <div className="border-t border-[#e0d9ce] max-w-6xl mx-auto px-4 sm:px-6 py-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+        <div className="border-t border-border max-w-6xl mx-auto px-4 sm:px-6 py-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
           <p>© {new Date().getFullYear()} BuzTap. All rights reserved.</p>
           <p className="flex items-center gap-1 flex-wrap justify-center">
-            Made with <span className="text-[#e8720c]">♥</span> for India&apos;s
+            Made with <span className="text-saffron">♥</span> for India&apos;s
             restaurants ·
             <a
               href="https://buzingbee.com"

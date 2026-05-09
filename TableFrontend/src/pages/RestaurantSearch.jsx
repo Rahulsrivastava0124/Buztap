@@ -1,35 +1,42 @@
 import { Link } from "react-router-dom";
 import { ArrowLeft, Search } from "lucide-react";
+import useSEO from "../hooks/useSEO";
 
 export default function RestaurantSearch() {
+  useSEO({
+    title: "Restaurant Search",
+    description: "Search nearby restaurants, cuisines, and menu items.",
+    keywords: "restaurant search, cuisine search",
+    url: "/search",
+    robots: "noindex, nofollow, noarchive, nosnippet",
+  });
+
   return (
-    <div className="min-h-screen bg-[#faf7f2] font-body">
+    <div className="min-h-screen bg-paper font-body">
       <div className="max-w-md mx-auto px-4 py-6">
         <div className="flex items-center justify-between mb-6">
           <Link
             to="/demo"
-            className="w-11 h-11 rounded-full bg-white shadow-md flex items-center justify-center border border-[#e0d9ce] text-[#0f0e0b]"
+            className="w-11 h-11 rounded-full bg-white shadow-md flex items-center justify-center border border-border text-ink"
           >
             <ArrowLeft size={20} />
           </Link>
-          <h1 className="text-lg font-bold text-[#0f0e0b]">
-            Restaurant Search
-          </h1>
-          <div className="w-11 h-11 rounded-full bg-white shadow-md border border-[#e0d9ce] flex items-center justify-center text-[#0f0e0b]">
+          <h1 className="text-lg font-bold text-ink">Restaurant Search</h1>
+          <div className="w-11 h-11 rounded-full bg-white shadow-md border border-border flex items-center justify-center text-ink">
             <Search size={20} />
           </div>
         </div>
 
-        <div className="bg-white rounded-3xl p-5 shadow-sm border border-[#e0d9ce]">
+        <div className="bg-white rounded-3xl p-5 shadow-sm border border-border">
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-11 h-11 rounded-2xl bg-[#f5f0e8] flex items-center justify-center text-[#857c6e]">
+            <div className="w-11 h-11 rounded-2xl bg-cream flex items-center justify-center text-muted">
               <Search size={20} />
             </div>
             <div className="flex-1">
-              <p className="text-sm text-[#0f0e0b] font-semibold">
+              <p className="text-sm text-ink font-semibold">
                 Find your next meal
               </p>
-              <p className="text-xs text-[#857c6e]">
+              <p className="text-xs text-muted">
                 Search nearby restaurants, cuisines, and menu items.
               </p>
             </div>
@@ -37,11 +44,11 @@ export default function RestaurantSearch() {
           <input
             type="search"
             placeholder="Search restaurants"
-            className="w-full rounded-3xl border border-[#e0d9ce] bg-[#faf7f2] px-4 py-3 text-sm text-[#0f0e0b] focus:outline-none focus:border-[#e8720c] focus:ring-1 focus:ring-[#e8720c]/20"
+            className="w-full rounded-3xl border border-border bg-paper px-4 py-3 text-sm text-ink focus:outline-none focus:border-saffron focus:ring-1 focus:ring-saffron/20"
           />
         </div>
 
-        <div className="mt-6 text-center text-sm text-[#857c6e]">
+        <div className="mt-6 text-center text-sm text-muted">
           <p>Search opens a separate page for restaurant discovery.</p>
         </div>
       </div>
