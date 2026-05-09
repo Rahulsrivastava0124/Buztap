@@ -199,6 +199,8 @@ export default function AdminLayout() {
   const notifiedOrderIdsRef = useRef(new Set());
   const firstLoadRef = useRef(true);
   const notificationRef = useRef(null);
+  const audioContextRef = useRef(null);
+  const hasUserInteractedRef = useRef(false);
   const visibleSidebarItems = SIDEBAR_ITEMS.filter((item) =>
     hasRoleAccess(role, item.minimumRole),
   );
@@ -225,9 +227,77 @@ export default function AdminLayout() {
     [incomingQrOrders],
   );
 
+  const playIncomingOrderTone = useCallback((newOrderCount = 1) => {
+    try {
+      if (typeof window === "undefined" || !hasUserInteractedRef.current)
+        return;
+
+      const AudioContextClass =
+        window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextClass) return;
+
+      if (!audioContextRef.current) {
+        audioContextRef.current = new AudioContextClass();
+      }
+
+      const ctx = audioContextRef.current;
+      if (ctx.state === "suspended") {
+        ctx.resume().catch(() => {});
+      }
+
+      const beepCount = Math.min(Math.max(newOrderCount, 1), 3);
+      for (let i = 0; i < beepCount; i += 1) {
+        const startAt = ctx.currentTime + i * 0.2;
+        const oscillator = ctx.createOscillator();
+        const gainNode = ctx.createGain();
+
+        oscillator.type = "triangle";
+        oscillator.frequency.setValueAtTime(980, startAt);
+        oscillator.frequency.exponentialRampToValueAtTime(760, startAt + 0.12);
+
+        gainNode.gain.setValueAtTime(0.0001, startAt);
+        gainNode.gain.exponentialRampToValueAtTime(0.11, startAt + 0.01);
+        gainNode.gain.exponentialRampToValueAtTime(0.0001, startAt + 0.14);
+
+        oscillator.connect(gainNode);
+        gainNode.connect(ctx.destination);
+        oscillator.start(startAt);
+        oscillator.stop(startAt + 0.15);
+      }
+    } catch {
+      // Silently ignore audio issues to avoid blocking order polling.
+    }
+  }, []);
+
   useEffect(() => {
     localStorage.setItem("sidebarCompact", String(compactSidebar));
   }, [compactSidebar]);
+
+  useEffect(() => {
+    const markInteraction = () => {
+      hasUserInteractedRef.current = true;
+      if (audioContextRef.current?.state === "suspended") {
+        audioContextRef.current.resume().catch(() => {});
+      }
+    };
+
+    window.addEventListener("pointerdown", markInteraction, { passive: true });
+    window.addEventListener("keydown", markInteraction);
+
+    return () => {
+      window.removeEventListener("pointerdown", markInteraction);
+      window.removeEventListener("keydown", markInteraction);
+    };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (audioContextRef.current) {
+        audioContextRef.current.close().catch(() => {});
+        audioContextRef.current = null;
+      }
+    };
+  }, []);
 
   const handleApprove = useCallback(
     async (order, toastId) => {
@@ -289,6 +359,7 @@ export default function AdminLayout() {
         // Auto-open bell panel when new orders arrive (after first load)
         if (!firstLoadRef.current && newOrders.length > 0) {
           setShowNotifications(true);
+          playIncomingOrderTone(newOrders.length);
         }
 
         newOrders.forEach((order) => notifiedOrderIdsRef.current.add(order.id));
@@ -307,7 +378,7 @@ export default function AdminLayout() {
       isMounted = false;
       clearInterval(poller);
     };
-  }, [canViewIncomingOrders]);
+  }, [canViewIncomingOrders, playIncomingOrderTone]);
 
   useEffect(() => {
     if (!showNotifications) return;

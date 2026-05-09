@@ -15,6 +15,7 @@ import {
   Settings,
   History,
   LogOut,
+  X,
 } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
@@ -58,6 +59,8 @@ const DEFAULT_SOCIAL_LINKS = {
   x: "https://x.com",
   googleReview: "https://g.page/r/review",
 };
+
+const DECLINED_ORDER_STATUSES = new Set(["Declined", "Cancelled", "Canceled"]);
 
 function getTableLabel(tableId) {
   if (!tableId) return "Table 04";
@@ -1194,7 +1197,8 @@ export default function DemoMenu() {
         setOrderHistory(backendHistory);
         saveOrderHistory(guestPhone, backendHistory);
 
-        // Priority: Served+unpaid (needs payment) → active (Preparing/Ready/Pending) → any non-cancelled
+        // Priority: Served+unpaid (needs payment) → active (Preparing/Ready/Pending)
+        // → declined/cancelled terminal order → latest available order
         const latestRelevant =
           orders.find(
             (o) => o.status === "Served" && o.paymentStatus !== "Completed",
@@ -1202,7 +1206,9 @@ export default function DemoMenu() {
           orders.find((o) =>
             ["Pending", "Preparing", "Ready"].includes(String(o.status || "")),
           ) ||
-          orders.find((o) => String(o.status || "") !== "Cancelled") ||
+          orders.find((o) =>
+            DECLINED_ORDER_STATUSES.has(String(o.status || "")),
+          ) ||
           orders[0];
         if (!latestRelevant) return;
 
@@ -1233,6 +1239,7 @@ export default function DemoMenu() {
   ]);
 
   const mapBackendStatusToStep = (status) => {
+    if (DECLINED_ORDER_STATUSES.has(String(status || ""))) return -1;
     if (status === "Ready" || status === "Served") return 2;
     if (status === "Preparing") return 1;
     if (status === "Pending") return 0;
@@ -1568,6 +1575,9 @@ export default function DemoMenu() {
   };
 
   const isPaymentDone = orderPaymentStatus === "Completed";
+  const isDeclinedOrder = DECLINED_ORDER_STATUSES.has(
+    String(orderBackendStatus || ""),
+  );
   const canShowPayment = orderBackendStatus === "Served" && !isPaymentDone;
   const scrollToPaymentSection = () => {
     const scrollContainer = scrollRef.current;
@@ -2825,16 +2835,20 @@ export default function DemoMenu() {
                           stiffness: 200,
                         }}
                         className={`w-14 h-14 rounded-full flex items-center justify-center mb-2 ${
-                          canShowPayment
-                            ? "bg-[#fff7ed] text-saffron shadow-[0_4px_30px_rgba(232,114,12,0.2)]"
-                            : orderStatus >= 2
-                              ? "bg-sage-lt text-sage shadow-[0_4px_30px_rgba(58,99,72,0.2)]"
-                              : orderStatus === 1
-                                ? "bg-[#fff7ed] text-saffron shadow-[0_4px_30px_rgba(232,114,12,0.2)]"
-                                : "bg-sage-lt text-sage shadow-[0_4px_30px_rgba(58,99,72,0.2)]"
+                          isDeclinedOrder
+                            ? "bg-red-50 text-red-600 shadow-[0_4px_30px_rgba(220,38,38,0.18)]"
+                            : canShowPayment
+                              ? "bg-[#fff7ed] text-saffron shadow-[0_4px_30px_rgba(232,114,12,0.2)]"
+                              : orderStatus >= 2
+                                ? "bg-sage-lt text-sage shadow-[0_4px_30px_rgba(58,99,72,0.2)]"
+                                : orderStatus === 1
+                                  ? "bg-[#fff7ed] text-saffron shadow-[0_4px_30px_rgba(232,114,12,0.2)]"
+                                  : "bg-sage-lt text-sage shadow-[0_4px_30px_rgba(58,99,72,0.2)]"
                         }`}
                       >
-                        {canShowPayment ? (
+                        {isDeclinedOrder ? (
+                          <X size={26} />
+                        ) : canShowPayment ? (
                           /* Served — payment due */
                           <svg
                             width="26"
@@ -2931,15 +2945,17 @@ export default function DemoMenu() {
                         transition={{ duration: 0.3 }}
                         className="text-xl font-display font-bold text-ink mt-1"
                       >
-                        {isPaymentDone
-                          ? `Payment Received${guestName ? `, ${guestName.split(" ")[0]}` : ""}!`
-                          : canShowPayment
-                            ? `Time to Pay${guestName ? `, ${guestName.split(" ")[0]}` : ""}!`
-                            : orderStatus === 1
-                              ? `Hang tight${guestName ? `, ${guestName.split(" ")[0]}` : ""}!`
-                              : orderStatus >= 2
-                                ? `Almost Ready${guestName ? `, ${guestName.split(" ")[0]}` : ""}!`
-                                : `Order Placed${guestName ? `, ${guestName.split(" ")[0]}` : ""}!`}
+                        {isDeclinedOrder
+                          ? `Order Declined${guestName ? `, ${guestName.split(" ")[0]}` : ""}`
+                          : isPaymentDone
+                            ? `Payment Received${guestName ? `, ${guestName.split(" ")[0]}` : ""}!`
+                            : canShowPayment
+                              ? `Time to Pay${guestName ? `, ${guestName.split(" ")[0]}` : ""}!`
+                              : orderStatus === 1
+                                ? `Hang tight${guestName ? `, ${guestName.split(" ")[0]}` : ""}!`
+                                : orderStatus >= 2
+                                  ? `Almost Ready${guestName ? `, ${guestName.split(" ")[0]}` : ""}!`
+                                  : `Order Placed${guestName ? `, ${guestName.split(" ")[0]}` : ""}!`}
                       </motion.h2>
                       <p className="font-bold text-saffron bg-saffron-lt px-4 py-1.5 rounded-md text-sm inline-block tracking-wider">
                         ORDER #{orderNo}
@@ -2951,18 +2967,39 @@ export default function DemoMenu() {
                             className="h-full bg-saffron"
                             initial={{ width: "0%" }}
                             animate={{
-                              width:
-                                orderStatus <= 0
+                              width: isDeclinedOrder
+                                ? "100%"
+                                : orderStatus <= 0
                                   ? "33%"
                                   : orderStatus === 1
                                     ? "66%"
                                     : "100%",
                             }}
+                            style={
+                              isDeclinedOrder
+                                ? { backgroundColor: "#dc2626" }
+                                : undefined
+                            }
                             transition={{ duration: 0.5 }}
                           />
                         </div>
 
-                        {isPaymentDone ? (
+                        {isDeclinedOrder ? (
+                          <div className="pt-5 pb-4 px-5 flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-2xl bg-red-50 border border-red-100 flex items-center justify-center shrink-0 text-red-600">
+                              <X size={22} />
+                            </div>
+                            <div>
+                              <p className="font-bold text-base text-ink">
+                                This order was declined
+                              </p>
+                              <p className="text-xs text-muted mt-0.5 leading-relaxed">
+                                Please place a new order or contact staff for
+                                help.
+                              </p>
+                            </div>
+                          </div>
+                        ) : isPaymentDone ? (
                           <div className="pt-5 pb-4 px-5 flex items-center gap-4">
                             <div className="w-12 h-12 rounded-2xl bg-[#eaf4ee] flex items-center justify-center shrink-0">
                               <svg
