@@ -141,11 +141,17 @@ export const authAPI = {
 
 // Attendance APIs
 export const attendanceAPI = {
-  punchIn: (staffId: string, deviceId: string | null) =>
-    getAPI().post(`${API_PREFIX}/staff/${staffId}/punch-in`, { deviceId }),
+  punchIn: (staffId: string, deviceId: string | null, dateKey?: string) =>
+    getAPI().post(`${API_PREFIX}/staff/${staffId}/punch-in`, {
+      deviceId,
+      dateKey,
+    }),
 
-  punchOut: (staffId: string, deviceId: string | null) =>
-    getAPI().post(`${API_PREFIX}/staff/${staffId}/punch-out`, { deviceId }),
+  punchOut: (staffId: string, deviceId: string | null, dateKey?: string) =>
+    getAPI().post(`${API_PREFIX}/staff/${staffId}/punch-out`, {
+      deviceId,
+      dateKey,
+    }),
 
   getAttendance: (staffId: string) =>
     getAPI().get(`${API_PREFIX}/staff/${staffId}`),

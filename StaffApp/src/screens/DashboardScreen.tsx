@@ -35,17 +35,51 @@ const toDateKey = (value: Date | string) => {
   ].join("-");
 };
 
+const getAttendanceRecordKey = (record: any) =>
+  toDateKey(record?.date || record?.punchIn || record?.punchOut);
+
 const getTodayRecord = (attendanceRecords: any[] = []) => {
   const todayKey = toDateKey(new Date());
-  return attendanceRecords.find((r) => toDateKey(r?.date) === todayKey) || null;
+  return attendanceRecords.find((r) => getAttendanceRecordKey(r) === todayKey) || null;
 };
 
 const getRecordByDate = (attendanceRecords: any[] = [], dateKey: string) => {
-  return attendanceRecords.find((r) => toDateKey(r?.date) === dateKey) || null;
+  return attendanceRecords.find((r) => getAttendanceRecordKey(r) === dateKey) || null;
+};
+
+const resolveHomeRecord = (attendanceRecords: any[] = [], dateKey: string) => {
+  if (!Array.isArray(attendanceRecords) || attendanceRecords.length === 0) {
+    return null;
+  }
+
+  const byDate = getRecordByDate(attendanceRecords, dateKey);
+  if (byDate) return byDate;
+
+  // Fallback for timezone/date-boundary shifts: prefer currently active punch.
+  const openShift = attendanceRecords
+    .filter((r) => !!r?.punchIn && !r?.punchOut)
+    .sort(
+      (a, b) =>
+        new Date(b?.punchIn || b?.date || 0).getTime() -
+        new Date(a?.punchIn || a?.date || 0).getTime(),
+    )[0];
+  if (openShift) return openShift;
+
+  // Final fallback: latest record with any punch data.
+  const latestPunched = attendanceRecords
+    .filter((r) => !!r?.punchIn || !!r?.punchOut)
+    .sort(
+      (a, b) =>
+        new Date(b?.punchOut || b?.punchIn || b?.date || 0).getTime() -
+        new Date(a?.punchOut || a?.punchIn || a?.date || 0).getTime(),
+    )[0];
+
+  return latestPunched || null;
 };
 
 export const DashboardScreen = ({ navigation }: any) => {
   const { staff, setStaff } = useAuthStore();
+  const staffId = staff?.id || (staff as any)?._id;
   const [refreshing, setRefreshing] = useState(false);
   const [todayStatus, setTodayStatus] = useState<any>(null);
   const [swipeLoading, setSwipeLoading] = useState(false);
@@ -104,10 +138,10 @@ export const DashboardScreen = ({ navigation }: any) => {
 
   // ── Data ─────────────────────────────────────────────────────────────────────
   const fetchTodayAttendance = useCallback(async () => {
-    if (!staff?.id) return;
+    if (!staffId) return;
     try {
-      const response = await attendanceAPI.getAttendance(staff.id);
-      const todayRecord = getRecordByDate(
+      const response = await attendanceAPI.getAttendance(staffId);
+      const todayRecord = resolveHomeRecord(
         response.data.attendanceRecords,
         todayDateKey,
       );
@@ -116,7 +150,7 @@ export const DashboardScreen = ({ navigation }: any) => {
     } catch (error) {
       console.error("Failed to fetch attendance:", error);
     }
-  }, [todayDateKey, setStaff, staff?.id]);
+  }, [todayDateKey, setStaff, staffId]);
 
   useFocusEffect(
     useCallback(() => {
@@ -137,7 +171,7 @@ export const DashboardScreen = ({ navigation }: any) => {
   };
 
   const handlePunchIn = async () => {
-    if (!staff?.id) {
+    if (!staffId) {
       Alert.alert(
         "Error",
         "Session not loaded. Please log out and log in again.",
@@ -148,9 +182,22 @@ export const DashboardScreen = ({ navigation }: any) => {
     setSwipeLoading(true);
     try {
       const deviceId = await getDeviceId();
-      const response = await attendanceAPI.punchIn(staff.id, deviceId);
+      if (!deviceId) {
+        Alert.alert(
+          "Device ID Required",
+          "Unable to read your device identifier. Please restart the app and try again.",
+        );
+        return;
+      }
+      const response = await attendanceAPI.punchIn(
+        staffId,
+        deviceId,
+        toDateKey(new Date()),
+      );
       setStaff(response.data);
-      setTodayStatus(getTodayRecord(response.data.attendanceRecords));
+      setTodayStatus(
+        resolveHomeRecord(response.data.attendanceRecords, todayDateKey),
+      );
       fetchTodayAttendance();
     } catch (error: any) {
       Alert.alert("Error", error.response?.data?.error || "Failed to punch in");
@@ -161,7 +208,7 @@ export const DashboardScreen = ({ navigation }: any) => {
   };
 
   const handlePunchOut = async () => {
-    if (!staff?.id) {
+    if (!staffId) {
       Alert.alert(
         "Error",
         "Session not loaded. Please log out and log in again.",
@@ -182,9 +229,22 @@ export const DashboardScreen = ({ navigation }: any) => {
     setSwipeLoading(true);
     try {
       const deviceId = await getDeviceId();
-      const response = await attendanceAPI.punchOut(staff.id, deviceId);
+      if (!deviceId) {
+        Alert.alert(
+          "Device ID Required",
+          "Unable to read your device identifier. Please restart the app and try again.",
+        );
+        return;
+      }
+      const response = await attendanceAPI.punchOut(
+        staffId,
+        deviceId,
+        toDateKey(new Date()),
+      );
       setStaff(response.data);
-      setTodayStatus(getTodayRecord(response.data.attendanceRecords));
+      setTodayStatus(
+        resolveHomeRecord(response.data.attendanceRecords, todayDateKey),
+      );
       fetchTodayAttendance();
     } catch (error: any) {
       const code = error.response?.data?.code;
@@ -192,6 +252,16 @@ export const DashboardScreen = ({ navigation }: any) => {
         Alert.alert(
           "Device Mismatch",
           "You must punch out from the same device you used to punch in. Contact your manager if you need assistance.",
+        );
+      } else if (code === "DEVICE_ID_REQUIRED") {
+        Alert.alert(
+          "Device ID Required",
+          "Your device identifier could not be verified. Please retry from this device.",
+        );
+      } else if (code === "PUNCHIN_DEVICE_MISSING") {
+        Alert.alert(
+          "Security Check Failed",
+          "Your earlier punch-in is missing device verification. Please contact your manager.",
         );
       } else {
         Alert.alert(
@@ -268,8 +338,7 @@ export const DashboardScreen = ({ navigation }: any) => {
   const workedDurationText = isPunchedIn
     ? formatDurationLabel(elapsed)
     : "--h --m";
-  const hasPunchOutWithoutPunchIn =
-    !!todayStatus?.punchOut && !todayStatus?.punchIn;
+  const hasPunchOutWithoutPunchIn = !!todayStatus?.punchOut && !todayStatus?.punchIn;
   const hasPunchError = hasPunchOutWithoutPunchIn;
 
   // Activity items from real attendance fields for today

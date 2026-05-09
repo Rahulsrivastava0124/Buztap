@@ -23,6 +23,9 @@ const toDateKey = (value: Date | string) => {
   ].join("-");
 };
 
+const getAttendanceRecordKey = (record: any) =>
+  toDateKey(record?.date || record?.punchIn || record?.punchOut);
+
 const formatDurationLabel = (secs: number) => {
   const hours = Math.floor(secs / 3600);
   const mins = Math.floor((secs % 3600) / 60);
@@ -44,7 +47,7 @@ export const AttendanceDayPreviewScreen = ({ route, navigation }: any) => {
       const response = await attendanceAPI.getAttendance(staff.id);
       const found =
         (response.data.attendanceRecords || []).find(
-          (r: any) => toDateKey(r.date) === dateKey,
+          (r: any) => getAttendanceRecordKey(r) === dateKey,
         ) ?? null;
       setRecord(found);
     } catch (err) {

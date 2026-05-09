@@ -43,6 +43,9 @@ const toDateKey = (value: Date | string) => {
   ].join("-");
 };
 
+const getAttendanceRecordKey = (record: AttendanceRecord) =>
+  toDateKey(record?.date || record?.punchIn || record?.punchOut);
+
 type AttendanceRecord = {
   date: string;
   status?: "work" | "absent" | "holiday" | "weekOff" | "halfDay" | string;
@@ -103,7 +106,7 @@ export const AttendanceCalendarScreen = ({ navigation }: any) => {
   const recordMap = useMemo(() => {
     const map = new Map<string, AttendanceRecord>();
     records.forEach((r) => {
-      const key = toDateKey(r.date);
+      const key = getAttendanceRecordKey(r);
       if (key) map.set(key, r);
     });
     return map;

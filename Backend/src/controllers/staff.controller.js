@@ -256,6 +256,24 @@ async function remove(req, res, next) {
 
 async function punchIn(req, res, next) {
   try {
+    const deviceId = String(req.body?.deviceId || "").trim();
+    if (!deviceId) {
+      return res.status(400).json({
+        error:
+          "Device identifier is required for punch in. Please enable device permissions and try again.",
+        code: "DEVICE_ID_REQUIRED",
+      });
+    }
+
+    const requestedDateKey = String(req.body?.dateKey || "").trim();
+    const effectiveDateKey = /^\d{4}-\d{2}-\d{2}$/.test(requestedDateKey)
+      ? requestedDateKey
+      : toUtcDateKey(new Date());
+
+    if (!effectiveDateKey) {
+      return res.status(400).json({ error: "Invalid attendance date." });
+    }
+
     const member = await User.findOne({
       _id: req.params.id,
       businessId: req.user.businessId,
@@ -267,14 +285,11 @@ async function punchIn(req, res, next) {
       member.attendanceRecords = [];
     }
 
-    const today = new Date();
-    today.setUTCHours(0, 0, 0, 0);
+    const attendanceDate = new Date(`${effectiveDateKey}T00:00:00.000Z`);
 
     // Find or create today's attendance record
     const existingIndex = member.attendanceRecords.findIndex((record) => {
-      const recordDate = new Date(record.date);
-      recordDate.setUTCHours(0, 0, 0, 0);
-      return recordDate.getTime() === today.getTime();
+      return toUtcDateKey(record?.date) === effectiveDateKey;
     });
 
     const now = new Date();
@@ -294,19 +309,17 @@ async function punchIn(req, res, next) {
     // If late by 30+ minutes, mark as half-day; otherwise mark as work
     const status = lateMinutes >= 30 ? "halfDay" : "work";
 
-    const deviceId = req.body?.deviceId || null;
-
     if (existingIndex !== -1) {
       // Update existing record with punch in time
       member.attendanceRecords[existingIndex].punchIn = now;
       member.attendanceRecords[existingIndex].status = status;
-      member.attendanceRecords[existingIndex].isLate = isLat
+      member.attendanceRecords[existingIndex].isLate = isLate;
       member.attendanceRecords[existingIndex].lateMinutes = lateMinutes;
       member.attendanceRecords[existingIndex].punchInDeviceId = deviceId;
     } else {
       // Create new record for today
       member.attendanceRecords.push({
-        date: today,
+        date: attendanceDate,
         status: status,
         punchIn: now,
         isLate: isLate,
@@ -327,6 +340,24 @@ async function punchIn(req, res, next) {
 
 async function punchOut(req, res, next) {
   try {
+    const punchOutDeviceId = String(req.body?.deviceId || "").trim();
+    if (!punchOutDeviceId) {
+      return res.status(400).json({
+        error:
+          "Device identifier is required for punch out. Please enable device permissions and try again.",
+        code: "DEVICE_ID_REQUIRED",
+      });
+    }
+
+    const requestedDateKey = String(req.body?.dateKey || "").trim();
+    const effectiveDateKey = /^\d{4}-\d{2}-\d{2}$/.test(requestedDateKey)
+      ? requestedDateKey
+      : toUtcDateKey(new Date());
+
+    if (!effectiveDateKey) {
+      return res.status(400).json({ error: "Invalid attendance date." });
+    }
+
     const member = await User.findOne({
       _id: req.params.id,
       businessId: req.user.businessId,
@@ -338,14 +369,9 @@ async function punchOut(req, res, next) {
       member.attendanceRecords = [];
     }
 
-    const today = new Date();
-    today.setUTCHours(0, 0, 0, 0);
-
-    // Prefer today's attendance record
+    // Prefer selected local date attendance record
     const existingIndex = member.attendanceRecords.findIndex((record) => {
-      const recordDate = new Date(record.date);
-      recordDate.setUTCHours(0, 0, 0, 0);
-      return recordDate.getTime() === today.getTime();
+      return toUtcDateKey(record?.date) === effectiveDateKey;
     });
 
     // Fallback: latest open punch-in record (handles date boundary mismatches)
@@ -380,15 +406,19 @@ async function punchOut(req, res, next) {
     }
 
     // ── Device security check ─────────────────────────────────────────────
-    const punchOutDeviceId = req.body?.deviceId || null;
-    const punchInDeviceId =
-      member.attendanceRecords[targetIndex].punchInDeviceId || null;
+    const punchInDeviceId = String(
+      member.attendanceRecords[targetIndex].punchInDeviceId || "",
+    ).trim();
 
-    if (
-      punchInDeviceId &&
-      punchOutDeviceId &&
-      punchInDeviceId !== punchOutDeviceId
-    ) {
+    if (!punchInDeviceId) {
+      return res.status(403).json({
+        error:
+          "Security check failed: missing punch-in device record. Please contact your manager.",
+        code: "PUNCHIN_DEVICE_MISSING",
+      });
+    }
+
+    if (punchInDeviceId !== punchOutDeviceId) {
       return res.status(403).json({
         error:
           "Device mismatch: you must punch out from the same device used to punch in.",
