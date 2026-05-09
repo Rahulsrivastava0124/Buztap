@@ -300,7 +300,7 @@ async function punchIn(req, res, next) {
       // Update existing record with punch in time
       member.attendanceRecords[existingIndex].punchIn = now;
       member.attendanceRecords[existingIndex].status = status;
-      member.attendanceRecords[existingIndex].isLate = isLate;
+      member.attendanceRecords[existingIndex].isLate = isLat
       member.attendanceRecords[existingIndex].lateMinutes = lateMinutes;
       member.attendanceRecords[existingIndex].punchInDeviceId = deviceId;
     } else {
