@@ -40,11 +40,16 @@ const getAttendanceRecordKey = (record: any) =>
 
 const getTodayRecord = (attendanceRecords: any[] = []) => {
   const todayKey = toDateKey(new Date());
-  return attendanceRecords.find((r) => getAttendanceRecordKey(r) === todayKey) || null;
+  return (
+    attendanceRecords.find((r) => getAttendanceRecordKey(r) === todayKey) ||
+    null
+  );
 };
 
 const getRecordByDate = (attendanceRecords: any[] = [], dateKey: string) => {
-  return attendanceRecords.find((r) => getAttendanceRecordKey(r) === dateKey) || null;
+  return (
+    attendanceRecords.find((r) => getAttendanceRecordKey(r) === dateKey) || null
+  );
 };
 
 const resolveHomeRecord = (attendanceRecords: any[] = [], dateKey: string) => {
@@ -338,7 +343,8 @@ export const DashboardScreen = ({ navigation }: any) => {
   const workedDurationText = isPunchedIn
     ? formatDurationLabel(elapsed)
     : "--h --m";
-  const hasPunchOutWithoutPunchIn = !!todayStatus?.punchOut && !todayStatus?.punchIn;
+  const hasPunchOutWithoutPunchIn =
+    !!todayStatus?.punchOut && !todayStatus?.punchIn;
   const hasPunchError = hasPunchOutWithoutPunchIn;
 
   // Activity items from real attendance fields for today

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import {
   View,
   Text,
@@ -24,6 +24,7 @@ export const LoginScreen = ({ navigation }: any) => {
   const [maskedEmail, setMaskedEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
+  const otpInputRef = useRef<TextInput>(null);
   const { setToken, setStaff, logout } = useAuthStore();
 
   const startCooldown = (seconds: number) => {
@@ -52,7 +53,6 @@ export const LoginScreen = ({ navigation }: any) => {
       setMaskedEmail(email);
       setStep("otp");
       startCooldown(60);
-      Alert.alert("OTP Sent", `A 6-digit OTP has been sent to ${email}`);
     } catch (error: any) {
       const message =
         error.response?.data?.error ||
@@ -74,7 +74,6 @@ export const LoginScreen = ({ navigation }: any) => {
       const { token, staff } = response.data;
       setToken(token);
       setStaff(staff);
-      Alert.alert("Success", `Welcome ${staff.name}!`);
     } catch (error: any) {
       const message =
         error.response?.data?.error || "Invalid OTP. Please try again.";
@@ -91,24 +90,39 @@ export const LoginScreen = ({ navigation }: any) => {
     await handleRequestOtp();
   };
 
+  const handleOtpChange = (value: string) => {
+    const normalized = value.replace(/\D/g, "").slice(0, 6);
+    setOtp(normalized);
+  };
+
+  const isOtpStep = step === "otp";
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={styles.container}
     >
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          isOtpStep && styles.scrollContentOtp,
+        ]}
         keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
-        <View style={styles.topSection}>
-          <Image
-            source={require("../../assets/Secure data-pana.png")}
-            style={styles.heroImage}
-            resizeMode="contain"
-          />
-        </View>
+        {!isOtpStep ? (
+          <View style={styles.topSection}>
+            <Image
+              source={require("../../assets/Secure data-pana.png")}
+              style={styles.heroImage}
+              resizeMode="contain"
+            />
+          </View>
+        ) : (
+          <View style={styles.otpTopSpace} />
+        )}
 
-        <View style={styles.card}>
+        <View style={[styles.card, isOtpStep && styles.cardOtp]}>
           <View style={styles.header}>
             <Text style={styles.title}>
               {step === "phone" ? "Sign In" : "Verify OTP"}
@@ -120,7 +134,7 @@ export const LoginScreen = ({ navigation }: any) => {
             </Text>
           </View>
 
-          <View style={styles.form}>
+          <View style={[styles.form, isOtpStep && styles.formOtp]}>
             {step === "phone" ? (
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Mobile Number</Text>
@@ -147,16 +161,39 @@ export const LoginScreen = ({ navigation }: any) => {
                   OTP sent to <Text style={styles.otpEmail}>{maskedEmail}</Text>
                 </Text>
                 <View style={styles.inputGroup}>
-                  <Text style={styles.label}>One-Time Password</Text>
+                  <Text style={styles.label}>Enter OTP</Text>
+                  <TouchableOpacity
+                    activeOpacity={1}
+                    onPress={() => otpInputRef.current?.focus()}
+                    style={styles.otpBoxRow}
+                  >
+                    {Array.from({ length: 6 }).map((_, index) => {
+                      const digit = otp[index] ?? "";
+                      const isActive = index === otp.length && otp.length < 6;
+                      return (
+                        <View
+                          key={`otp-box-${index}`}
+                          style={[
+                            styles.otpBox,
+                            isActive && styles.otpBoxActive,
+                            digit ? styles.otpBoxFilled : null,
+                          ]}
+                        >
+                          <Text style={styles.otpBoxText}>{digit || "-"}</Text>
+                        </View>
+                      );
+                    })}
+                  </TouchableOpacity>
                   <TextInput
-                    style={[styles.input, styles.otpInput]}
-                    placeholder="••••••"
+                    ref={otpInputRef}
+                    style={styles.otpHiddenInput}
+                    placeholder=""
                     keyboardType="number-pad"
                     maxLength={6}
                     value={otp}
-                    onChangeText={setOtp}
+                    onChangeText={handleOtpChange}
                     editable={!loading}
-                    placeholderTextColor="#a0a8b3"
+                    textContentType="oneTimeCode"
                   />
                 </View>
               </>
@@ -171,7 +208,7 @@ export const LoginScreen = ({ navigation }: any) => {
                 <ActivityIndicator color="#ffffff" size="small" />
               ) : (
                 <Text style={styles.primaryBtnText}>
-                  {step === "phone" ? "Submit" : "Verify & Login"}
+                  {step === "phone" ? "Submit" : "Submit OTP"}
                 </Text>
               )}
             </TouchableOpacity>
@@ -206,7 +243,7 @@ export const LoginScreen = ({ navigation }: any) => {
             )}
           </View>
 
-          <View style={styles.footer}>
+          <View style={[styles.footer, isOtpStep && styles.footerOtp]}>
             <Text style={styles.footerLink}>
               Terms & Conditions | Privacy Policy
             </Text>
@@ -220,74 +257,97 @@ export const LoginScreen = ({ navigation }: any) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#d9e6f2",
+    backgroundColor: "#eaf1fb",
   },
   scrollContent: {
     flexGrow: 1,
     justifyContent: "flex-end",
   },
+  scrollContentOtp: {
+    justifyContent: "flex-start",
+    backgroundColor: "#ffffff",
+  },
   topSection: {
     flex: 1,
-    minHeight: 280,
+    minHeight: 300,
     justifyContent: "flex-end",
     alignItems: "center",
-    paddingTop: 20,
+    paddingTop: 18,
   },
   heroImage: {
-    width: "100%",
-    height: 280,
+    width: "92%",
+    height: 290,
+  },
+  otpTopSpace: {
+    minHeight: 14,
   },
   card: {
     width: "100%",
-    backgroundColor: "#f6f8fb",
-    borderTopLeftRadius: 34,
-    borderTopRightRadius: 34,
+    backgroundColor: "#ffffff",
+    borderTopLeftRadius: 36,
+    borderTopRightRadius: 36,
     paddingHorizontal: 24,
-    paddingTop: 28,
+    paddingTop: 30,
     paddingBottom: 36,
+    shadowColor: "#0f2740",
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 14,
+    elevation: 8,
+  },
+  cardOtp: {
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    marginTop: 8,
+    flexGrow: 1,
+    paddingBottom: 20,
   },
   header: {
-    marginBottom: 24,
+    marginBottom: 22,
   },
   title: {
-    fontSize: 28,
+    fontSize: 30,
     fontWeight: "800",
-    color: "#0f2740",
-    marginBottom: 6,
-    letterSpacing: 0.2,
+    color: "#0f2240",
+    marginBottom: 8,
+    letterSpacing: 0.1,
   },
   subtitle: {
-    fontSize: 14,
-    color: "#5f6f80",
+    fontSize: 15,
+    color: "#5f7086",
+    lineHeight: 22,
   },
   form: {
-    marginBottom: 18,
+    marginBottom: 16,
+  },
+  formOtp: {
+    flexGrow: 1,
   },
   inputGroup: {
     marginBottom: 18,
   },
   label: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#3e4f63",
-    marginBottom: 8,
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#33465d",
+    marginBottom: 10,
   },
   phoneRow: {
     flexDirection: "row",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#d8dee7",
-    borderRadius: 14,
-    backgroundColor: "#ffffff",
-    minHeight: 54,
+    borderColor: "#d7e1ee",
+    borderRadius: 16,
+    backgroundColor: "#f9fbff",
+    minHeight: 58,
   },
   countryBox: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
     borderRightWidth: 1,
-    borderRightColor: "#e2e7ef",
-    minHeight: 54,
+    borderRightColor: "#e3e9f3",
+    minHeight: 58,
   },
   flag: {
     fontSize: 24,
@@ -296,20 +356,20 @@ const styles = StyleSheet.create({
   countryCode: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#6f7b8a",
+    color: "#607187",
     marginRight: 6,
   },
   chevron: {
     fontSize: 14,
-    color: "#6f7b8a",
+    color: "#7a8898",
     marginTop: 2,
   },
   phoneInput: {
     flex: 1,
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     fontSize: 16,
-    color: "#23384e",
-    minHeight: 62,
+    color: "#23374f",
+    minHeight: 58,
   },
   input: {
     borderWidth: 1,
@@ -328,40 +388,86 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: "bold",
   },
-  otpHint: {
-    fontSize: 14,
-    color: "#5f6f80",
-    marginBottom: 16,
+  otpBoxRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 10,
   },
-  otpEmail: {
-    fontWeight: "600",
-    color: "#1778b8",
-  },
-  primaryBtn: {
-    backgroundColor: "#1778b8",
-    minHeight: 54,
+  otpBox: {
+    flex: 1,
+    height: 56,
     borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#d5deea",
+    backgroundColor: "#f9fbff",
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 8,
+  },
+  otpBoxActive: {
+    borderColor: "#5e68f2",
+    backgroundColor: "#f2f4ff",
+    shadowColor: "#5e68f2",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  otpBoxFilled: {
+    borderColor: "#6b74f5",
+    backgroundColor: "#eef1ff",
+  },
+  otpBoxText: {
+    fontSize: 22,
+    lineHeight: 24,
+    fontWeight: "700",
+    color: "#313b5a",
+  },
+  otpHiddenInput: {
+    position: "absolute",
+    opacity: 0,
+    width: 1,
+    height: 1,
+  },
+  otpHint: {
+    fontSize: 15,
+    color: "#627387",
+    marginBottom: 18,
+  },
+  otpEmail: {
+    fontWeight: "700",
+    color: "#1f7fc0",
+  },
+  primaryBtn: {
+    backgroundColor: "#247eb8",
+    minHeight: 58,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 10,
+    shadowColor: "#247eb8",
+    shadowOffset: { width: 0, height: 7 },
+    shadowOpacity: 0.24,
+    shadowRadius: 16,
+    elevation: 6,
   },
   btnDisabled: {
     opacity: 0.45,
   },
   primaryBtnText: {
     color: "#f6fbff",
-    fontSize: 17,
-    fontWeight: "700",
+    fontSize: 18,
+    fontWeight: "800",
+    letterSpacing: 0.2,
   },
   otpActions: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginTop: 14,
+    marginTop: 16,
   },
   linkText: {
-    fontSize: 13,
-    color: "#1778b8",
-    fontWeight: "600",
+    fontSize: 14,
+    color: "#1f7fc0",
+    fontWeight: "700",
   },
   linkDisabled: {
     color: "#9eb2c5",
@@ -370,10 +476,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 10,
   },
+  footerOtp: {
+    marginTop: "auto",
+    paddingTop: 10,
+  },
   footerLink: {
-    fontSize: 13,
-    color: "#1778b8",
+    fontSize: 15,
+    color: "#1f7fc0",
     textAlign: "center",
-    fontWeight: "500",
+    fontWeight: "700",
   },
 });
