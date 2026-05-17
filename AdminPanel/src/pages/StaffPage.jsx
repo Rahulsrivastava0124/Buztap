@@ -211,9 +211,7 @@ function LeaveRequestsPanel({
 
   function handleReview(request, status) {
     const managerNote =
-      status === "rejected"
-        ? window.prompt("Reason for rejection?") || ""
-        : "";
+      status === "rejected" ? window.prompt("Reason for rejection?") || "" : "";
 
     onReview({
       staffId: request.staffId,
@@ -309,7 +307,8 @@ function LeaveRequestsPanel({
                       </span>
                     </div>
                     <p className="mt-0.5 text-xs text-muted">
-                      {request.staffDesignation || "Employee"} · {request.leaveType} Leave
+                      {request.staffDesignation || "Employee"} ·{" "}
+                      {request.leaveType} Leave
                     </p>
 
                     <div className="mt-4 grid gap-2 sm:grid-cols-3">
@@ -327,7 +326,9 @@ function LeaveRequestsPanel({
                       </div>
                       <div className="rounded-lg border border-border bg-white px-3 py-2">
                         <p className="text-[11px] text-muted">Days</p>
-                        <p className="text-sm font-semibold text-ink">{leaveDays}</p>
+                        <p className="text-sm font-semibold text-ink">
+                          {leaveDays}
+                        </p>
                       </div>
                     </div>
 

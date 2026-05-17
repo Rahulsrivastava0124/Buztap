@@ -1,9 +1,5 @@
 import React, { useEffect } from "react";
-import {
-  AppRegistry,
-  Platform,
-  StyleSheet,
-} from "react-native";
+import { AppRegistry, Platform, StyleSheet } from "react-native";
 import { NavigationContainer, LinkingOptions } from "@react-navigation/native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import "./global.css";
