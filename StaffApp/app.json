@@ -4,7 +4,7 @@
     "slug": "staff-attendance",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/designarena_image_eewduh3n.png",
+    "icon": "./assets/app-icon.png",
     "userInterfaceStyle": "light",
     "splash": {
       "image": "./assets/designarena_image_eewduh3n.png",
@@ -21,16 +21,21 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/designarena_image_eewduh3n.png",
+        "foregroundImage": "./assets/adaptive-icon-foreground.png",
         "backgroundColor": "#ffffff"
       },
       "package": "com.tableqr.staffattendance",
       "permissions": ["CAMERA", "INTERNET"]
     },
     "web": {
-      "favicon": "./assets/designarena_image_eewduh3n.png"
+      "favicon": "./assets/favicon.png"
     },
     "scheme": "staffattendance",
+    "androidStatusBar": {
+      "backgroundColor": "#0F172A",
+      "barStyle": "light-content",
+      "translucent": false
+    },
     "plugins": ["expo-font", "expo-secure-store"],
     "extra": {
       "eas": {

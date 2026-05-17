@@ -34,7 +34,7 @@ function App() {
 
   useEffect(() => {
     if (Platform.OS === "android") {
-      NavigationBar.setButtonStyleAsync("dark").catch(() => {});
+      NavigationBar.setButtonStyleAsync("light").catch(() => {});
     }
   }, []);
 
@@ -55,7 +55,7 @@ function App() {
   return (
     <SafeAreaProvider>
       <NavigationContainer linking={linking}>
-        <StatusBar animated={true} style="dark" backgroundColor="#ffffff" />
+        <StatusBar animated={true} style="light" backgroundColor="#0F172A" />
         <RootNavigator />
       </NavigationContainer>
     </SafeAreaProvider>

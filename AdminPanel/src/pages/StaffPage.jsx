@@ -1,17 +1,21 @@
 import {
   BadgeCheck,
   CalendarDays,
-  CheckCircle2,
   ClipboardCheck,
-  Clock3,
   Eye,
   Pencil,
   Plus,
   Trash2,
   Users,
   X,
-  XCircle,
 } from "lucide-react";
+import {
+  ArrowPathIcon,
+  CalendarDaysIcon,
+  CheckCircleIcon as HeroCheckCircleIcon,
+  ExclamationCircleIcon,
+  XCircleIcon as HeroXCircleIcon,
+} from "@heroicons/react/24/outline";
 import { AnimatePresence, motion as Motion } from "framer-motion";
 import { useQueryClient, useQuery, useMutation } from "@tanstack/react-query";
 import { useState } from "react";
@@ -198,6 +202,13 @@ function LeaveRequestsPanel({
   const history = requests.filter((request) => request.status !== "pending");
   const visibleRequests = activeTab === "pending" ? pending : history;
 
+  function getStatusIcon(status) {
+    if (status === "approved") return HeroCheckCircleIcon;
+    if (status === "rejected") return HeroXCircleIcon;
+    if (status === "pending") return ExclamationCircleIcon;
+    return CalendarDaysIcon;
+  }
+
   function handleReview(request, status) {
     const managerNote =
       status === "rejected"
@@ -226,7 +237,7 @@ function LeaveRequestsPanel({
           onClick={onRetry}
           className="btn btn-outline btn-sm gap-1.5"
         >
-          <Clock3 size={15} /> Refresh
+          <ArrowPathIcon className="h-4 w-4" /> Refresh
         </button>
       </div>
 
@@ -261,10 +272,7 @@ function LeaveRequestsPanel({
 
       {!isLoading && !isError && visibleRequests.length === 0 && (
         <div className="rounded-xl border border-dashed border-border bg-paper/50 px-4 py-8 text-center">
-          <CalendarDays
-            size={28}
-            className="mx-auto text-muted opacity-40 mb-2"
-          />
+          <CalendarDaysIcon className="mx-auto mb-2 h-7 w-7 text-muted opacity-40" />
           <p className="text-sm text-muted">
             {activeTab === "pending"
               ? "No pending leave requests."
@@ -274,85 +282,86 @@ function LeaveRequestsPanel({
       )}
 
       {!isLoading && !isError && visibleRequests.length > 0 && (
-        <div className="grid gap-3 xl:grid-cols-2">
+        <div className="overflow-hidden rounded-xl border border-border bg-paper/30">
           {visibleRequests.map((request) => {
             const statusClass =
               LEAVE_STATUS_STYLES[request.status] ||
               LEAVE_STATUS_STYLES.pending;
             const leaveDays = getLeaveDays(request.startDate, request.endDate);
+            const StatusIcon = getStatusIcon(request.status);
 
             return (
               <div
                 key={`${request.staffId}-${request.id}`}
-                className="rounded-xl border border-border bg-paper/30 p-4"
+                className="border-b border-border p-4 last:border-b-0 sm:p-5"
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="font-semibold text-ink">
-                      {request.staffName || "Staff member"}
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-semibold text-ink">
+                        {request.staffName || "Staff member"}
+                      </p>
+                      <span
+                        className={`badge badge-sm gap-1 border capitalize ${statusClass}`}
+                      >
+                        <StatusIcon className="h-3.5 w-3.5" />
+                        {request.status}
+                      </span>
+                    </div>
+                    <p className="mt-0.5 text-xs text-muted">
+                      {request.staffDesignation || "Employee"} · {request.leaveType} Leave
                     </p>
-                    <p className="text-xs text-muted mt-0.5">
-                      {request.staffDesignation || "Employee"} ·{" "}
-                      {request.leaveType} Leave
+
+                    <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                      <div className="rounded-lg border border-border bg-white px-3 py-2">
+                        <p className="text-[11px] text-muted">From</p>
+                        <p className="text-sm font-semibold text-ink">
+                          {formatLeaveDate(request.startDate)}
+                        </p>
+                      </div>
+                      <div className="rounded-lg border border-border bg-white px-3 py-2">
+                        <p className="text-[11px] text-muted">To</p>
+                        <p className="text-sm font-semibold text-ink">
+                          {formatLeaveDate(request.endDate)}
+                        </p>
+                      </div>
+                      <div className="rounded-lg border border-border bg-white px-3 py-2">
+                        <p className="text-[11px] text-muted">Days</p>
+                        <p className="text-sm font-semibold text-ink">{leaveDays}</p>
+                      </div>
+                    </div>
+
+                    <p className="mt-3 text-sm text-slate-700">
+                      {request.reason || "No reason provided."}
                     </p>
+                    {request.managerNote ? (
+                      <p className="mt-2 text-xs text-muted">
+                        Manager note: {request.managerNote}
+                      </p>
+                    ) : null}
                   </div>
-                  <span
-                    className={`badge badge-sm border capitalize ${statusClass}`}
-                  >
-                    {request.status}
-                  </span>
+
+                  {request.status === "pending" && (
+                    <div className="flex gap-2 self-end lg:self-center">
+                      <button
+                        type="button"
+                        disabled={isReviewing || !request.staffId}
+                        onClick={() => handleReview(request, "rejected")}
+                        className="btn btn-outline btn-error btn-sm gap-1.5"
+                      >
+                        <HeroXCircleIcon className="h-4 w-4" /> Reject
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isReviewing || !request.staffId}
+                        onClick={() => handleReview(request, "approved")}
+                        className="btn btn-success btn-sm gap-1.5 text-white"
+                      >
+                        <HeroCheckCircleIcon className="h-4 w-4" /> Approve
+                      </button>
+                    </div>
+                  )}
                 </div>
-
-                <div className="grid grid-cols-3 gap-2 mt-4">
-                  <div className="rounded-lg bg-white border border-border px-3 py-2">
-                    <p className="text-[11px] text-muted">From</p>
-                    <p className="text-sm font-semibold text-ink">
-                      {formatLeaveDate(request.startDate)}
-                    </p>
-                  </div>
-                  <div className="rounded-lg bg-white border border-border px-3 py-2">
-                    <p className="text-[11px] text-muted">To</p>
-                    <p className="text-sm font-semibold text-ink">
-                      {formatLeaveDate(request.endDate)}
-                    </p>
-                  </div>
-                  <div className="rounded-lg bg-white border border-border px-3 py-2">
-                    <p className="text-[11px] text-muted">Days</p>
-                    <p className="text-sm font-semibold text-ink">
-                      {leaveDays}
-                    </p>
-                  </div>
-                </div>
-
-                <p className="text-sm text-slate-700 mt-3">
-                  {request.reason || "No reason provided."}
-                </p>
-                {request.managerNote ? (
-                  <p className="text-xs text-muted mt-2">
-                    Manager note: {request.managerNote}
-                  </p>
-                ) : null}
-
-                {request.status === "pending" && (
-                  <div className="flex justify-end gap-2 mt-4">
-                    <button
-                      type="button"
-                      disabled={isReviewing || !request.staffId}
-                      onClick={() => handleReview(request, "rejected")}
-                      className="btn btn-outline btn-error btn-sm gap-1.5"
-                    >
-                      <XCircle size={14} /> Reject
-                    </button>
-                    <button
-                      type="button"
-                      disabled={isReviewing || !request.staffId}
-                      onClick={() => handleReview(request, "approved")}
-                      className="btn btn-success btn-sm gap-1.5 text-white"
-                    >
-                      <CheckCircle2 size={14} /> Approve
-                    </button>
-                  </div>
-                )}
               </div>
             );
           })}
