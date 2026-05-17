@@ -20,6 +20,7 @@ const DESIGNATION_ROLE_MAP = {
 
 const VALID_DESIGNATIONS = Object.keys(DESIGNATION_ROLE_MAP);
 const ATTENDANCE_STATUSES = ["work", "absent", "holiday", "weekOff", "halfDay"];
+const LEAVE_TYPES = ["Casual", "Sick", "Paid", "Unpaid", "Other"];
 
 const attendanceRecordSchema = z.object({
   date: z.coerce.date(),
@@ -82,6 +83,51 @@ const updateSchema = z.object({
   password: z.string().min(6).optional(),
 });
 
+const leaveRequestSchema = z
+  .object({
+    startDate: z.coerce.date(),
+    endDate: z.coerce.date(),
+    leaveType: z.enum(LEAVE_TYPES).default("Casual"),
+    reason: z.string().trim().min(3),
+  })
+  .refine((data) => data.endDate >= data.startDate, {
+    message: "End date must be the same as or after start date.",
+    path: ["endDate"],
+  });
+
+const reviewLeaveRequestSchema = z.object({
+  status: z.enum(["approved", "rejected"]),
+  managerNote: z.string().trim().optional().or(z.literal("")),
+});
+
+function canManageStaff(user) {
+  return user?.role === "manager" || user?.role === "admin";
+}
+
+function getLeaveDays(startDate, endDate) {
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  start.setHours(0, 0, 0, 0);
+  end.setHours(0, 0, 0, 0);
+  const diffDays = Math.floor((end.getTime() - start.getTime()) / 86400000);
+  return Math.max(1, diffDays + 1);
+}
+
+function mapLeaveRequest(request) {
+  return {
+    id: request._id,
+    startDate: request.startDate,
+    endDate: request.endDate,
+    leaveType: request.leaveType || "Casual",
+    reason: request.reason || "",
+    status: request.status || "pending",
+    requestedAt: request.requestedAt,
+    reviewedAt: request.reviewedAt || null,
+    reviewedBy: request.reviewedBy || null,
+    managerNote: request.managerNote || "",
+  };
+}
+
 function mapMember(member, holidays = []) {
   // Deduplicate attendance records by date
   const deduplicatedRecords = applyBusinessHolidays(
@@ -108,6 +154,13 @@ function mapMember(member, holidays = []) {
     leavesTaken: Number(member.leavesTaken || 0),
     joiningDate: member.joiningDate || null,
     attendanceRecords: deduplicatedRecords,
+    leaveRequests: (member.leaveRequests || [])
+      .map(mapLeaveRequest)
+      .sort(
+        (a, b) =>
+          new Date(b.requestedAt || b.startDate || 0).getTime() -
+          new Date(a.requestedAt || a.startDate || 0).getTime(),
+      ),
     serviceScore: member.serviceScore ?? 80,
     isActive: member.isActive !== false,
     createdAt: member.createdAt,
@@ -441,4 +494,173 @@ async function punchOut(req, res, next) {
   }
 }
 
-module.exports = { getAll, getOne, create, update, remove, punchIn, punchOut };
+async function getLeaveRequests(req, res, next) {
+  try {
+    if (
+      String(req.params.id) !== String(req.user.userId) &&
+      !canManageStaff(req.user)
+    ) {
+      return res
+        .status(403)
+        .json({ error: "You can only view your own leave requests." });
+    }
+
+    const member = await User.findOne({
+      _id: req.params.id,
+      businessId: req.user.businessId,
+    })
+      .select("leaveRequests")
+      .lean();
+
+    if (!member)
+      return res.status(404).json({ error: "Staff member not found" });
+
+    res.json({
+      leaveRequests: (member.leaveRequests || [])
+        .map(mapLeaveRequest)
+        .sort(
+          (a, b) =>
+            new Date(b.requestedAt || b.startDate || 0).getTime() -
+            new Date(a.requestedAt || a.startDate || 0).getTime(),
+        ),
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function getAllLeaveRequests(req, res, next) {
+  try {
+    const members = await User.find({ businessId: req.user.businessId })
+      .select("name designation leaveRequests")
+      .lean();
+
+    const leaveRequests = members
+      .flatMap((member) =>
+        (member.leaveRequests || []).map((request) => ({
+          ...mapLeaveRequest(request),
+          staffId: member._id,
+          staffName: member.name,
+          staffDesignation: member.designation || "Employee",
+        })),
+      )
+      .sort(
+        (a, b) =>
+          new Date(b.requestedAt || b.startDate || 0).getTime() -
+          new Date(a.requestedAt || a.startDate || 0).getTime(),
+      );
+
+    res.json({ leaveRequests });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function createLeaveRequest(req, res, next) {
+  try {
+    if (String(req.params.id) !== String(req.user.userId)) {
+      return res
+        .status(403)
+        .json({ error: "You can only submit leave requests for yourself." });
+    }
+
+    const data = leaveRequestSchema.parse(req.body);
+    const member = await User.findOne({
+      _id: req.params.id,
+      businessId: req.user.businessId,
+    });
+
+    if (!member)
+      return res.status(404).json({ error: "Staff member not found" });
+
+    member.leaveRequests.push({
+      startDate: data.startDate,
+      endDate: data.endDate,
+      leaveType: data.leaveType,
+      reason: data.reason,
+      status: "pending",
+      requestedAt: new Date(),
+    });
+
+    await member.save();
+
+    const created =
+      member.leaveRequests[member.leaveRequests.length - 1]?.toObject?.() ||
+      member.leaveRequests[member.leaveRequests.length - 1];
+
+    res.status(201).json({
+      leaveRequest: mapLeaveRequest(created),
+      leaveRequests: member.leaveRequests
+        .map(mapLeaveRequest)
+        .sort(
+          (a, b) =>
+            new Date(b.requestedAt || b.startDate || 0).getTime() -
+            new Date(a.requestedAt || a.startDate || 0).getTime(),
+        ),
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function reviewLeaveRequest(req, res, next) {
+  try {
+    const data = reviewLeaveRequestSchema.parse(req.body);
+    const member = await User.findOne({
+      _id: req.params.id,
+      businessId: req.user.businessId,
+    });
+
+    if (!member)
+      return res.status(404).json({ error: "Staff member not found" });
+
+    const leaveRequest = member.leaveRequests.id(req.params.requestId);
+    if (!leaveRequest) {
+      return res.status(404).json({ error: "Leave request not found" });
+    }
+
+    const wasApproved = leaveRequest.status === "approved";
+    const willApprove = data.status === "approved";
+
+    leaveRequest.status = data.status;
+    leaveRequest.managerNote = data.managerNote || "";
+    leaveRequest.reviewedAt = new Date();
+    leaveRequest.reviewedBy = req.user.userId;
+
+    const leaveDays = getLeaveDays(
+      leaveRequest.startDate,
+      leaveRequest.endDate,
+    );
+    if (!wasApproved && willApprove) {
+      member.leavesTaken = Number(member.leavesTaken || 0) + leaveDays;
+    } else if (wasApproved && !willApprove) {
+      member.leavesTaken = Math.max(
+        0,
+        Number(member.leavesTaken || 0) - leaveDays,
+      );
+    }
+
+    await member.save();
+
+    res.json({
+      leaveRequest: mapLeaveRequest(leaveRequest),
+      staff: mapMember(member.toObject()),
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = {
+  getAll,
+  getOne,
+  create,
+  update,
+  remove,
+  punchIn,
+  punchOut,
+  getAllLeaveRequests,
+  getLeaveRequests,
+  createLeaveRequest,
+  reviewLeaveRequest,
+};

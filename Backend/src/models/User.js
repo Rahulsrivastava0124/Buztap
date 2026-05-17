@@ -62,6 +62,30 @@ const userSchema = new Schema(
       ],
       default: [],
     },
+    leaveRequests: {
+      type: [
+        {
+          startDate: { type: Date, required: true },
+          endDate: { type: Date, required: true },
+          leaveType: {
+            type: String,
+            enum: ["Casual", "Sick", "Paid", "Unpaid", "Other"],
+            default: "Casual",
+          },
+          reason: { type: String, trim: true, required: true },
+          status: {
+            type: String,
+            enum: ["pending", "approved", "rejected", "cancelled"],
+            default: "pending",
+          },
+          requestedAt: { type: Date, default: Date.now },
+          reviewedAt: { type: Date },
+          reviewedBy: { type: Schema.Types.ObjectId, ref: "User" },
+          managerNote: { type: String, trim: true },
+        },
+      ],
+      default: [],
+    },
     serviceScore: { type: Number, min: 0, max: 100, default: 80 },
     isActive: { type: Boolean, default: true },
   },

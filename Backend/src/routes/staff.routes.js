@@ -9,6 +9,10 @@ const {
   remove,
   punchIn,
   punchOut,
+  getAllLeaveRequests,
+  getLeaveRequests,
+  createLeaveRequest,
+  reviewLeaveRequest,
 } = require("../controllers/staff.controller");
 
 const router = Router();
@@ -16,7 +20,17 @@ const router = Router();
 // All routes require authentication
 router.use(authenticate);
 
+// Leave management routes — manager or above
+router.get("/leave-requests", requireRole("manager"), getAllLeaveRequests);
+
 // Staff member self-service routes — any authenticated role
+router.get("/:id/leave-requests", getLeaveRequests);
+router.post("/:id/leave-requests", createLeaveRequest);
+router.patch(
+  "/:id/leave-requests/:requestId",
+  requireRole("manager"),
+  reviewLeaveRequest,
+);
 router.get("/:id", getOne);
 router.post("/:id/punch-in", punchIn);
 router.post("/:id/punch-out", punchOut);

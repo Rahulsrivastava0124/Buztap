@@ -16,7 +16,7 @@ function authenticate(req, res, next) {
   try {
     const payload = jwt.verify(token, process.env.JWT_SECRET);
     req.user = {
-      userId: payload.sub,
+      userId: payload.sub || payload.userId,
       businessId: payload.businessId,
       role: payload.role,
       businessType: payload.businessType,

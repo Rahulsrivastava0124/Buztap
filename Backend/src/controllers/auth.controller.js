@@ -865,6 +865,7 @@ async function verifyStaffOtp(req, res, next) {
         leaveAllowance: staff.leaveAllowance || 12,
         leavesTaken: staff.leavesTaken || 0,
         attendanceRecords: staff.attendanceRecords || [],
+        leaveRequests: staff.leaveRequests || [],
         isActive: staff.isActive !== false,
       },
     });
@@ -960,6 +961,7 @@ async function staffLogin(req, res, next) {
       leaveAllowance: staff.leaveAllowance || 12,
       leavesTaken: staff.leavesTaken || 0,
       attendanceRecords: staff.attendanceRecords || [],
+      leaveRequests: staff.leaveRequests || [],
       isActive: staff.isActive !== false,
     };
 
