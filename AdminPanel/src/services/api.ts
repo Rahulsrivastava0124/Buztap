@@ -275,6 +275,29 @@ export interface StaffAttendanceRecord {
   isBusinessHoliday?: boolean;
 }
 
+export type StaffLeaveStatus =
+  | "pending"
+  | "approved"
+  | "rejected"
+  | "cancelled";
+export type StaffLeaveType = "Casual" | "Sick" | "Paid" | "Unpaid" | "Other";
+
+export interface StaffLeaveRequest {
+  id: string;
+  staffId?: string;
+  staffName?: string;
+  staffDesignation?: string;
+  startDate: string;
+  endDate: string;
+  leaveType: StaffLeaveType;
+  reason: string;
+  status: StaffLeaveStatus;
+  requestedAt?: string;
+  reviewedAt?: string | null;
+  reviewedBy?: string | null;
+  managerNote?: string;
+}
+
 export interface StaffRecord {
   id: string;
   username: string;
@@ -288,6 +311,7 @@ export interface StaffRecord {
   leaveAllowance: number;
   leavesTaken: number;
   joiningDate?: string | null;
+  leaveRequests?: StaffLeaveRequest[];
   attendanceRecords: StaffAttendanceRecord[];
   score: number;
   isActive: boolean;
@@ -979,10 +1003,31 @@ function mapStaff(member: any): StaffRecord {
     leaveAllowance: Number(member.leaveAllowance ?? 12),
     leavesTaken: Number(member.leavesTaken || 0),
     joiningDate: member.joiningDate || null,
+    leaveRequests: Array.isArray(member.leaveRequests)
+      ? member.leaveRequests.map(mapStaffLeaveRequest)
+      : [],
     attendanceRecords: deduplicatedRecords,
     score: Number(member.serviceScore ?? 80),
     isActive: member.isActive !== false,
     createdAt: member.createdAt,
+  };
+}
+
+function mapStaffLeaveRequest(request: any): StaffLeaveRequest {
+  return {
+    id: request.id || request._id,
+    staffId: request.staffId || request.userId,
+    staffName: request.staffName || request.name || "",
+    staffDesignation: request.staffDesignation || request.designation || "",
+    startDate: request.startDate,
+    endDate: request.endDate,
+    leaveType: request.leaveType || "Casual",
+    reason: request.reason || "",
+    status: request.status || "pending",
+    requestedAt: request.requestedAt,
+    reviewedAt: request.reviewedAt || null,
+    reviewedBy: request.reviewedBy || null,
+    managerNote: request.managerNote || "",
   };
 }
 
@@ -1036,6 +1081,33 @@ export async function punchOutStaff(id: string): Promise<StaffRecord> {
     },
   );
   return mapStaff(result);
+}
+
+export async function fetchStaffLeaveRequests(): Promise<StaffLeaveRequest[]> {
+  const result = await request<any>("/staff/leave-requests");
+  const rows = Array.isArray(result) ? result : result.leaveRequests || [];
+  return rows.map(mapStaffLeaveRequest);
+}
+
+export async function reviewStaffLeaveRequest(
+  staffId: string,
+  requestId: string,
+  payload: { status: "approved" | "rejected"; managerNote?: string },
+): Promise<{ leaveRequest: StaffLeaveRequest; staff?: StaffRecord }> {
+  const result = await request<any>(
+    `/staff/${encodeURIComponent(staffId)}/leave-requests/${encodeURIComponent(
+      requestId,
+    )}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    },
+  );
+
+  return {
+    leaveRequest: mapStaffLeaveRequest(result.leaveRequest || result),
+    staff: result.staff ? mapStaff(result.staff) : undefined,
+  };
 }
 
 export async function fetchReports(): Promise<ReportRecord[]> {

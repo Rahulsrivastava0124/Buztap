@@ -12,7 +12,6 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useFocusEffect } from "@react-navigation/native";
 import { format } from "date-fns";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { attendanceAPI } from "../services/api";
@@ -24,8 +23,16 @@ const SWIPE_TRACK_WIDTH = SCREEN_WIDTH - 48;
 const THUMB_WIDTH = 72;
 const THUMB_HEIGHT = 50;
 const SWIPE_THRESHOLD = SWIPE_TRACK_WIDTH - THUMB_WIDTH - 8;
+type IoniconName = React.ComponentProps<typeof Ionicons>["name"];
 
-const toDateKey = (value: Date | string) => {
+const toDateKey = (value: Date | string | null | undefined) => {
+  if (!value) return "";
+
+  if (typeof value === "string") {
+    const dateOnly = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (dateOnly) return `${dateOnly[1]}-${dateOnly[2]}-${dateOnly[3]}`;
+  }
+
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return "";
   return [
@@ -35,20 +42,40 @@ const toDateKey = (value: Date | string) => {
   ].join("-");
 };
 
-const getAttendanceRecordKey = (record: any) =>
-  toDateKey(record?.date || record?.punchIn || record?.punchOut);
+const getAttendanceRecordKeys = (record: any) => {
+  const candidates = [
+    record?.date,
+    record?.attendanceDate,
+    record?.dateKey,
+    record?.punchIn,
+    record?.punchOut,
+    record?.createdAt,
+    record?.updatedAt,
+  ];
 
-const getTodayRecord = (attendanceRecords: any[] = []) => {
-  const todayKey = toDateKey(new Date());
-  return (
-    attendanceRecords.find((r) => getAttendanceRecordKey(r) === todayKey) ||
-    null
-  );
+  return candidates.map(toDateKey).filter(Boolean);
+};
+
+const getStaffPayload = (payload: any) => {
+  const candidate =
+    payload?.staff || payload?.data?.staff || payload?.data || payload;
+  if (
+    candidate &&
+    (candidate.id ||
+      candidate._id ||
+      candidate.name ||
+      Array.isArray(candidate.attendanceRecords))
+  ) {
+    return candidate;
+  }
+
+  return null;
 };
 
 const getRecordByDate = (attendanceRecords: any[] = [], dateKey: string) => {
   return (
-    attendanceRecords.find((r) => getAttendanceRecordKey(r) === dateKey) || null
+    attendanceRecords.find((r) => getAttendanceRecordKeys(r).includes(dateKey)) ||
+    null
   );
 };
 
@@ -57,29 +84,7 @@ const resolveHomeRecord = (attendanceRecords: any[] = [], dateKey: string) => {
     return null;
   }
 
-  const byDate = getRecordByDate(attendanceRecords, dateKey);
-  if (byDate) return byDate;
-
-  // Fallback for timezone/date-boundary shifts: prefer currently active punch.
-  const openShift = attendanceRecords
-    .filter((r) => !!r?.punchIn && !r?.punchOut)
-    .sort(
-      (a, b) =>
-        new Date(b?.punchIn || b?.date || 0).getTime() -
-        new Date(a?.punchIn || a?.date || 0).getTime(),
-    )[0];
-  if (openShift) return openShift;
-
-  // Final fallback: latest record with any punch data.
-  const latestPunched = attendanceRecords
-    .filter((r) => !!r?.punchIn || !!r?.punchOut)
-    .sort(
-      (a, b) =>
-        new Date(b?.punchOut || b?.punchIn || b?.date || 0).getTime() -
-        new Date(a?.punchOut || a?.punchIn || a?.date || 0).getTime(),
-    )[0];
-
-  return latestPunched || null;
+  return getRecordByDate(attendanceRecords, dateKey);
 };
 
 export const DashboardScreen = ({ navigation }: any) => {
@@ -98,9 +103,15 @@ export const DashboardScreen = ({ navigation }: any) => {
   const isPunchedOutRef = useRef(false);
   const handlePunchInRef = useRef<() => Promise<void>>(async () => {});
   const handlePunchOutRef = useRef<() => Promise<void>>(async () => {});
+  const fallbackRecordsRef = useRef<any[]>(staff?.attendanceRecords || []);
+  const fetchPromiseRef = useRef<Promise<any> | null>(null);
 
   const todayDateKey = toDateKey(new Date());
   const activeDateObj = new Date();
+
+  useEffect(() => {
+    fallbackRecordsRef.current = staff?.attendanceRecords || [];
+  }, [staff?.attendanceRecords]);
 
   // ── Working Hours Timer ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -143,25 +154,53 @@ export const DashboardScreen = ({ navigation }: any) => {
 
   // ── Data ─────────────────────────────────────────────────────────────────────
   const fetchTodayAttendance = useCallback(async () => {
-    if (!staffId) return;
-    try {
-      const response = await attendanceAPI.getAttendance(staffId);
-      const todayRecord = resolveHomeRecord(
-        response.data.attendanceRecords,
-        todayDateKey,
-      );
-      setTodayStatus(todayRecord ?? null);
-      setStaff(response.data);
-    } catch (error) {
-      console.error("Failed to fetch attendance:", error);
+    if (fetchPromiseRef.current) {
+      return fetchPromiseRef.current;
     }
+
+    if (!staffId) {
+      setTodayStatus(null);
+      return null;
+    }
+
+    fetchPromiseRef.current = (async () => {
+      try {
+        const response = await attendanceAPI.getAttendance(staffId);
+        const staffPayload = getStaffPayload(response.data);
+        const attendanceRecords =
+          staffPayload?.attendanceRecords || fallbackRecordsRef.current;
+        fallbackRecordsRef.current = attendanceRecords;
+        const todayRecord = resolveHomeRecord(attendanceRecords, todayDateKey);
+        setTodayStatus(todayRecord ?? null);
+        if (staffPayload) setStaff(staffPayload);
+        return todayRecord ?? null;
+      } catch (error) {
+        console.error("Failed to fetch attendance:", error);
+        const fallbackRecord = resolveHomeRecord(
+          fallbackRecordsRef.current,
+          todayDateKey,
+        );
+        setTodayStatus(fallbackRecord);
+        return fallbackRecord;
+      } finally {
+        fetchPromiseRef.current = null;
+      }
+    })();
+
+    return fetchPromiseRef.current;
   }, [todayDateKey, setStaff, staffId]);
 
-  useFocusEffect(
-    useCallback(() => {
-      fetchTodayAttendance();
-    }, [fetchTodayAttendance]),
-  );
+  useEffect(() => {
+    void fetchTodayAttendance();
+
+    const unsubscribe = navigation?.addListener?.("focus", () => {
+      void fetchTodayAttendance();
+    });
+
+    return () => {
+      unsubscribe?.();
+    };
+  }, [fetchTodayAttendance, navigation]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -199,11 +238,19 @@ export const DashboardScreen = ({ navigation }: any) => {
         deviceId,
         toDateKey(new Date()),
       );
-      setStaff(response.data);
+      const staffPayload = getStaffPayload(response.data);
+      if (staffPayload) {
+        fallbackRecordsRef.current =
+          staffPayload?.attendanceRecords || fallbackRecordsRef.current;
+        setStaff(staffPayload);
+      }
       setTodayStatus(
-        resolveHomeRecord(response.data.attendanceRecords, todayDateKey),
+        resolveHomeRecord(
+          staffPayload?.attendanceRecords || fallbackRecordsRef.current,
+          todayDateKey,
+        ),
       );
-      fetchTodayAttendance();
+      await fetchTodayAttendance();
     } catch (error: any) {
       Alert.alert("Error", error.response?.data?.error || "Failed to punch in");
     } finally {
@@ -246,11 +293,19 @@ export const DashboardScreen = ({ navigation }: any) => {
         deviceId,
         toDateKey(new Date()),
       );
-      setStaff(response.data);
+      const staffPayload = getStaffPayload(response.data);
+      if (staffPayload) {
+        fallbackRecordsRef.current =
+          staffPayload?.attendanceRecords || fallbackRecordsRef.current;
+        setStaff(staffPayload);
+      }
       setTodayStatus(
-        resolveHomeRecord(response.data.attendanceRecords, todayDateKey),
+        resolveHomeRecord(
+          staffPayload?.attendanceRecords || fallbackRecordsRef.current,
+          todayDateKey,
+        ),
       );
-      fetchTodayAttendance();
+      await fetchTodayAttendance();
     } catch (error: any) {
       const code = error.response?.data?.code;
       if (code === "DEVICE_MISMATCH") {
@@ -332,13 +387,19 @@ export const DashboardScreen = ({ navigation }: any) => {
     ? " Done for today"
     : isPunchedIn
       ? "Swipe To Punch Out"
-      : "Swipe To Punch";
+      : "Swipe To Punch In";
 
   const swipeColor = isPunchedOut
     ? "#6B7280"
     : isPunchedIn
       ? "#F97316"
       : "#2563EB";
+
+  const swipeIcon: IoniconName = isPunchedOut
+    ? "checkmark"
+    : isPunchedIn
+      ? "log-out-outline"
+      : "log-in-outline";
 
   const workedDurationText = isPunchedIn
     ? formatDurationLabel(elapsed)
@@ -352,29 +413,33 @@ export const DashboardScreen = ({ navigation }: any) => {
     time: string;
     label: string;
     color: string;
+    icon: IoniconName;
     meta?: string;
   }[] = [];
   if (todayStatus?.punchIn) {
     activities.push({
-      time: format(new Date(todayStatus.punchIn), "hh:mm:ss a"),
+      time: format(new Date(todayStatus.punchIn), "hh:mm a"),
       label: "Punched In",
       color: "#16A34A",
+      icon: "log-in-outline",
       meta: `Status: ${todayStatus.status ?? "work"}`,
     });
   }
   if (todayStatus?.punchOut) {
     activities.push({
-      time: format(new Date(todayStatus.punchOut), "hh:mm:ss a"),
+      time: format(new Date(todayStatus.punchOut), "hh:mm a"),
       label: "Punched Out",
       color: "#DC2626",
+      icon: "log-out-outline",
       meta: `Worked: ${workedDurationText}`,
     });
   }
   if (hasPunchError) {
     activities.push({
-      time: "--:--:--",
+      time: "--:--",
       label: "Punch Error",
       color: "#F59E0B",
+      icon: "alert-circle-outline",
       meta: "Attendance marked as work, but punch times are incomplete.",
     });
   }
@@ -490,9 +555,11 @@ export const DashboardScreen = ({ navigation }: any) => {
                 }}
               >
                 <View
-                  className="w-2.5 h-2.5 rounded-full"
-                  style={{ backgroundColor: a.color }}
-                />
+                  className="w-9 h-9 rounded-full items-center justify-center"
+                  style={{ backgroundColor: `${a.color}1A` }}
+                >
+                  <Ionicons name={a.icon} size={18} color={a.color} />
+                </View>
                 <View className="flex-1 ml-3">
                   <Text className="text-slate-800 text-sm font-medium">
                     {a.label}
@@ -537,7 +604,7 @@ export const DashboardScreen = ({ navigation }: any) => {
             {swipeLoading ? (
               <ActivityIndicator size="small" color={swipeColor} />
             ) : (
-              <Ionicons name="arrow-forward" size={24} color={swipeColor} />
+              <Ionicons name={swipeIcon} size={24} color={swipeColor} />
             )}
           </Animated.View>
           <Text className="text-white text-base font-semibold tracking-wide ml-16 text-center">

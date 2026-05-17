@@ -8,6 +8,7 @@ export interface Staff {
   designation: string;
   email: string;
   phone: string;
+  joiningDate?: string;
   shiftTiming: {
     name: string;
     startTime: string;
@@ -16,6 +17,17 @@ export interface Staff {
   salaryMonthly: number;
   leaveAllowance: number;
   leavesTaken: number;
+  leaveRequests?: Array<{
+    id: string;
+    startDate: string;
+    endDate: string;
+    leaveType: "Casual" | "Sick" | "Paid" | "Unpaid" | "Other";
+    reason: string;
+    status: "pending" | "approved" | "rejected" | "cancelled";
+    requestedAt?: string;
+    reviewedAt?: string | null;
+    managerNote?: string;
+  }>;
   attendanceRecords: Array<{
     date: string;
     status: string;

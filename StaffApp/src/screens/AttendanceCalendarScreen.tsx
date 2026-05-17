@@ -23,7 +23,6 @@ import {
   startOfMonth,
   subMonths,
 } from "date-fns";
-import { useFocusEffect } from "@react-navigation/native";
 import { attendanceAPI } from "../services/api";
 import { useAuthStore } from "../store/authStore";
 
@@ -32,8 +31,11 @@ const { width } = Dimensions.get("window");
 const GRID_PADDING = 24;
 const CELL_GAP = 6;
 const CELL_SIZE = Math.floor((width - GRID_PADDING * 2 - CELL_GAP * 6) / 7);
+const LATE_MARK_COLOR = "#FACC15";
 
-const toDateKey = (value: Date | string) => {
+const toDateKey = (value: Date | string | null | undefined) => {
+  if (!value) return "";
+
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return "";
   return [
@@ -45,6 +47,46 @@ const toDateKey = (value: Date | string) => {
 
 const getAttendanceRecordKey = (record: AttendanceRecord) =>
   toDateKey(record?.date || record?.punchIn || record?.punchOut);
+
+const LateMarkTriangle = ({
+  size = 16,
+  style,
+}: {
+  size?: number;
+  style?: any;
+}) => (
+  <View
+    pointerEvents="none"
+    style={[
+      {
+        width: 0,
+        height: 0,
+        borderTopWidth: size,
+        borderLeftWidth: size,
+        borderTopColor: LATE_MARK_COLOR,
+        borderLeftColor: "transparent",
+        borderStyle: "solid",
+      },
+      style,
+    ]}
+  />
+);
+
+const getStaffPayload = (payload: any) => {
+  const candidate =
+    payload?.staff || payload?.data?.staff || payload?.data || payload;
+  if (
+    candidate &&
+    (candidate.id ||
+      candidate._id ||
+      candidate.name ||
+      Array.isArray(candidate.attendanceRecords))
+  ) {
+    return candidate;
+  }
+
+  return null;
+};
 
 type AttendanceRecord = {
   date: string;
@@ -69,7 +111,7 @@ const statusStyle = (status?: string) => {
     case "weekOff":
       return { bg: "#E6DEFF", text: "#5B21B6" };
     default:
-      return { bg: "#D1D5DB", text: "#1F2937" };
+      return { bg: "#FFFFFF", text: "#475569" };
   }
 };
 
@@ -79,23 +121,47 @@ export const AttendanceCalendarScreen = ({ navigation }: any) => {
   const [refreshing, setRefreshing] = useState(false);
   const [visibleMonth, setVisibleMonth] = useState(new Date());
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
+  const loadPromiseRef = useRef<Promise<AttendanceRecord[] | null> | null>(
+    null,
+  );
 
   const loadAttendance = useCallback(async () => {
-    if (!staff?.id) return;
-    try {
-      const response = await attendanceAPI.getAttendance(staff.id);
-      setRecords(response.data.attendanceRecords || []);
-      setStaff(response.data);
-    } catch (err) {
-      console.error("Failed to load attendance history:", err);
+    if (loadPromiseRef.current) {
+      return loadPromiseRef.current;
     }
-  }, [staff?.id]);
 
-  useFocusEffect(
-    useCallback(() => {
-      loadAttendance();
-    }, [loadAttendance]),
-  );
+    if (!staff?.id) return null;
+
+    loadPromiseRef.current = (async () => {
+      try {
+        const response = await attendanceAPI.getAttendance(staff.id);
+        const staffPayload = getStaffPayload(response.data);
+        const attendanceRecords = staffPayload?.attendanceRecords || [];
+        setRecords(attendanceRecords);
+        if (staffPayload) setStaff(staffPayload);
+        return attendanceRecords;
+      } catch (err) {
+        console.error("Failed to load attendance history:", err);
+        return null;
+      } finally {
+        loadPromiseRef.current = null;
+      }
+    })();
+
+    return loadPromiseRef.current;
+  }, [staff?.id, setStaff]);
+
+  useEffect(() => {
+    void loadAttendance();
+
+    const unsubscribe = navigation?.addListener?.("focus", () => {
+      void loadAttendance();
+    });
+
+    return () => {
+      unsubscribe?.();
+    };
+  }, [loadAttendance, navigation]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -184,10 +250,7 @@ export const AttendanceCalendarScreen = ({ navigation }: any) => {
               </TouchableOpacity>
 
               <View className="items-center">
-                <Text className="text-[10px] font-semibold uppercase tracking-[1px] text-slate-500">
-                  Month
-                </Text>
-                <Text className="text-[20px] font-bold tracking-[0.2px] text-slate-800 mt-0.5">
+                <Text className="text-[15px] font-semibold tracking-[0.2px] text-slate-800 mt-0.5">
                   {format(visibleMonth, "MMMM yyyy")}
                 </Text>
               </View>
@@ -207,7 +270,7 @@ export const AttendanceCalendarScreen = ({ navigation }: any) => {
             {WEEK_DAYS.map((day) => (
               <Text
                 key={day}
-                className="text-slate-600 text-[14px] font-semibold"
+                className="text-slate-600 text-[12px] font-semibold"
                 style={{ width: CELL_SIZE, textAlign: "center" }}
               >
                 {day}
@@ -234,6 +297,7 @@ export const AttendanceCalendarScreen = ({ navigation }: any) => {
                 (!!record?.punchIn && !record?.punchOut) ||
                 (!!record?.punchOut && !record?.punchIn);
               const todayKey = toDateKey(new Date());
+              const isToday = key === todayKey;
               const isPastDate = key < todayKey;
               const isWeekOff = cell.date.getDay() === 0;
               const isBeforeJoinDate = joinKey != null && key < joinKey;
@@ -251,6 +315,7 @@ export const AttendanceCalendarScreen = ({ navigation }: any) => {
                         ? "absent"
                         : undefined;
               const style = statusStyle(effectiveStatus);
+              const isNoRecord = !effectiveStatus;
               const showPunchError =
                 (effectiveStatus === "work" || effectiveStatus === "halfDay") &&
                 hasIncompletePunch;
@@ -269,18 +334,38 @@ export const AttendanceCalendarScreen = ({ navigation }: any) => {
                   style={{
                     width: CELL_SIZE,
                     height: CELL_SIZE,
-                    backgroundColor: isCurrentMonth ? style.bg : "#D1D5DB",
+                    backgroundColor:
+                      isCurrentMonth && isToday && isNoRecord
+                        ? "#DBEAFE"
+                        : isCurrentMonth
+                          ? style.bg
+                          : "#FFFFFF",
                     borderRadius: 14,
-                    borderWidth: isSelected ? 2 : 0,
-                    borderColor: isSelected ? "#2563EB" : "transparent",
+                    borderWidth: isSelected
+                      ? 2
+                      : isToday
+                        ? 2
+                        : isNoRecord
+                          ? 1
+                          : 0,
+                    borderColor: isSelected
+                      ? "#2563EB"
+                      : isToday
+                        ? "#0EA5E9"
+                      : isNoRecord
+                        ? "#CBD5E1"
+                        : "transparent",
+                    borderStyle:
+                      isNoRecord && !isSelected && !isToday ? "dotted" : "solid",
                     alignItems: "center",
                     justifyContent: "center",
                     position: "relative",
+                    overflow: "hidden",
                   }}
                 >
                   <Text
                     style={{
-                      color: style.text,
+                      color: isToday && isNoRecord ? "#1D4ED8" : style.text,
                       fontSize: 13,
                       fontWeight: "700",
                     }}
@@ -296,11 +381,9 @@ export const AttendanceCalendarScreen = ({ navigation }: any) => {
                     />
                   ) : null}
                   {showLateMark ? (
-                    <Ionicons
-                      name="alert-circle"
-                      size={14}
-                      color="#DC2626"
-                      style={{ position: "absolute", top: 4, right: 4 }}
+                    <LateMarkTriangle
+                      size={18}
+                      style={{ position: "absolute", top: 0, right: 0 }}
                     />
                   ) : null}
                 </TouchableOpacity>
@@ -314,97 +397,93 @@ export const AttendanceCalendarScreen = ({ navigation }: any) => {
         </Text>
 
         <View className="mx-6 mt-3 mb-8 space-y-4">
-          <View className="bg-white rounded-2xl p-4">
-            <View className="flex-row flex-wrap" style={{ gap: 16 }}>
+          <View className="bg-white rounded-2xl p-3">
+            <View className="flex-row flex-wrap" style={{ gap: 12 }}>
               <View className="flex-row items-center">
                 <View
                   style={{
-                    width: 14,
-                    height: 14,
-                    borderRadius: 7,
+                    width: 10,
+                    height: 10,
+                    borderRadius: 5,
                     backgroundColor: "#2EA63A",
-                    marginRight: 8,
+                    marginRight: 6,
                   }}
                 />
-                <Text className="text-slate-700 text-[12px]">Present</Text>
+                <Text className="text-slate-700 text-[11px]">Present</Text>
               </View>
               <View className="flex-row items-center">
                 <View
                   style={{
-                    width: 14,
-                    height: 14,
-                    borderRadius: 7,
+                    width: 10,
+                    height: 10,
+                    borderRadius: 5,
                     backgroundColor: "#CF1D34",
-                    marginRight: 8,
+                    marginRight: 6,
                   }}
                 />
-                <Text className="text-slate-700 text-[12px]">Absent</Text>
+                <Text className="text-slate-700 text-[11px]">Absent</Text>
               </View>
               <View className="flex-row items-center">
                 <View
                   style={{
-                    width: 14,
-                    height: 14,
-                    borderRadius: 7,
+                    width: 10,
+                    height: 10,
+                    borderRadius: 5,
                     backgroundColor: "#E9D48A",
-                    marginRight: 8,
+                    marginRight: 6,
                   }}
                 />
-                <Text className="text-slate-700 text-[12px]">Half Day</Text>
+                <Text className="text-slate-700 text-[11px]">Half Day</Text>
               </View>
               <View className="flex-row items-center">
                 <View
                   style={{
-                    width: 14,
-                    height: 14,
-                    borderRadius: 7,
+                    width: 10,
+                    height: 10,
+                    borderRadius: 5,
                     backgroundColor: "#95E3E6",
-                    marginRight: 8,
+                    marginRight: 6,
                   }}
                 />
-                <Text className="text-slate-700 text-[12px]">Holiday</Text>
+                <Text className="text-slate-700 text-[11px]">Holiday</Text>
               </View>
               <View className="flex-row items-center">
                 <View
                   style={{
-                    width: 14,
-                    height: 14,
-                    borderRadius: 7,
+                    width: 10,
+                    height: 10,
+                    borderRadius: 5,
                     backgroundColor: "#E6DEFF",
-                    marginRight: 8,
+                    marginRight: 6,
                   }}
                 />
-                <Text className="text-slate-700 text-[12px]">Week Off</Text>
-              </View>
-              <View className="flex-row items-center">
-                <View
-                  style={{
-                    width: 14,
-                    height: 14,
-                    borderRadius: 7,
-                    backgroundColor: "#D1D5DB",
-                    marginRight: 8,
-                  }}
-                />
-                <Text className="text-slate-700 text-[12px]">No Record</Text>
+                <Text className="text-slate-700 text-[11px]">Week Off</Text>
               </View>
               <View className="flex-row items-center">
                 <Ionicons
                   name="warning"
-                  size={14}
+                  size={12}
                   color="#FACC15"
-                  style={{ marginRight: 8 }}
+                  style={{ marginRight: 6 }}
                 />
-                <Text className="text-slate-700 text-[12px]">Punch Error</Text>
+                <Text className="text-slate-700 text-[11px]">Punch Error</Text>
               </View>
               <View className="flex-row items-center">
-                <Ionicons
-                  name="alert-circle-outline"
-                  size={14}
-                  color="#DC2626"
-                  style={{ marginRight: 8 }}
-                />
-                <Text className="text-slate-700 text-[12px]">Late Mark</Text>
+                <View
+                  style={{
+                    width: 12,
+                    height: 12,
+                    marginRight: 6,
+                    overflow: "hidden",
+                    position: "relative",
+                  }}
+                >
+                  <LateMarkTriangle
+                    size={12}
+                    style={{ position: "absolute", top: 0, right: 0 }}
+                  />
+                </View>
+                <Text className="text-slate-700 text-[11px]">Late Mark</Text>
               </View>
             </View>
           </View>

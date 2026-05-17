@@ -1,13 +1,16 @@
 import {
   BadgeCheck,
   CalendarDays,
+  CheckCircle2,
   ClipboardCheck,
+  Clock3,
   Eye,
   Pencil,
   Plus,
   Trash2,
   Users,
   X,
+  XCircle,
 } from "lucide-react";
 import { AnimatePresence, motion as Motion } from "framer-motion";
 import { useQueryClient, useQuery, useMutation } from "@tanstack/react-query";
@@ -22,6 +25,8 @@ import {
   deleteStaffMember,
   punchInStaff,
   punchOutStaff,
+  fetchStaffLeaveRequests,
+  reviewStaffLeaveRequest,
 } from "../services/api";
 import StatCard from "../components/shared/StatCard";
 import ErrorBoundary from "../components/shared/ErrorBoundary";
@@ -152,6 +157,209 @@ function formatHolidayDate(dateValue) {
     month: "short",
     year: "numeric",
   });
+}
+
+function formatLeaveDate(dateValue) {
+  const date = new Date(dateValue);
+  if (Number.isNaN(date.getTime())) return "-";
+  return date.toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function getLeaveDays(startDate, endDate) {
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 1;
+  start.setHours(0, 0, 0, 0);
+  end.setHours(0, 0, 0, 0);
+  return Math.max(1, Math.floor((end - start) / 86400000) + 1);
+}
+
+const LEAVE_STATUS_STYLES = {
+  pending: "bg-amber-100 text-amber-700 border-amber-200",
+  approved: "bg-green-100 text-green-700 border-green-200",
+  rejected: "bg-red-100 text-red-700 border-red-200",
+  cancelled: "bg-gray-100 text-gray-700 border-gray-200",
+};
+
+function LeaveRequestsPanel({
+  requests,
+  isLoading,
+  isError,
+  onRetry,
+  onReview,
+  isReviewing,
+}) {
+  const [activeTab, setActiveTab] = useState("pending");
+  const pending = requests.filter((request) => request.status === "pending");
+  const history = requests.filter((request) => request.status !== "pending");
+  const visibleRequests = activeTab === "pending" ? pending : history;
+
+  function handleReview(request, status) {
+    const managerNote =
+      status === "rejected"
+        ? window.prompt("Reason for rejection?") || ""
+        : "";
+
+    onReview({
+      staffId: request.staffId,
+      requestId: request.id,
+      status,
+      managerNote,
+    });
+  }
+
+  return (
+    <div className="bg-white border border-border rounded-xl p-5 mt-4">
+      <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
+        <div>
+          <h2 className="font-bold text-ink text-lg">Leave Requests</h2>
+          <p className="text-sm text-muted">
+            Review employee leave requests and keep leave balances updated.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onRetry}
+          className="btn btn-outline btn-sm gap-1.5"
+        >
+          <Clock3 size={15} /> Refresh
+        </button>
+      </div>
+
+      <div className="tabs tabs-boxed bg-paper/70 mb-4 w-fit">
+        <button
+          type="button"
+          onClick={() => setActiveTab("pending")}
+          className={`tab tab-sm ${activeTab === "pending" ? "tab-active" : ""}`}
+        >
+          Pending ({pending.length})
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("history")}
+          className={`tab tab-sm ${activeTab === "history" ? "tab-active" : ""}`}
+        >
+          History ({history.length})
+        </button>
+      </div>
+
+      {isLoading && (
+        <div className="flex justify-center py-8">
+          <span className="loading loading-spinner loading-md text-primary" />
+        </div>
+      )}
+
+      {isError && (
+        <div className="rounded-xl border border-error/20 bg-error/5 px-4 py-3 text-sm text-error">
+          Failed to load leave requests.
+        </div>
+      )}
+
+      {!isLoading && !isError && visibleRequests.length === 0 && (
+        <div className="rounded-xl border border-dashed border-border bg-paper/50 px-4 py-8 text-center">
+          <CalendarDays
+            size={28}
+            className="mx-auto text-muted opacity-40 mb-2"
+          />
+          <p className="text-sm text-muted">
+            {activeTab === "pending"
+              ? "No pending leave requests."
+              : "No leave history yet."}
+          </p>
+        </div>
+      )}
+
+      {!isLoading && !isError && visibleRequests.length > 0 && (
+        <div className="grid gap-3 xl:grid-cols-2">
+          {visibleRequests.map((request) => {
+            const statusClass =
+              LEAVE_STATUS_STYLES[request.status] ||
+              LEAVE_STATUS_STYLES.pending;
+            const leaveDays = getLeaveDays(request.startDate, request.endDate);
+
+            return (
+              <div
+                key={`${request.staffId}-${request.id}`}
+                className="rounded-xl border border-border bg-paper/30 p-4"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="font-semibold text-ink">
+                      {request.staffName || "Staff member"}
+                    </p>
+                    <p className="text-xs text-muted mt-0.5">
+                      {request.staffDesignation || "Employee"} ·{" "}
+                      {request.leaveType} Leave
+                    </p>
+                  </div>
+                  <span
+                    className={`badge badge-sm border capitalize ${statusClass}`}
+                  >
+                    {request.status}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 mt-4">
+                  <div className="rounded-lg bg-white border border-border px-3 py-2">
+                    <p className="text-[11px] text-muted">From</p>
+                    <p className="text-sm font-semibold text-ink">
+                      {formatLeaveDate(request.startDate)}
+                    </p>
+                  </div>
+                  <div className="rounded-lg bg-white border border-border px-3 py-2">
+                    <p className="text-[11px] text-muted">To</p>
+                    <p className="text-sm font-semibold text-ink">
+                      {formatLeaveDate(request.endDate)}
+                    </p>
+                  </div>
+                  <div className="rounded-lg bg-white border border-border px-3 py-2">
+                    <p className="text-[11px] text-muted">Days</p>
+                    <p className="text-sm font-semibold text-ink">
+                      {leaveDays}
+                    </p>
+                  </div>
+                </div>
+
+                <p className="text-sm text-slate-700 mt-3">
+                  {request.reason || "No reason provided."}
+                </p>
+                {request.managerNote ? (
+                  <p className="text-xs text-muted mt-2">
+                    Manager note: {request.managerNote}
+                  </p>
+                ) : null}
+
+                {request.status === "pending" && (
+                  <div className="flex justify-end gap-2 mt-4">
+                    <button
+                      type="button"
+                      disabled={isReviewing || !request.staffId}
+                      onClick={() => handleReview(request, "rejected")}
+                      className="btn btn-outline btn-error btn-sm gap-1.5"
+                    >
+                      <XCircle size={14} /> Reject
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isReviewing || !request.staffId}
+                      onClick={() => handleReview(request, "approved")}
+                      className="btn btn-success btn-sm gap-1.5 text-white"
+                    >
+                      <CheckCircle2 size={14} /> Approve
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function AttendanceCalendarModal({
@@ -1135,6 +1343,17 @@ export default function StaffPage() {
     refetchInterval: 60_000,
   });
 
+  const {
+    data: leaveRequests = [],
+    isLoading: isLoadingLeaveRequests,
+    isError: isLeaveRequestsError,
+    refetch: refetchLeaveRequests,
+  } = useQuery({
+    queryKey: ["staff-leave-requests"],
+    queryFn: fetchStaffLeaveRequests,
+    refetchInterval: 60_000,
+  });
+
   const { data: businessProfile } = useQuery({
     queryKey: ["business-profile"],
     queryFn: fetchBusinessProfile,
@@ -1202,6 +1421,22 @@ export default function StaffPage() {
     },
     onError: (err) =>
       toast.error(err?.message || "Failed to record punch out."),
+  });
+
+  const reviewLeaveMutation = useMutation({
+    mutationFn: ({ staffId, requestId, status, managerNote }) =>
+      reviewStaffLeaveRequest(staffId, requestId, { status, managerNote }),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["staff-leave-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["staff"] });
+      toast.success(
+        variables.status === "approved"
+          ? "Leave request approved."
+          : "Leave request rejected.",
+      );
+    },
+    onError: (err) =>
+      toast.error(err?.message || "Failed to review leave request."),
   });
 
   const applyHolidaysMutation = useMutation({
@@ -1334,6 +1569,9 @@ export default function StaffPage() {
   }
 
   const activeCount = team.filter((m) => m.isActive).length;
+  const pendingLeaveCount = leaveRequests.filter(
+    (request) => request.status === "pending",
+  ).length;
   const holidayList = businessProfile?.holidays || [];
   const upcomingHolidays = holidayList.filter((holiday) => {
     const holidayDate = new Date(holiday.date);
@@ -1370,8 +1608,8 @@ export default function StaffPage() {
             icon={BadgeCheck}
           />
           <StatCard
-            title="Tasks Done"
-            value={String(activeCount * 4)}
+            title="Pending Leave"
+            value={String(pendingLeaveCount)}
             icon={ClipboardCheck}
           />
           <StatCard
@@ -1380,6 +1618,15 @@ export default function StaffPage() {
             icon={CalendarDays}
           />
         </div>
+
+        <LeaveRequestsPanel
+          requests={leaveRequests}
+          isLoading={isLoadingLeaveRequests}
+          isError={isLeaveRequestsError}
+          onRetry={refetchLeaveRequests}
+          onReview={(payload) => reviewLeaveMutation.mutate(payload)}
+          isReviewing={reviewLeaveMutation.isPending}
+        />
 
         <div className="bg-white border border-border rounded-xl p-5 mt-4">
           <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">

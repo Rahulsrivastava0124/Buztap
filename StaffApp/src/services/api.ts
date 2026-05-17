@@ -53,6 +53,18 @@ export interface AttendanceRecord {
   lateMinutes?: number;
 }
 
+export interface LeaveRequest {
+  id: string;
+  startDate: string;
+  endDate: string;
+  leaveType: "Casual" | "Sick" | "Paid" | "Unpaid" | "Other";
+  reason: string;
+  status: "pending" | "approved" | "rejected" | "cancelled";
+  requestedAt?: string;
+  reviewedAt?: string | null;
+  managerNote?: string;
+}
+
 export interface Staff {
   id: string;
   name: string;
@@ -64,6 +76,7 @@ export interface Staff {
   salaryMonthly: number;
   leaveAllowance: number;
   leavesTaken: number;
+  leaveRequests?: LeaveRequest[];
   attendanceRecords: AttendanceRecord[];
   isActive: boolean;
 }
@@ -155,4 +168,19 @@ export const attendanceAPI = {
 
   getAttendance: (staffId: string) =>
     getAPI().get(`${API_PREFIX}/staff/${staffId}`),
+};
+
+export const leaveAPI = {
+  getLeaveRequests: (staffId: string) =>
+    getAPI().get(`${API_PREFIX}/staff/${staffId}/leave-requests`),
+
+  createLeaveRequest: (
+    staffId: string,
+    payload: {
+      startDate: string;
+      endDate: string;
+      leaveType: LeaveRequest["leaveType"];
+      reason: string;
+    },
+  ) => getAPI().post(`${API_PREFIX}/staff/${staffId}/leave-requests`, payload),
 };

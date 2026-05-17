@@ -1,39 +1,24 @@
-import React, { useEffect, useState } from "react";
-import { StyleSheet, View, AppRegistry } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import React, { useEffect } from "react";
+import {
+  AppRegistry,
+  Platform,
+  StyleSheet,
+} from "react-native";
+import { NavigationContainer, LinkingOptions } from "@react-navigation/native";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import "./global.css";
 import * as SplashScreen from "expo-splash-screen";
+import * as NavigationBar from "expo-navigation-bar";
 import { useFonts } from "expo-font";
 import { StatusBar } from "expo-status-bar";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { initializeAPI } from "./src/services/api";
-import { loadStoredToken } from "./src/store/authStore";
 import { RootNavigator } from "./src/navigation/RootNavigator";
 
 SplashScreen.preventAutoHideAsync();
 Ionicons.loadFont().catch(() => {});
 
 function App() {
-  const [isAppReady, setIsAppReady] = useState(false);
   const [fontsLoaded, fontError] = useFonts(Ionicons.font);
-
-  useEffect(() => {
-    const initRuntime = async () => {
-      try {
-        // Initialize API with base URL
-        initializeAPI();
-
-        // Load stored authentication token
-        await loadStoredToken();
-      } catch (error) {
-        console.error("Failed to initialize app:", error);
-      } finally {
-        setIsAppReady(true);
-      }
-    };
-
-    initRuntime();
-  }, []);
 
   useEffect(() => {
     if (fontError) {
@@ -42,26 +27,76 @@ function App() {
   }, [fontError]);
 
   useEffect(() => {
-    if (isAppReady && (fontsLoaded || fontError)) {
+    if (fontsLoaded || fontError) {
       SplashScreen.hideAsync().catch(() => {});
     }
-  }, [isAppReady, fontsLoaded, fontError]);
+  }, [fontsLoaded, fontError]);
 
-  if (!isAppReady || (!fontsLoaded && !fontError)) {
+  useEffect(() => {
+    if (Platform.OS === "android") {
+      NavigationBar.setButtonStyleAsync("dark").catch(() => {});
+    }
+  }, []);
+
+  const linking: LinkingOptions<any> = {
+    prefixes: ["staffattendance://", "exp://"],
+    config: {
+      screens: {
+        App: "app",
+        Auth: "auth",
+      },
+    },
+  };
+
+  if (!fontsLoaded && !fontError) {
     return null;
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
-      <StatusBar animated={true} />
-      <RootNavigator />
-    </SafeAreaView>
+    <SafeAreaProvider>
+      <NavigationContainer linking={linking}>
+        <StatusBar animated={true} style="dark" backgroundColor="#ffffff" />
+        <RootNavigator />
+      </NavigationContainer>
+    </SafeAreaProvider>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: "#ffffff",
+  },
+  splashContainer: {
+    flex: 1,
+    backgroundColor: "#ffffff",
+  },
+  splashContent: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 32,
+  },
+  splashLogo: {
+    width: 118,
+    height: 118,
+    marginBottom: 22,
+  },
+  splashTitle: {
+    color: "#0F172A",
+    fontSize: 24,
+    fontWeight: "700",
+    textAlign: "center",
+  },
+  splashSubtitle: {
+    color: "#64748B",
+    fontSize: 14,
+    fontWeight: "500",
+    marginTop: 8,
+    textAlign: "center",
+  },
+  splashLoader: {
+    marginTop: 24,
   },
 });
 

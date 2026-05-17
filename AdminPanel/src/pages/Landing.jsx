@@ -1138,7 +1138,7 @@ export default function Landing() {
                 <img
                   src="/logo.jpeg"
                   alt="BuzTap logo"
-                  className="h-10 w-auto max-w-[160px] object-contain"
+                  className="h-10 w-auto max-w-40 object-contain"
                 />
               </span>
             </div>

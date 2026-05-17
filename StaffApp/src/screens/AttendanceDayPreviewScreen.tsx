@@ -104,7 +104,7 @@ export const AttendanceDayPreviewScreen = ({ route, navigation }: any) => {
   }[] = [];
   if (record?.punchIn) {
     activities.push({
-      time: format(new Date(record.punchIn), "hh:mm:ss a"),
+      time: format(new Date(record.punchIn), "hh:mm a"),
       label: "Punched In",
       color: "#16A34A",
       meta: `Status: ${record.status ?? "work"}`,
@@ -112,7 +112,7 @@ export const AttendanceDayPreviewScreen = ({ route, navigation }: any) => {
   }
   if (record?.punchOut) {
     activities.push({
-      time: format(new Date(record.punchOut), "hh:mm:ss a"),
+      time: format(new Date(record.punchOut), "hh:mm a"),
       label: "Punched Out",
       color: "#DC2626",
       meta: `Worked: ${workedDurationText}`,
@@ -120,7 +120,7 @@ export const AttendanceDayPreviewScreen = ({ route, navigation }: any) => {
   }
   if (!!record?.punchOut && !record?.punchIn) {
     activities.push({
-      time: "--:--:--",
+      time: "--:--",
       label: "Punch Error",
       color: "#F59E0B",
       meta: "Attendance marked as work, but punch times are incomplete.",
