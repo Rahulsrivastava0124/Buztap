@@ -246,7 +246,15 @@ async function create(req, res, next) {
 
 async function update(req, res, next) {
   try {
-    const data = updateSchema.parse(req.body);
+    const parsedBody = { ...(req.body || {}) };
+    if (typeof parsedBody.password === "string") {
+      parsedBody.password = parsedBody.password.trim();
+      if (!parsedBody.password) {
+        delete parsedBody.password;
+      }
+    }
+
+    const data = updateSchema.parse(parsedBody);
     const updatePayload = { ...data };
     delete updatePayload.password;
 

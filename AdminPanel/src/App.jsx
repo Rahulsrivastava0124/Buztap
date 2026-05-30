@@ -3,6 +3,8 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import AdminLayout from "./layouts/AdminLayout";
 import ErrorBoundary from "./components/shared/ErrorBoundary";
 import ProtectedRoute from "./components/ProtectedRoute";
+import { useAuth } from "./context/AuthContext";
+import { getDefaultAdminPathByRole } from "./utils/access";
 
 const AuthPage = lazy(() => import("./pages/AuthPage"));
 const ForgotPasswordPage = lazy(() => import("./pages/ForgotPasswordPage"));
@@ -26,6 +28,8 @@ function AppLoader() {
 }
 
 export default function App() {
+  const { role } = useAuth();
+
   return (
     <Suspense fallback={<AppLoader />}>
       <Routes>
@@ -37,10 +41,7 @@ export default function App() {
         {/* Protected Admin Routes — all scoped under /:slug */}
         <Route element={<ProtectedRoute />}>
           <Route path="/:slug" element={<AdminLayout />}>
-            <Route
-              index
-              element={<Navigate to="dashboard/overview" replace />}
-            />
+            <Route index element={<Navigate to={getDefaultAdminPathByRole(role)} replace />} />
             <Route path="dashboard/*" element={<Dashboard />} />
             <Route
               path="pos"

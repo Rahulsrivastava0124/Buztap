@@ -4,6 +4,7 @@ import { Mail, Phone, Lock, ArrowRight, Eye, EyeOff } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "../context/AuthContext";
 import { requestLoginOtp, verifyEmailOtp } from "../services/api";
+import { getDefaultAdminPathByRole } from "../utils/access";
 import useSEO from "../hooks/useSEO";
 
 export default function AuthPage() {
@@ -55,8 +56,15 @@ export default function AuthPage() {
     return undefined;
   }, [showOtpModal]);
 
-  const { login, subdomain } = useAuth();
+  const { login, subdomain, role, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!isAuthenticated || !subdomain) return;
+    navigate(`/${subdomain}${getDefaultAdminPathByRole(role)}`, {
+      replace: true,
+    });
+  }, [isAuthenticated, navigate, role, subdomain]);
 
   function validateCredentials() {
     const errs = {};
@@ -69,7 +77,7 @@ export default function AuthPage() {
       } else if (digits.length > 15) {
         errs.identifier = "Phone number is too long.";
       }
-    } else {
+    } else if (loginMethod === "email") {
       if (!identifier.trim()) {
         errs.identifier = "Email address is required.";
       } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier.trim())) {
@@ -93,15 +101,31 @@ export default function AuthPage() {
       return;
     }
 
+    const normalizedIdentifier =
+      loginMethod === "phone"
+        ? identifier.replace(/\D/g, "")
+        : identifier.trim().toLowerCase();
+
+    if (loginMethod === "phone") {
+      await completeLogin(normalizedIdentifier, password, undefined, "staff");
+      return;
+    }
+
     await handleSendOtp(true);
   };
 
-  const completeLoginWithOtp = async (otpToken) => {
+  const completeLogin = async (loginIdentifier, loginPassword, otpToken, loginMode = "admin") => {
     setErrors({});
     setSubmitting(true);
-    const result = await login(identifier, password, otpToken || undefined);
+    const result = await login(
+      loginIdentifier,
+      loginPassword,
+      otpToken || undefined,
+      loginMode,
+    );
     if (result.success) {
       const targetSlug = result.subdomain || subdomain;
+      const targetPath = getDefaultAdminPathByRole(result.role || role);
       if (!targetSlug) {
         toast.error("Could not resolve business URL. Please contact support.");
         setSubmitting(false);
@@ -110,13 +134,22 @@ export default function AuthPage() {
       toast.dismiss();
       toast.success("Signed in successfully");
       setShowOtpModal(false);
-      navigate(`/${targetSlug}/dashboard/overview`);
+      navigate(`/${targetSlug}${targetPath}`);
     } else {
       toast.error("Invalid phone/email or password");
     }
     setSubmitting(false);
   };
 
+
+  const completeLoginWithOtp = async (otpToken) => {
+    await completeLogin(
+      identifier.trim().toLowerCase(),
+      password,
+      otpToken,
+      "admin",
+    );
+  };
   function handleIdentifierChange(e) {
     const raw = e.target.value;
     const cleaned =
@@ -344,7 +377,9 @@ export default function AuthPage() {
 
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-[#0f0e0b]">
-                {loginMethod === "phone" ? "Phone Number" : "Email Address"}
+                {loginMethod === "phone"
+                  ? "Phone Number"
+                  : "Email Address"}
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -355,8 +390,12 @@ export default function AuthPage() {
                   )}
                 </div>
                 <input
-                  type={loginMethod === "phone" ? "tel" : "email"}
-                  inputMode={loginMethod === "phone" ? "numeric" : "email"}
+                  type={loginMethod === "phone" ? "tel" : "text"}
+                  inputMode={
+                    loginMethod === "phone"
+                      ? "numeric"
+                      : "email"
+                  }
                   value={identifier}
                   onChange={handleIdentifierChange}
                   className={`w-full pl-10 pr-4 py-2.5 bg-[#faf7f2] border rounded-lg text-sm text-[#0f0e0b] placeholder-[#b0a898] focus:outline-none focus:ring-1 transition-shadow ${
@@ -369,7 +408,11 @@ export default function AuthPage() {
                       ? "+91 98765 43210"
                       : "you@example.com"
                   }
-                  autoComplete={loginMethod === "phone" ? "tel" : "email"}
+                  autoComplete={
+                    loginMethod === "phone"
+                      ? "tel"
+                      : "email"
+                  }
                 />
               </div>
               {errors.identifier && (
@@ -439,7 +482,8 @@ export default function AuthPage() {
                 </>
               ) : (
                 <>
-                  Sign In <ArrowRight size={16} />
+                  {loginMethod === "phone" ? "Sign In" : "Send OTP"}
+                  <ArrowRight size={16} />
                 </>
               )}
             </button>

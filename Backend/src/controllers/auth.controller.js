@@ -944,6 +944,8 @@ async function staffLogin(req, res, next) {
       { expiresIn: "7d" },
     );
 
+    const business = await Business.findById(staff.businessId).lean();
+
     // Map staff object for response
     const staffResponse = {
       id: staff._id,
@@ -967,6 +969,12 @@ async function staffLogin(req, res, next) {
 
     res.json({
       token,
+      role: staff.role,
+      businessType: business?.type ?? "restro",
+      businessName: business?.name ?? "",
+      subdomain: resolveBusinessSlug(business),
+      name: staff.name,
+      businessId: String(staff.businessId),
       staff: staffResponse,
     });
   } catch (err) {

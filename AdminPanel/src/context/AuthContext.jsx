@@ -3,6 +3,7 @@ import {
   clearAuthSession,
   fetchAuthMe,
   loginAdmin,
+  loginStaff,
   logoutAdmin,
 } from "../services/api";
 
@@ -131,35 +132,44 @@ export function AuthProvider({ children }) {
     return () => window.removeEventListener("auth:expired", handleExpired);
   }, []);
 
-  const login = async (identifier, password, otpToken) => {
+  const applyAuthSession = (data) => {
+    setIsAuthenticated(true);
+    setRole(data.role || "cashier");
+    setBusinessType(data.businessType || BUSINESS_TYPES.RESTRO);
+    setStoredValue("adminAuth", "true");
+    setStoredValue("adminAuthRole", data.role || "cashier");
+    setStoredValue(
+      "adminBusinessType",
+      data.businessType || BUSINESS_TYPES.RESTRO,
+    );
+    if (data.businessName) {
+      setBusinessName(data.businessName);
+      setStoredValue("adminBusinessName", data.businessName);
+    }
+    if (data.name) {
+      setUserName(data.name);
+      setStoredValue("adminUserName", data.name);
+    }
+    const resolvedSubdomain = data.subdomain || toSlug(data.businessName);
+    setSubdomain(resolvedSubdomain);
+    if (resolvedSubdomain) {
+      setStoredValue("adminSubdomain", resolvedSubdomain);
+    }
+    return { subdomain: resolvedSubdomain || "", role: data.role || "cashier" };
+  };
+
+  const login = async (identifier, password, otpToken, loginMode = "admin") => {
     try {
-      const data = await loginAdmin(identifier, password, otpToken);
-      setIsAuthenticated(true);
-      setRole(data.role || "cashier");
-      setBusinessType(data.businessType || BUSINESS_TYPES.RESTRO);
-      setStoredValue("adminAuth", "true");
-      setStoredValue("adminAuthRole", data.role || "cashier");
-      setStoredValue(
-        "adminBusinessType",
-        data.businessType || BUSINESS_TYPES.RESTRO,
-      );
+      const data =
+        loginMode === "staff"
+          ? await loginStaff(identifier, password)
+          : await loginAdmin(identifier, password, otpToken);
+
+      const session = applyAuthSession(data);
       setStoredValue(AUTH_EXPIRES_AT_KEY, String(Date.now() + ONE_DAY_MS));
-      if (data.businessName) {
-        setBusinessName(data.businessName);
-        setStoredValue("adminBusinessName", data.businessName);
-      }
-      if (data.name) {
-        setUserName(data.name);
-        setStoredValue("adminUserName", data.name);
-      }
-      const resolvedSubdomain = data.subdomain || toSlug(data.businessName);
-      setSubdomain(resolvedSubdomain);
-      if (resolvedSubdomain) {
-        setStoredValue("adminSubdomain", resolvedSubdomain);
-      }
-      return { success: true, subdomain: resolvedSubdomain || "" };
+      return { success: true, ...session };
     } catch {
-      return { success: false, subdomain: "" };
+      return { success: false, subdomain: "", role: "cashier" };
     }
   };
 

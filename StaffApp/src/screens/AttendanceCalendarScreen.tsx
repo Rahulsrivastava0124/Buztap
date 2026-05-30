@@ -115,6 +115,49 @@ const statusStyle = (status?: string) => {
   }
 };
 
+const LEGEND_ITEMS = [
+  {
+    label: "Present",
+    type: "dot",
+    color: "#2EA63A",
+    containerClassName: "border border-slate-300 rounded-lg px-1 py-1 bg-white",
+  },
+  {
+    label: "Absent",
+    type: "dot",
+    color: "#CF1D34",
+    containerClassName: "border border-slate-300 rounded-lg px-1 py-1 bg-white",
+  },
+  {
+    label: "Half Day",
+    type: "dot",
+    color: "#E9D48A",
+    containerClassName: "border border-slate-300 rounded-lg px-1 py-1 bg-white",
+  },
+  {
+    label: "Holiday",
+    type: "dot",
+    color: "#95E3E6",
+    containerClassName: "border border-slate-300 rounded-lg px-1 py-1 bg-white",
+  },
+  {
+    label: "Week Off",
+    type: "dot",
+    color: "#E6DEFF",
+    containerClassName: "border border-slate-300 rounded-lg px-1 py-1 bg-white",
+  },
+  {
+    label: "Punch Error",
+    type: "warning",
+    containerClassName: "border border-slate-300 rounded-lg px-1 py-1 bg-white",
+  },
+  {
+    label: "Late Mark",
+    type: "lateMark",
+    containerClassName: "border border-slate-300 rounded-lg px-1 py-1 bg-white",
+  },
+] as const;
+
 export const AttendanceCalendarScreen = ({ navigation }: any) => {
   const { staff, setStaff, selectedAttendanceDate, setSelectedAttendanceDate } =
     useAuthStore();
@@ -352,11 +395,13 @@ export const AttendanceCalendarScreen = ({ navigation }: any) => {
                       ? "#2563EB"
                       : isToday
                         ? "#0EA5E9"
-                      : isNoRecord
-                        ? "#CBD5E1"
-                        : "transparent",
+                        : isNoRecord
+                          ? "#CBD5E1"
+                          : "transparent",
                     borderStyle:
-                      isNoRecord && !isSelected && !isToday ? "dotted" : "solid",
+                      isNoRecord && !isSelected && !isToday
+                        ? "dotted"
+                        : "solid",
                     alignItems: "center",
                     justifyContent: "center",
                     position: "relative",
@@ -396,95 +441,52 @@ export const AttendanceCalendarScreen = ({ navigation }: any) => {
           Tap any date to view its attendance details on Home.
         </Text>
 
-        <View className="mx-6 mt-3 mb-8 space-y-4">
-          <View className="bg-white rounded-2xl p-3">
-            <View className="flex-row flex-wrap" style={{ gap: 12 }}>
-              <View className="flex-row items-center">
+        <View className="mx-6 mt-3 mb-8 space-y-2">
+          <View>
+            <View className="flex-row flex-wrap" style={{ gap: 10 }}>
+              {LEGEND_ITEMS.map((item) => (
                 <View
-                  style={{
-                    width: 10,
-                    height: 10,
-                    borderRadius: 5,
-                    backgroundColor: "#2EA63A",
-                    marginRight: 6,
-                  }}
-                />
-                <Text className="text-slate-700 text-[11px]">Present</Text>
-              </View>
-              <View className="flex-row items-center">
-                <View
-                  style={{
-                    width: 10,
-                    height: 10,
-                    borderRadius: 5,
-                    backgroundColor: "#CF1D34",
-                    marginRight: 6,
-                  }}
-                />
-                <Text className="text-slate-700 text-[11px]">Absent</Text>
-              </View>
-              <View className="flex-row items-center">
-                <View
-                  style={{
-                    width: 10,
-                    height: 10,
-                    borderRadius: 5,
-                    backgroundColor: "#E9D48A",
-                    marginRight: 6,
-                  }}
-                />
-                <Text className="text-slate-700 text-[11px]">Half Day</Text>
-              </View>
-              <View className="flex-row items-center">
-                <View
-                  style={{
-                    width: 10,
-                    height: 10,
-                    borderRadius: 5,
-                    backgroundColor: "#95E3E6",
-                    marginRight: 6,
-                  }}
-                />
-                <Text className="text-slate-700 text-[11px]">Holiday</Text>
-              </View>
-              <View className="flex-row items-center">
-                <View
-                  style={{
-                    width: 10,
-                    height: 10,
-                    borderRadius: 5,
-                    backgroundColor: "#E6DEFF",
-                    marginRight: 6,
-                  }}
-                />
-                <Text className="text-slate-700 text-[11px]">Week Off</Text>
-              </View>
-              <View className="flex-row items-center">
-                <Ionicons
-                  name="warning"
-                  size={12}
-                  color="#FACC15"
-                  style={{ marginRight: 6 }}
-                />
-                <Text className="text-slate-700 text-[11px]">Punch Error</Text>
-              </View>
-              <View className="flex-row items-center">
-                <View
-                  style={{
-                    width: 12,
-                    height: 12,
-                    marginRight: 6,
-                    overflow: "hidden",
-                    position: "relative",
-                  }}
+                  key={item.label}
+                  className={`flex-row items-center ${item.containerClassName ?? ""}`}
                 >
-                  <LateMarkTriangle
-                    size={12}
-                    style={{ position: "absolute", top: 0, right: 0 }}
-                  />
+                  {item.type === "dot" ? (
+                    <View
+                      style={{
+                        width: 10,
+                        height: 10,
+                        borderRadius: 5,
+                        backgroundColor: item.color,
+                        marginRight: 6,
+                      }}
+                    />
+                  ) : item.type === "warning" ? (
+                    <Ionicons
+                      name="warning"
+                      size={12}
+                      color="#FACC15"
+                      style={{ marginRight: 6 }}
+                    />
+                  ) : (
+                    <View
+                      style={{
+                        width: 12,
+                        height: 12,
+                        marginRight: 6,
+                        overflow: "hidden",
+                        position: "relative",
+                      }}
+                    >
+                      <LateMarkTriangle
+                        size={12}
+                        style={{ position: "absolute", top: 0, right: 0 }}
+                      />
+                    </View>
+                  )}
+                  <Text className="text-slate-700 text-[11px]">
+                    {item.label}
+                  </Text>
                 </View>
-                <Text className="text-slate-700 text-[11px]">Late Mark</Text>
-              </View>
+              ))}
             </View>
           </View>
 

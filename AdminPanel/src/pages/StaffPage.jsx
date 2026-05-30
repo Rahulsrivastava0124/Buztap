@@ -806,6 +806,14 @@ function StaffFormPanel({ mode, initial, onClose, onSave, isSaving }) {
   function handleSubmit(e) {
     e.preventDefault();
     const payload = { ...form };
+    const trimmedPassword = String(form.password || "").trim();
+
+    if (mode === "edit" && trimmedPassword && trimmedPassword.length < 6) {
+      toast.error("New password must be at least 6 characters.");
+      return;
+    }
+
+    payload.password = trimmedPassword;
     payload.salaryMonthly = Number(form.salaryMonthly || 0);
     payload.leaveAllowance = Number(form.leaveAllowance || 0);
     payload.leavesTaken = Number(form.leavesTaken || 0);

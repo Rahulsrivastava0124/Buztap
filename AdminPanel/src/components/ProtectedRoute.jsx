@@ -1,10 +1,11 @@
 import { Navigate, Outlet, useParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { hasRoleAccess } from "../utils/access";
+import { getDefaultAdminPathByRole, hasRoleAccess } from "../utils/access";
 
 export default function ProtectedRoute({ minimumRole = "cashier" }) {
   const { isAuthenticated, role, subdomain } = useAuth();
   const { slug } = useParams();
+  const fallbackPath = getDefaultAdminPathByRole(role);
 
   if (!isAuthenticated) {
     return <Navigate to="/auth" replace />;
@@ -12,7 +13,7 @@ export default function ProtectedRoute({ minimumRole = "cashier" }) {
 
   // If there's a slug in the URL that doesn't match the logged-in business, redirect to the correct one
   if (slug && subdomain && slug !== subdomain) {
-    return <Navigate to={`/${subdomain}/dashboard/overview`} replace />;
+    return <Navigate to={`/${subdomain}${fallbackPath}`} replace />;
   }
 
   if (!hasRoleAccess(role, minimumRole)) {
@@ -20,7 +21,7 @@ export default function ProtectedRoute({ minimumRole = "cashier" }) {
     if (!base) {
       return <Navigate to="/auth" replace />;
     }
-    return <Navigate to={`/${base}/dashboard/overview`} replace />;
+    return <Navigate to={`/${base}${fallbackPath}`} replace />;
   }
 
   return <Outlet />;
