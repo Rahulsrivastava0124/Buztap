@@ -156,6 +156,28 @@ export interface AdminLoginResponse {
   businessId?: string;
 }
 
+export interface StaffLoginResponse extends AdminLoginResponse {
+  staff?: {
+    id: string;
+    name: string;
+    username: string;
+    designation: string;
+    email?: string;
+    phone?: string;
+    shiftTiming?: {
+      name?: string;
+      startTime?: string;
+      endTime?: string;
+    };
+    salaryMonthly?: number;
+    leaveAllowance?: number;
+    leavesTaken?: number;
+    attendanceRecords?: unknown[];
+    leaveRequests?: unknown[];
+    isActive?: boolean;
+  };
+}
+
 export interface OtpRequestResponse {
   success: boolean;
   expiresInSeconds: number;
@@ -591,6 +613,23 @@ export async function loginAdmin(
     {
       method: "POST",
       body: JSON.stringify({ identifier, password, otpToken }),
+    },
+    false,
+  );
+
+  setStoredValue(AUTH_TOKEN_KEY, data.token);
+  return data;
+}
+
+export async function loginStaff(
+  identifier: string,
+  password: string,
+): Promise<StaffLoginResponse> {
+  const data = await request<StaffLoginResponse>(
+    "/auth/staff/login",
+    {
+      method: "POST",
+      body: JSON.stringify({ identifier, password }),
     },
     false,
   );
