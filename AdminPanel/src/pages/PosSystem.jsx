@@ -82,11 +82,8 @@ function buildTableIdCandidates(rawTableId) {
 }
 
 export default function PosSystem() {
-  // step: "table" | "menu"
-  const [step, setStep] = useState("table");
   const [activeCat, setActiveCat] = useState("All");
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedTable, setSelectedTable] = useState(null);
   // Occupied table detail panel
   const [detailTable, setDetailTable] = useState(null);
   const [guestName, setGuestName] = useState("");
@@ -100,11 +97,18 @@ export default function PosSystem() {
   const [editingOrderId, setEditingOrderId] = useState(null);
   const searchRef = useRef(null);
   const navigate = useNavigate();
-  const { slug } = useParams();
+  const { slug, tableId: routeTableId } = useParams();
+  const step = routeTableId ? "menu" : "table";
   const queryClient = useQueryClient();
   const { businessType } = useAuth();
   const isHotelMode = businessType === "hotel";
   const locationLabel = isHotelMode ? "Room" : "Table";
+
+  const normalizedRouteTableId = useMemo(() => {
+    const raw = String(routeTableId || "").trim();
+    if (!raw) return "";
+    return decodeURIComponent(raw);
+  }, [routeTableId]);
 
   const {
     cart,
@@ -133,6 +137,20 @@ export default function PosSystem() {
     queryFn: fetchTables,
     refetchInterval: 20_000,
   });
+
+  const selectedTable = useMemo(() => {
+    if (!normalizedRouteTableId) return null;
+    const routeCandidates = new Set(buildTableIdCandidates(normalizedRouteTableId));
+    return (
+      tables.find((table) => {
+        const tableCandidates = buildTableIdCandidates(table.id);
+        return tableCandidates.some((candidate) => routeCandidates.has(candidate));
+      }) || {
+        id: normalizedRouteTableId,
+        status: "Free",
+      }
+    );
+  }, [normalizedRouteTableId, tables]);
 
   const getCleaningTimeLabel = (table) => {
     if (table?.status !== "Cleaning") return null;
@@ -198,7 +216,7 @@ export default function PosSystem() {
   });
 
   // Table status mutation (Occupied → Cleaning → Free)
-  const statusMutation = useMutation({
+  const _statusMutation = useMutation({
     mutationFn: ({ tableId, status }) => updateTableStatus(tableId, status),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tables"] });
@@ -223,12 +241,10 @@ export default function PosSystem() {
   useEffect(() => {
     const digits = guestPhone.replace(/\D/g, "");
     if (digits.length !== 10) {
-      if (guestLookupState !== "idle") setGuestLookupState("idle");
       return;
     }
 
     let cancelled = false;
-    setGuestLookupState("loading");
     fetchGuestByPhone(digits).then((guest) => {
       if (cancelled) return;
       if (guest?.name) {
@@ -549,7 +565,9 @@ export default function PosSystem() {
       setGuestName(activeOrder?.guestName || "");
       // Normalize to last 10 digits — DB stores phones as +91XXXXXXXXXX
       const rawPhone = String(activeOrder?.guestPhone || "").replace(/\D/g, "");
-      setGuestPhone(rawPhone.slice(-10));
+      const normalizedPhone = rawPhone.slice(-10);
+      setGuestPhone(normalizedPhone);
+      if (normalizedPhone.length < 10) setGuestLookupState("idle");
       setDetailTable(table);
     } else {
       selectTable(table);
@@ -564,27 +582,32 @@ export default function PosSystem() {
       clearCart();
     }
     setEditingOrderId(existingOrder?._id || null);
-    setSelectedTable(table);
     setDetailTable(null);
-    setStep("menu");
+    const tableRef = encodeURIComponent(String(table?.id || ""));
+    navigate(`/${slug}/pos/menu/${tableRef}`);
   }
 
   function changeTable() {
     setDetailTable(null);
     setEditingOrderId(null);
     clearCart();
-    setStep("table");
+    navigate(`/${slug}/pos`);
   }
 
   const goToCheckout = () => {
     if (!cart.length) return;
-    navigate(`/${slug}/pos/checkout`, {
+    const currentTableId =
+      selectedTable?.id || normalizedRouteTableId || (isHotelMode ? "101" : "01");
+    const tableRef = encodeURIComponent(String(currentTableId));
+    const returnTo = currentTableId ? `/${slug}/pos/menu/${tableRef}` : `/${slug}/pos`;
+    navigate(`/${slug}/pos/menu/${tableRef}/checkout`, {
       state: {
-        selectedTable: selectedTable?.id,
+        selectedTable: currentTableId,
         orderType,
         locationLabel,
         guestName: guestName.trim() || "",
         guestPhone: guestPhone.trim() || "",
+        returnTo,
       },
     });
   };
@@ -613,7 +636,7 @@ export default function PosSystem() {
     setDetailTable(null);
     setEditingOrderId(null);
     clearCart();
-    setStep("table");
+    navigate(`/${slug}/pos`);
   };
 
   usePOSHotkeys({
@@ -913,7 +936,11 @@ export default function PosSystem() {
                           value={guestPhone}
                           onChange={(e) => {
                             guestNameManuallyEditedRef.current = false;
-                            setGuestPhone(e.target.value);
+                            const raw = e.target.value
+                              .replace(/\D/g, "")
+                              .slice(0, 10);
+                            setGuestPhone(raw);
+                            if (raw.length < 10) setGuestLookupState("idle");
                           }}
                           placeholder="Guest phone number"
                           className="w-full pl-8 pr-3 py-2 text-sm border border-border rounded-lg bg-paper focus:outline-none focus:ring-2 focus:ring-saffron/30 focus:border-saffron"

@@ -52,6 +52,22 @@ export default function App() {
               }
             />
             <Route
+              path="pos/menu/:tableId"
+              element={
+                <ErrorBoundary label="POS">
+                  <PosSystem />
+                </ErrorBoundary>
+              }
+            />
+            <Route
+              path="pos/menu/:tableId/checkout"
+              element={
+                <ErrorBoundary label="POS Checkout">
+                  <PosCheckout />
+                </ErrorBoundary>
+              }
+            />
+            <Route
               path="pos/checkout"
               element={
                 <ErrorBoundary label="POS Checkout">
