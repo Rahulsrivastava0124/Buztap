@@ -140,11 +140,15 @@ export default function PosSystem() {
 
   const selectedTable = useMemo(() => {
     if (!normalizedRouteTableId) return null;
-    const routeCandidates = new Set(buildTableIdCandidates(normalizedRouteTableId));
+    const routeCandidates = new Set(
+      buildTableIdCandidates(normalizedRouteTableId),
+    );
     return (
       tables.find((table) => {
         const tableCandidates = buildTableIdCandidates(table.id);
-        return tableCandidates.some((candidate) => routeCandidates.has(candidate));
+        return tableCandidates.some((candidate) =>
+          routeCandidates.has(candidate),
+        );
       }) || {
         id: normalizedRouteTableId,
         status: "Free",
@@ -597,9 +601,13 @@ export default function PosSystem() {
   const goToCheckout = () => {
     if (!cart.length) return;
     const currentTableId =
-      selectedTable?.id || normalizedRouteTableId || (isHotelMode ? "101" : "01");
+      selectedTable?.id ||
+      normalizedRouteTableId ||
+      (isHotelMode ? "101" : "01");
     const tableRef = encodeURIComponent(String(currentTableId));
-    const returnTo = currentTableId ? `/${slug}/pos/menu/${tableRef}` : `/${slug}/pos`;
+    const returnTo = currentTableId
+      ? `/${slug}/pos/menu/${tableRef}`
+      : `/${slug}/pos`;
     navigate(`/${slug}/pos/menu/${tableRef}/checkout`, {
       state: {
         selectedTable: currentTableId,

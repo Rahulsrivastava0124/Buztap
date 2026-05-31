@@ -41,7 +41,12 @@ export default function App() {
         {/* Protected Admin Routes — all scoped under /:slug */}
         <Route element={<ProtectedRoute />}>
           <Route path="/:slug" element={<AdminLayout />}>
-            <Route index element={<Navigate to={getDefaultAdminPathByRole(role)} replace />} />
+            <Route
+              index
+              element={
+                <Navigate to={getDefaultAdminPathByRole(role)} replace />
+              }
+            />
             <Route path="dashboard/*" element={<Dashboard />} />
             <Route
               path="pos"

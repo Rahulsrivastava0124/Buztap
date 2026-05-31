@@ -118,7 +118,9 @@ export default function PosCheckout() {
     ? decodeURIComponent(String(routeTableId))
     : "";
   const selectedTable =
-    decodedRouteTableId || location.state?.selectedTable || (isHotelMode ? "101" : "01");
+    decodedRouteTableId ||
+    location.state?.selectedTable ||
+    (isHotelMode ? "101" : "01");
   const returnToPath =
     location.state?.returnTo ||
     `/${slug}/pos/menu/${encodeURIComponent(String(selectedTable))}`;
@@ -841,7 +843,9 @@ export default function PosCheckout() {
                 </button>
               </div>
               {couponError && (
-                <p className="text-xs text-red-500 mt-1.5 px-1">{couponError}</p>
+                <p className="text-xs text-red-500 mt-1.5 px-1">
+                  {couponError}
+                </p>
               )}
               {appliedCoupon && (
                 <p className="text-xs text-sage mt-1.5">
@@ -917,7 +921,6 @@ export default function PosCheckout() {
           </div>
         </div>
       </div>
-
     </div>
   );
 }
