@@ -911,6 +911,34 @@ async function staffLogin(req, res, next) {
             normalizedPhone.endsWith(candidate))
         );
       });
+
+      // Check Business collection if admin phone is stored there instead
+      if (!staff) {
+        const businessCandidates = await Business.find({
+          phone: { $exists: true, $ne: "" },
+        })
+          .select("_id phone")
+          .lean();
+          
+        const businessMatch = businessCandidates.find((row) => {
+          const candidate = normalizePhone(row.phone || "");
+          return (
+            candidate &&
+            (candidate === normalizedPhone ||
+              candidate.endsWith(normalizedPhone) ||
+              normalizedPhone.endsWith(candidate))
+          );
+        });
+
+        if (businessMatch) {
+          staff = await User.findOne({
+            businessId: businessMatch._id,
+            role: "admin",
+          })
+            .select("+passwordHash")
+            .lean();
+        }
+      }
     } else {
       staff = await User.findOne({
         username: { $regex: `^${login}$`, $options: "i" },
