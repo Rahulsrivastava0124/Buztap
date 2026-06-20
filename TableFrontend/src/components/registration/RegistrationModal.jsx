@@ -82,18 +82,10 @@ function AccountStep({
 }) {
   const [showPw, setShowPw] = useState(false);
   return (
-    <div className="space-y-4">
-      <div>
-        <h3 className="text-xl font-bold text-[#0f0e0b]">
-          Create your account
-        </h3>
-        <p className="text-sm text-[#857c6e] mt-1">
-          Owner / admin credentials to access your dashboard.
-        </p>
-      </div>
-      <div className="space-y-3">
-        <div className="grid grid-cols-2 gap-3">
-          <label className="col-span-2 block space-y-1">
+    <div className="space-y-2">
+      <div className="space-y-2">
+        <div className="grid grid-cols-2 gap-2">
+          <label className="col-span-2 block space-y-0.5">
             <span className="text-xs font-semibold text-[#0f0e0b]">
               Restaurant / Hotel Name
             </span>
@@ -112,7 +104,7 @@ function AccountStep({
             </div>
             <FieldError msg={errors?.businessName} />
           </label>
-          <label className="col-span-2 block space-y-1">
+          <label className="col-span-2 block space-y-0.5">
             <span className="text-xs font-semibold text-[#0f0e0b]">
               Business Type
             </span>
@@ -127,7 +119,7 @@ function AccountStep({
             </select>
           </label>
         </div>
-        <label className="block space-y-1">
+        <label className="block space-y-0.5">
           <span className="text-xs font-semibold text-[#0f0e0b]">
             Your Name
           </span>
@@ -146,7 +138,7 @@ function AccountStep({
           </div>
           <FieldError msg={errors?.ownerName} />
         </label>
-        <label className="block space-y-1">
+        <label className="block space-y-0.5">
           <span className="text-xs font-semibold text-[#0f0e0b]">Email</span>
           <div className="relative">
             <Mail
@@ -217,7 +209,7 @@ function AccountStep({
           ) : null}
           <FieldError msg={errors?.otp} />
         </label>
-        <label className="block space-y-1">
+        <label className="block space-y-0.5">
           <span className="text-xs font-semibold text-[#0f0e0b]">Password</span>
           <div className="relative">
             <Lock
@@ -249,15 +241,9 @@ function AccountStep({
 
 function ProfileStep({ data, onChange, errors }) {
   return (
-    <div className="space-y-4">
-      <div>
-        <h3 className="text-xl font-bold text-[#0f0e0b]">Restaurant details</h3>
-        <p className="text-sm text-[#857c6e] mt-1">
-          These details appear on your guest menu and QR page.
-        </p>
-      </div>
-      <div className="space-y-3">
-        <label className="block space-y-1">
+    <div className="space-y-2">
+      <div className="space-y-2">
+        <label className="block space-y-0.5">
           <span className="text-xs font-semibold text-[#0f0e0b]">
             No. of Tables
           </span>
@@ -278,7 +264,7 @@ function ProfileStep({ data, onChange, errors }) {
             />
           </div>
         </label>
-        <label className="block space-y-1">
+        <label className="block space-y-0.5">
           <span className="text-xs font-semibold text-[#0f0e0b]">
             Cuisine Type
           </span>
@@ -303,7 +289,7 @@ function ProfileStep({ data, onChange, errors }) {
           </div>
           <FieldError msg={errors?.cuisine} />
         </label>
-        <label className="block space-y-1">
+        <label className="block space-y-0.5">
           <span className="text-xs font-semibold text-[#0f0e0b]">
             Phone Number
           </span>
@@ -322,7 +308,7 @@ function ProfileStep({ data, onChange, errors }) {
             />
           </div>
         </label>
-        <label className="block space-y-1">
+        <label className="block space-y-0.5">
           <span className="text-xs font-semibold text-[#0f0e0b]">Address</span>
           <div className="relative">
             <MapPin
@@ -717,10 +703,10 @@ export default function RegistrationModal({ isOpen, onClose, onComplete }) {
         initial={{ opacity: 0, scale: 0.96, y: 16 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 0.2 }}
-        className="w-full max-w-xl max-h-[92vh] overflow-y-auto rounded-3xl bg-white border border-[#e0d9ce] shadow-[0_25px_80px_rgba(15,14,11,0.28)]"
+        className="w-full max-w-xl max-h-[92vh] flex flex-col overflow-hidden rounded-3xl bg-white border border-[#e0d9ce] shadow-[0_25px_80px_rgba(15,14,11,0.28)]"
       >
         {!isDoneStep && (
-          <div className="p-5 sm:p-6 border-b border-[#f0ebe0] flex items-center justify-between">
+          <div className="p-4 sm:px-6 sm:py-4 border-b border-[#f0ebe0] flex items-center justify-between shrink-0 bg-white z-10">
             <div>
               <h2 className="text-xl font-bold text-[#0f0e0b]">
                 Restaurant Registration
@@ -745,7 +731,7 @@ export default function RegistrationModal({ isOpen, onClose, onComplete }) {
         )}
 
         {numericStep && !isDoneStep && (
-          <div className="px-5 sm:px-6 pt-4">
+          <div className="px-4 sm:px-6 pt-3 shrink-0 bg-white z-10">
             <div className="flex gap-1">
               {STEPS.map((s) => (
                 <div
@@ -767,7 +753,7 @@ export default function RegistrationModal({ isOpen, onClose, onComplete }) {
           </div>
         )}
 
-        <div className="p-5 sm:p-6">
+        <div className="p-4 sm:p-6 overflow-y-auto flex-1">
           <AnimatePresence mode="wait">
             {isProcessing && (
               <Motion.div
@@ -867,10 +853,12 @@ export default function RegistrationModal({ isOpen, onClose, onComplete }) {
               </Motion.div>
             )}
           </AnimatePresence>
+        </div>
 
-          {numericStep && !isDoneStep && (
+        {numericStep && !isDoneStep && (
+          <div className="px-4 sm:px-6 pb-4 shrink-0 bg-white z-10">
             <div
-              className={`flex mt-6 gap-3 ${numericStep > 1 ? "justify-between" : "justify-end"}`}
+              className={`flex pt-2 gap-3 ${numericStep > 1 ? "justify-between" : "justify-end"}`}
             >
               {numericStep > 1 && (
                 <button
@@ -921,8 +909,8 @@ export default function RegistrationModal({ isOpen, onClose, onComplete }) {
                 </button>
               </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </Motion.div>
     </div>
   );
