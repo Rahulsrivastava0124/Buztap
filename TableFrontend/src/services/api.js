@@ -70,6 +70,33 @@ export function fetchMenuCategories() {
   return request("GET", "/menu/categories");
 }
 
+// OCR menu extraction (public endpoint used during registration)
+export async function extractMenuFromImage(file) {
+  if (!file) throw new Error("Menu image is required");
+
+  const formData = new FormData();
+  formData.append("image", file);
+
+  const res = await fetch(`${BASE}/upload/ocr-menu`, {
+    method: "POST",
+    body: formData,
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    const err = new Error(data?.error || "Unable to process menu image");
+    err.code = data?.code;
+    err.status = res.status;
+    err.details = data?.details;
+    throw err;
+  }
+
+  return {
+    text: data?.text || "",
+    items: Array.isArray(data?.items) ? data.items : [],
+  };
+}
+
 // ── Tables ───────────────────────────────────────────────────────────────────
 export function fetchTables() {
   return request("GET", "/tables");

@@ -22,7 +22,12 @@ import { useRestroAuth } from "../../context/RestroAuthContext";
 import toast from "react-hot-toast";
 import MenuUploadStep from "./MenuUploadStep";
 import RegistrationReviewStep from "./RegistrationReviewStep";
-import { requestEmailOtp, verifyEmailOtp } from "../../services/api";
+import {
+  createMenuItem,
+  extractMenuFromImage,
+  requestEmailOtp,
+  verifyEmailOtp,
+} from "../../services/api";
 
 const STEPS = [
   { id: 1, label: "Account" },
@@ -610,15 +615,21 @@ export default function RegistrationModal({ isOpen, onClose, onComplete }) {
     }, 700);
 
     if (menuImage) {
-      await new Promise((r) => setTimeout(r, 2400));
-      setAiMenuJson({
-        items: [
-          { name: "Paneer Butter Masala", category: "Mains", price: 280 },
-          { name: "Dal Makhani", category: "Mains", price: 220 },
-          { name: "Garlic Naan", category: "Breads", price: 60 },
-          { name: "Mango Lassi", category: "Beverages", price: 120 },
-        ],
-      });
+      try {
+        const extracted = await extractMenuFromImage(menuImage);
+        setAiMenuJson({ items: extracted.items || [] });
+      } catch (err) {
+        clearInterval(tick);
+        if (err?.code === "VISION_BILLING_REQUIRED" || err?.status === 402) {
+          toast.error(
+            "Google Vision billing is not enabled. Enable billing in Google Cloud and retry OCR, or continue registration without image processing.",
+          );
+        } else {
+          toast.error(err?.message || "Failed to extract menu from image");
+        }
+        setStep(3);
+        return;
+      }
     }
 
     const autoUsername =
@@ -654,6 +665,45 @@ export default function RegistrationModal({ isOpen, onClose, onComplete }) {
     toast.success(`Welcome! ${account.businessName} is all set 🎉`);
     setCompletedBusinessName(account.businessName);
     setStep(menuImage ? "review" : "done");
+  }
+
+  async function handleReviewComplete(editedItems) {
+    const rows = Array.isArray(editedItems) ? editedItems : [];
+    if (rows.length === 0) {
+      setStep("done");
+      return;
+    }
+
+    setStep("processing");
+    setProcessingPhase(2);
+
+    try {
+      for (const row of rows) {
+        const name = String(row?.name || "").trim();
+        const category = String(row?.category || "Mains").trim() || "Mains";
+        const price = Number(row?.price || 0);
+
+        if (!name || !Number.isFinite(price) || price <= 0) continue;
+
+        await createMenuItem({
+          name,
+          category,
+          price,
+          description: String(row?.description || "").trim(),
+          isVeg: row?.isVeg !== false,
+          isAvailable: true,
+          preparationTime: 15,
+          spiceLevel: 2,
+          allergens: [],
+        });
+      }
+
+      toast.success("Menu created from uploaded image");
+      setStep("done");
+    } catch (err) {
+      toast.error(err?.message || "Failed to create menu items");
+      setStep("review");
+    }
   }
 
   const isProcessing = step === "processing";
@@ -752,7 +802,7 @@ export default function RegistrationModal({ isOpen, onClose, onComplete }) {
               >
                 <RegistrationReviewStep
                   aiGeneratedData={aiMenuJson}
-                  onComplete={() => setStep("done")}
+                  onComplete={handleReviewComplete}
                 />
               </Motion.div>
             )}

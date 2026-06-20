@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef } from "react";
+import { useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Plus,
@@ -627,6 +628,7 @@ function DeleteConfirm({ item, onClose, onConfirm, deleting }) {
 
 export default function MenuPage() {
   const qc = useQueryClient();
+  const { slug } = useParams();
   const { data: items = [], isLoading } = useQuery({
     queryKey: ["menu-items"],
     queryFn: fetchMenuItems,
@@ -636,7 +638,21 @@ export default function MenuPage() {
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
   const [modal, setModal] = useState(null); // null | { mode: 'add'|'edit'|'delete', item? }
-  const [favoriteItemIds, setFavoriteItemIds] = useState(new Set());
+  const favoritesStorageKey = useMemo(
+    () => `menu-favorites:${slug || "default"}`,
+    [slug],
+  );
+  const [favoriteItemIds, setFavoriteItemIds] = useState(() => {
+    try {
+      const raw = window.localStorage.getItem(favoritesStorageKey);
+      if (!raw) return new Set();
+      const parsed = JSON.parse(raw);
+      const ids = Array.isArray(parsed) ? parsed.map((id) => String(id)) : [];
+      return new Set(ids);
+    } catch {
+      return new Set();
+    }
+  });
 
   const categories = useMemo(() => {
     const cats = [...new Set(items.map((i) => i.category))].sort();
@@ -703,10 +719,15 @@ export default function MenuPage() {
   }
 
   function toggleFavorite(itemId) {
+    const normalizedItemId = String(itemId);
     setFavoriteItemIds((prev) => {
       const next = new Set(prev);
-      if (next.has(itemId)) next.delete(itemId);
-      else next.add(itemId);
+      if (next.has(normalizedItemId)) next.delete(normalizedItemId);
+      else next.add(normalizedItemId);
+      window.localStorage.setItem(
+        favoritesStorageKey,
+        JSON.stringify(Array.from(next)),
+      );
       return next;
     });
   }
@@ -833,7 +854,7 @@ export default function MenuPage() {
                 {/* Favorite toggle */}
                 <button
                   title={
-                    favoriteItemIds.has(item.id)
+                    favoriteItemIds.has(String(item.id))
                       ? "Remove from favorites"
                       : "Add to favorites"
                   }
@@ -843,7 +864,7 @@ export default function MenuPage() {
                   <Star
                     size={13}
                     className={
-                      favoriteItemIds.has(item.id)
+                      favoriteItemIds.has(String(item.id))
                         ? "fill-saffron text-saffron"
                         : "text-muted"
                     }
