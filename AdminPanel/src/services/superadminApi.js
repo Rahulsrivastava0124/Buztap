@@ -19,7 +19,13 @@ async function saRequest(method, path, body) {
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data?.error || "Request failed");
+  if (!res.ok) {
+    if (res.status === 401) {
+      superAdminLogout();
+      window.location.href = "/admin";
+    }
+    throw new Error(data?.error || "Request failed");
+  }
   return data;
 }
 
@@ -79,6 +85,7 @@ export function toggleBusiness(id) {
 
 export function superAdminLogout() {
   localStorage.removeItem("superAdminToken");
+  localStorage.removeItem("superAdminProfile");
 }
 
 export function isSuperAdminLoggedIn() {

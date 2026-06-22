@@ -292,19 +292,72 @@ export default function SuperAdminLoginPage() {
                       <label className="text-xs font-semibold text-ink uppercase tracking-wider">
                         Verification Code
                       </label>
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        maxLength={6}
-                        value={otp}
-                        onChange={(e) =>
-                          setOtp(e.target.value.replace(/\D/g, ""))
+                      <div className="flex justify-between gap-2 sm:gap-3" onPaste={(e) => {
+                        e.preventDefault();
+                        const pasted = e.clipboardData.getData("text/plain").replace(/\D/g, "").slice(0, 6);
+                        if (pasted) {
+                          setOtp(pasted);
+                          const nextIndex = Math.min(pasted.length, 5);
+                          document.getElementById(`otp-input-${nextIndex}`)?.focus();
                         }
-                        autoFocus
-                        placeholder="000000"
-                        className="w-full text-center text-3xl font-bold tracking-[0.5em] py-4 bg-paper border border-border rounded-xl text-ink placeholder-muted2/40 focus:outline-none focus:border-saffron focus:ring-2 focus:ring-saffron/20 transition-all"
-                      />
-                    </div>
+                      }}>
+                        {[0, 1, 2, 3, 4, 5].map((index) => (
+                          <input
+                            key={index}
+                            id={`otp-input-${index}`}
+                            type="text"
+                            inputMode="numeric"
+                            maxLength={2}
+                            value={otp[index] || ""}
+                            onFocus={(e) => e.target.select()}
+                            onChange={(e) => {
+                              let val = e.target.value.replace(/\D/g, "");
+                              if (!val) return;
+                              
+                              // Handle paste within the input or fast typing
+                              if (val.length > 1) {
+                                // Extract the newly typed digit (if old was "2" and new is "25" -> "5")
+                                // If they pasted, just take the whole thing
+                                if (val.length >= 6) {
+                                  setOtp(val.slice(0, 6));
+                                  document.getElementById(`otp-input-5`)?.focus();
+                                  return;
+                                }
+                                val = val.replace(otp[index] || "", "").charAt(0) || val.slice(-1);
+                              }
+                              
+                              let newOtp = otp.split("");
+                              newOtp[index] = val;
+                              setOtp(newOtp.join(""));
+                              if (index < 5) {
+                                document.getElementById(`otp-input-${index + 1}`)?.focus();
+                              }
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === "Backspace") {
+                                e.preventDefault();
+                                let newOtp = otp.split("");
+                                if (otp[index]) {
+                                  newOtp.splice(index, 1);
+                                  setOtp(newOtp.join(""));
+                                } else if (index > 0) {
+                                  newOtp.splice(index - 1, 1);
+                                  setOtp(newOtp.join(""));
+                                  document.getElementById(`otp-input-${index - 1}`)?.focus();
+                                }
+                              } else if (e.key === "ArrowLeft" && index > 0) {
+                                e.preventDefault();
+                                document.getElementById(`otp-input-${index - 1}`)?.focus();
+                              } else if (e.key === "ArrowRight" && index < 5) {
+                                e.preventDefault();
+                                document.getElementById(`otp-input-${index + 1}`)?.focus();
+                              }
+                            }}
+                            autoFocus={index === 0}
+                            className="w-12 h-14 sm:w-14 sm:h-16 text-center text-2xl font-bold bg-paper border border-border rounded-xl text-ink focus:outline-none focus:border-saffron focus:ring-2 focus:ring-saffron/20 transition-all shadow-sm"
+                          />
+                        ))}
+                      </div>
 
                     <SubmitButton loading={loading} text="Verify & Login" />
 
