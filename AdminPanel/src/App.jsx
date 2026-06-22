@@ -36,6 +36,27 @@ function AppLoader() {
 
 export default function App() {
   const { role } = useAuth();
+  
+  // Check if we are on the superadmin subdomain
+  const isSuperAdminDomain = window.location.hostname.includes("superadmin");
+
+  if (isSuperAdminDomain) {
+    return (
+      <Suspense fallback={<AppLoader />}>
+        <Routes>
+          <Route path="/" element={<SuperAdminLoginPage />} />
+          <Route path="/" element={<SuperAdminLayout />}>
+            <Route path="dashboard" element={<SuperAdminDashboard />} />
+            <Route path="restaurants" element={<SuperAdminRestaurants />} />
+            <Route path="audit-logs" element={<SuperAdminAuditLogs />} />
+            <Route path="system" element={<SuperAdminSystemHealth />} />
+            <Route path="profile" element={<SuperAdminProfile />} />
+          </Route>
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Suspense>
+    );
+  }
 
   return (
     <Suspense fallback={<AppLoader />}>
@@ -45,9 +66,9 @@ export default function App() {
         <Route path="/auth" element={<AuthPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
 
-        {/* Super Admin Routes — must be before /:slug */}
-        <Route path="/admin" element={<SuperAdminLoginPage />} />
-        <Route path="/admin" element={<SuperAdminLayout />}>
+        {/* Super Admin Routes (Fallback for normal domain) */}
+        <Route path="/superadmin" element={<SuperAdminLoginPage />} />
+        <Route path="/superadmin" element={<SuperAdminLayout />}>
           <Route path="dashboard" element={<SuperAdminDashboard />} />
           <Route path="restaurants" element={<SuperAdminRestaurants />} />
           <Route path="audit-logs" element={<SuperAdminAuditLogs />} />

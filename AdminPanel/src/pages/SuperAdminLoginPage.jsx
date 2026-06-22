@@ -16,7 +16,7 @@ export default function SuperAdminLoginPage() {
   // Redirect if already logged in
   useEffect(() => {
     if (isSuperAdminLoggedIn()) {
-      navigate("/admin/dashboard", { replace: true });
+      navigate("/superadmin/dashboard", { replace: true });
     }
   }, [navigate]);
 
@@ -35,7 +35,7 @@ export default function SuperAdminLoginPage() {
         localStorage.setItem("superAdminProfile", JSON.stringify(data.profile));
       }
       toast.success("Welcome, Super Admin!");
-      navigate("/admin/dashboard", { replace: true });
+      navigate("/superadmin/dashboard", { replace: true });
     } catch (err) {
       toast.error(err.message || "Login failed");
     } finally {

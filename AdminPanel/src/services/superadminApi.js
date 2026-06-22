@@ -22,7 +22,7 @@ async function saRequest(method, path, body) {
   if (!res.ok) {
     if (res.status === 401) {
       superAdminLogout();
-      window.location.href = "/admin";
+      window.location.href = "/superadmin";
     }
     throw new Error(data?.error || "Request failed");
   }
