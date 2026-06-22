@@ -358,6 +358,7 @@ export default function SuperAdminLoginPage() {
                           />
                         ))}
                       </div>
+                    </div>
 
                     <SubmitButton loading={loading} text="Verify & Login" />
 
