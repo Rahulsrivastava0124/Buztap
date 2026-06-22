@@ -18,6 +18,13 @@ const ReportsPage = lazy(() => import("./pages/ReportsPage"));
 const OffersPage = lazy(() => import("./pages/OffersPage"));
 const SettingsPage = lazy(() => import("./pages/SettingsPage"));
 const MenuPage = lazy(() => import("./pages/MenuPage"));
+const SuperAdminLoginPage = lazy(() => import("./pages/SuperAdminLoginPage"));
+const SuperAdminDashboard = lazy(() => import("./pages/SuperAdminDashboard"));
+const SuperAdminRestaurants = lazy(() => import("./pages/SuperAdminRestaurants"));
+const SuperAdminAuditLogs = lazy(() => import("./pages/SuperAdminAuditLogs"));
+const SuperAdminSystemHealth = lazy(() => import("./pages/SuperAdminSystemHealth"));
+const SuperAdminProfile = lazy(() => import("./pages/SuperAdminProfile"));
+import SuperAdminLayout from "./layouts/SuperAdminLayout";
 
 function AppLoader() {
   return (
@@ -37,6 +44,16 @@ export default function App() {
         <Route path="/" element={<Navigate to="/auth" replace />} />
         <Route path="/auth" element={<AuthPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+
+        {/* Super Admin Routes — must be before /:slug */}
+        <Route path="/admin" element={<SuperAdminLoginPage />} />
+        <Route path="/admin" element={<SuperAdminLayout />}>
+          <Route path="dashboard" element={<SuperAdminDashboard />} />
+          <Route path="restaurants" element={<SuperAdminRestaurants />} />
+          <Route path="audit-logs" element={<SuperAdminAuditLogs />} />
+          <Route path="system" element={<SuperAdminSystemHealth />} />
+          <Route path="profile" element={<SuperAdminProfile />} />
+        </Route>
 
         {/* Protected Admin Routes — all scoped under /:slug */}
         <Route element={<ProtectedRoute />}>
