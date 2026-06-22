@@ -19,6 +19,7 @@ const qrRoutes = require("./routes/qr.routes");
 const uploadRoutes = require("./routes/upload.routes");
 const businessRoutes = require("./routes/business.routes");
 const offersRoutes = require("./routes/offers.routes");
+const superadminRoutes = require("./routes/superadmin.routes");
 
 const mongoose = require("mongoose");
 
@@ -157,6 +158,7 @@ app.use("/api/qr", qrRoutes);
 app.use("/api/upload", uploadRoutes);
 app.use("/api/business", businessRoutes);
 app.use("/api/offers", offersRoutes);
+app.use("/api/superadmin", superadminRoutes);
 
 // 404
 app.use((req, res) =>
