@@ -7,219 +7,58 @@ const SuperAdmin = require("../models/SuperAdmin");
 const EmailOtp = require("../models/EmailOtp");
 const { sendOtpEmail } = require("../utils/mailer");
 
-const OTP_EXPIRY_MINUTES = 10;
-const OTP_MAX_ATTEMPTS = 5;
-
-function generateOtpCode() {
-  return String(Math.floor(100000 + Math.random() * 900000));
-}
-
-// ── First-time setup (secret key → create profile) ───────────────────────
-async function superadminSetup(req, res) {
+// ── Email/Password Login (via ENV) ─────────────────────────────────────────
+async function superadminLogin(req, res) {
   try {
-    const { secretKey, name, email, password } = req.body;
-    const expected = process.env.SUPER_ADMIN_KEY;
+    const { email, password } = req.body;
+    const expectedEmail = process.env.SUPER_ADMIN_EMAIL;
+    const expectedPassword = process.env.SUPER_ADMIN_PASSWORD;
 
-    if (!expected) {
-      return res.status(500).json({ error: "SUPER_ADMIN_KEY not configured" });
+    if (!expectedEmail || !expectedPassword) {
+      return res.status(500).json({ error: "Super admin credentials not configured in ENV" });
     }
-    if (!secretKey || secretKey !== expected) {
-      return res.status(401).json({ error: "Invalid super admin key" });
-    }
-    if (!name || !email || !password) {
-      return res.status(400).json({ error: "Name, email, and password are required" });
-    }
-    if (password.length < 6) {
-      return res.status(400).json({ error: "Password must be at least 6 characters" });
+    
+    if (!email || !password) {
+      return res.status(400).json({ error: "Email and password are required" });
     }
 
-    // Upsert: if a super admin already exists, overwrite. Otherwise create.
-    const passwordHash = await bcrypt.hash(password, 10);
-    const existing = await SuperAdmin.findOne();
-    if (existing) {
-      existing.name = name;
-      existing.email = email.toLowerCase().trim();
-      existing.passwordHash = passwordHash;
-      await existing.save();
-    } else {
-      await SuperAdmin.create({ name, email: email.toLowerCase().trim(), passwordHash });
+    if (email.toLowerCase().trim() !== expectedEmail.toLowerCase().trim() || password !== expectedPassword) {
+      return res.status(401).json({ error: "Invalid email or password" });
     }
 
-    res.json({ success: true, message: "Super admin profile created" });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-}
-
-// ── Check if profile exists ──────────────────────────────────────────────
-async function superadminCheckProfile(req, res) {
-  try {
-    const admin = await SuperAdmin.findOne().select("name email").lean();
-    res.json({ exists: !!admin, profile: admin || null });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-}
-
-// ── Request OTP ──────────────────────────────────────────────────────────
-async function superadminRequestOtp(req, res) {
-  try {
-    const { email } = req.body;
-    if (!email) return res.status(400).json({ error: "Email is required" });
-
-    const normalizedEmail = email.toLowerCase().trim();
-    const admin = await SuperAdmin.findOne({ email: normalizedEmail });
-    if (!admin) {
-      return res.status(404).json({ error: "No super admin account found with this email" });
-    }
-
-    const otp = generateOtpCode();
-    const otpHash = await bcrypt.hash(otp, 6);
-    const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
-
-    await EmailOtp.create({
-      email: normalizedEmail,
-      purpose: "login",
-      otpHash,
-      expiresAt,
-    });
-
-    // Send OTP email in background
-    setImmediate(() => {
-      sendOtpEmail({ to: normalizedEmail, otp, purpose: "login" }).catch((err) => {
-        console.error(`Super admin OTP email failed for ${normalizedEmail}:`, err.message);
-      });
-    });
-
-    res.json({ success: true, message: "OTP sent to your email", expiresInSeconds: OTP_EXPIRY_MINUTES * 60 });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-}
-
-// ── Verify OTP & Login ───────────────────────────────────────────────────
-async function superadminVerifyOtp(req, res) {
-  try {
-    const { email, otp } = req.body;
-    if (!email || !otp) return res.status(400).json({ error: "Email and OTP are required" });
-
-    const normalizedEmail = email.toLowerCase().trim();
-
-    // Verify super admin exists
-    const admin = await SuperAdmin.findOne({ email: normalizedEmail });
-    if (!admin) {
-      return res.status(404).json({ error: "No super admin account found" });
-    }
-
-    // Find OTP
-    const otpDoc = await EmailOtp.findOne({
-      email: normalizedEmail,
-      purpose: "login",
-      usedAt: null,
-      expiresAt: { $gt: new Date() },
-    }).sort({ createdAt: -1 });
-
-    if (!otpDoc) {
-      return res.status(400).json({ error: "OTP expired or not found" });
-    }
-    if (otpDoc.attempts >= OTP_MAX_ATTEMPTS) {
-      return res.status(400).json({ error: "Too many attempts. Request a new OTP." });
-    }
-
-    const isValid = await bcrypt.compare(otp, otpDoc.otpHash);
-    if (!isValid) {
-      otpDoc.attempts += 1;
-      await otpDoc.save();
-      return res.status(400).json({ error: "Invalid OTP" });
-    }
-
-    // Mark OTP as used
-    otpDoc.usedAt = new Date();
-    await otpDoc.save();
-
-    // Issue JWT
     const token = jwt.sign(
-      { role: "superadmin", type: "superadmin", adminId: admin._id },
+      { role: "superadmin", type: "superadmin", adminId: "env-admin" },
       process.env.JWT_SECRET,
-      { expiresIn: "12h" },
+      { expiresIn: "12h" }
     );
 
     res.json({
       success: true,
       token,
-      profile: { name: admin.name, email: admin.email },
+      profile: { name: "Super Admin", email: expectedEmail },
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 }
 
-// ── Legacy secret-key login (fallback) ───────────────────────────────────
-async function superadminLogin(req, res) {
-  try {
-    const { secretKey } = req.body;
-    const expected = process.env.SUPER_ADMIN_KEY;
-
-    if (!expected) {
-      return res.status(500).json({ error: "Super admin key not configured" });
-    }
-    if (!secretKey || secretKey !== expected) {
-      return res.status(401).json({ error: "Invalid super admin key" });
-    }
-
-    const token = jwt.sign(
-      { role: "superadmin", type: "superadmin" },
-      process.env.JWT_SECRET,
-      { expiresIn: "12h" },
-    );
-
-    res.json({ success: true, token });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-}
-
-// ── Profile ──────────────────────────────────────────────────────────────
+// ── Profile (Read-only from ENV) ─────────────────────────────────────────
 async function getProfile(req, res) {
   try {
-    const admin = await SuperAdmin.findOne().select("name email createdAt updatedAt").lean();
-    if (!admin) return res.status(404).json({ error: "No profile found. Complete setup first." });
-    res.json(admin);
+    const expectedEmail = process.env.SUPER_ADMIN_EMAIL || "admin@buztap.com";
+    res.json({
+      name: "Super Admin",
+      email: expectedEmail,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 }
 
 async function updateProfile(req, res) {
-  try {
-    const { name, email, currentPassword, newPassword } = req.body;
-
-    const admin = await SuperAdmin.findOne();
-    if (!admin) return res.status(404).json({ error: "No profile found" });
-
-    if (name) admin.name = name.trim();
-    if (email) admin.email = email.toLowerCase().trim();
-
-    // Password change requires current password verification
-    if (newPassword) {
-      if (!currentPassword) {
-        return res.status(400).json({ error: "Current password is required to set a new one" });
-      }
-      const isMatch = await bcrypt.compare(currentPassword, admin.passwordHash);
-      if (!isMatch) {
-        return res.status(401).json({ error: "Current password is incorrect" });
-      }
-      if (newPassword.length < 6) {
-        return res.status(400).json({ error: "New password must be at least 6 characters" });
-      }
-      admin.passwordHash = await bcrypt.hash(newPassword, 10);
-    }
-
-    await admin.save();
-    res.json({ success: true, profile: { name: admin.name, email: admin.email } });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  return res.status(400).json({ error: "Profile updates are disabled. Managed via ENV variables." });
 }
 
 // ── Dashboard Stats ──────────────────────────────────────────────────────
@@ -545,10 +384,6 @@ async function getSystemHealth(req, res) {
 }
 
 module.exports = {
-  superadminSetup,
-  superadminCheckProfile,
-  superadminRequestOtp,
-  superadminVerifyOtp,
   superadminLogin,
   getProfile,
   updateProfile,

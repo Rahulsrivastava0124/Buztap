@@ -3,100 +3,26 @@ import { motion as Motion } from "framer-motion";
 import {
   User,
   Mail,
-  Lock,
   Loader2,
   Shield,
-  Save,
-  KeyRound,
   Calendar,
+  Lock,
 } from "lucide-react";
-import {
-  fetchSuperAdminProfile,
-  updateSuperAdminProfile,
-} from "../services/superadminApi";
+import { fetchSuperAdminProfile } from "../services/superadminApi";
 import toast from "react-hot-toast";
 
 export default function SuperAdminProfile() {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-
-  // Form state
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
 
   useEffect(() => {
     fetchSuperAdminProfile()
       .then((data) => {
         setProfile(data);
-        setName(data.name || "");
-        setEmail(data.email || "");
       })
       .catch(() => toast.error("Failed to load profile"))
       .finally(() => setLoading(false));
   }, []);
-
-  const handleSaveProfile = async (e) => {
-    e.preventDefault();
-    if (!name.trim()) {
-      toast.error("Name is required");
-      return;
-    }
-    if (!email.trim()) {
-      toast.error("Email is required");
-      return;
-    }
-
-    setSaving(true);
-    try {
-      const payload = { name: name.trim(), email: email.trim() };
-      const data = await updateSuperAdminProfile(payload);
-      toast.success("Profile updated!");
-      if (data.profile) {
-        setProfile((p) => ({ ...p, ...data.profile }));
-        localStorage.setItem(
-          "superAdminProfile",
-          JSON.stringify(data.profile),
-        );
-      }
-    } catch (err) {
-      toast.error(err.message);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleChangePassword = async (e) => {
-    e.preventDefault();
-    if (!currentPassword) {
-      toast.error("Enter your current password");
-      return;
-    }
-    if (!newPassword || newPassword.length < 6) {
-      toast.error("New password must be at least 6 characters");
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      toast.error("Passwords don't match");
-      return;
-    }
-
-    setSaving(true);
-    try {
-      await updateSuperAdminProfile({ currentPassword, newPassword });
-      toast.success("Password updated successfully!");
-      setCurrentPassword("");
-      setNewPassword("");
-      setConfirmPassword("");
-    } catch (err) {
-      toast.error(err.message);
-    } finally {
-      setSaving(false);
-    }
-  };
 
   if (loading) {
     return (
@@ -112,7 +38,7 @@ export default function SuperAdminProfile() {
       <div>
         <h2 className="text-xl font-bold text-ink">My Profile</h2>
         <p className="text-sm text-muted mt-0.5">
-          Manage your Super Admin account details
+          Your Super Admin credentials are managed securely via environment variables
         </p>
       </div>
 
@@ -149,29 +75,34 @@ export default function SuperAdminProfile() {
           </div>
         </div>
 
-        {/* Edit Profile Form */}
-        <form onSubmit={handleSaveProfile} className="p-6 space-y-5">
-          <h4 className="text-sm font-bold text-ink uppercase tracking-wider flex items-center gap-2">
-            <User size={14} className="text-saffron" />
-            Account Details
-          </h4>
+        {/* Account Details (Read Only) */}
+        <div className="p-6 space-y-5">
+          <div className="flex items-center justify-between">
+            <h4 className="text-sm font-bold text-ink uppercase tracking-wider flex items-center gap-2">
+              <User size={14} className="text-saffron" />
+              Account Details
+            </h4>
+            <span className="flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 bg-amber-50 text-amber-600 rounded-md border border-amber-200/50">
+              <Lock size={12} />
+              Managed via ENV
+            </span>
+          </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="text-xs font-semibold text-muted uppercase tracking-wider mb-1.5 block">
                 Full Name
               </label>
-              <div className="relative">
+              <div className="relative opacity-70">
                 <User
                   size={16}
                   className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted2"
                 />
                 <input
                   type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Your name"
-                  className="w-full pl-10 pr-4 py-2.5 bg-paper border border-border rounded-xl text-sm text-ink placeholder-muted2 focus:outline-none focus:border-saffron focus:ring-2 focus:ring-saffron/20 transition-all"
+                  value={profile?.name || "Super Admin"}
+                  disabled
+                  className="w-full pl-10 pr-4 py-2.5 bg-paper/50 border border-border rounded-xl text-sm text-ink cursor-not-allowed"
                 />
               </div>
             </div>
@@ -179,125 +110,33 @@ export default function SuperAdminProfile() {
               <label className="text-xs font-semibold text-muted uppercase tracking-wider mb-1.5 block">
                 Email Address
               </label>
-              <div className="relative">
+              <div className="relative opacity-70">
                 <Mail
                   size={16}
                   className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted2"
                 />
                 <input
                   type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Your email"
-                  className="w-full pl-10 pr-4 py-2.5 bg-paper border border-border rounded-xl text-sm text-ink placeholder-muted2 focus:outline-none focus:border-saffron focus:ring-2 focus:ring-saffron/20 transition-all"
+                  value={profile?.email || ""}
+                  disabled
+                  className="w-full pl-10 pr-4 py-2.5 bg-paper/50 border border-border rounded-xl text-sm text-ink cursor-not-allowed"
                 />
               </div>
             </div>
           </div>
 
-          <div className="flex justify-end">
-            <button
-              type="submit"
-              disabled={saving}
-              className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-saffron to-saffron2 text-white text-sm font-semibold rounded-xl hover:shadow-lg hover:shadow-saffron/25 disabled:opacity-60 transition-all cursor-pointer"
-            >
-              {saving ? (
-                <Loader2 size={14} className="animate-spin" />
-              ) : (
-                <Save size={14} />
-              )}
-              Save Changes
-            </button>
-          </div>
-        </form>
-      </Motion.div>
-
-      {/* Change Password */}
-      <Motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        className="bg-white rounded-xl border border-border p-6"
-      >
-        <h4 className="text-sm font-bold text-ink uppercase tracking-wider flex items-center gap-2 mb-5">
-          <KeyRound size={14} className="text-saffron" />
-          Change Password
-        </h4>
-
-        <form onSubmit={handleChangePassword} className="space-y-4">
-          <div>
-            <label className="text-xs font-semibold text-muted uppercase tracking-wider mb-1.5 block">
-              Current Password
-            </label>
-            <div className="relative">
-              <Lock
-                size={16}
-                className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted2"
-              />
-              <input
-                type="password"
-                value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
-                placeholder="Enter current password"
-                className="w-full pl-10 pr-4 py-2.5 bg-paper border border-border rounded-xl text-sm text-ink placeholder-muted2 focus:outline-none focus:border-saffron focus:ring-2 focus:ring-saffron/20 transition-all"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="text-xs font-semibold text-muted uppercase tracking-wider mb-1.5 block">
-                New Password
-              </label>
-              <div className="relative">
-                <Lock
-                  size={16}
-                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted2"
-                />
-                <input
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="Min 6 characters"
-                  className="w-full pl-10 pr-4 py-2.5 bg-paper border border-border rounded-xl text-sm text-ink placeholder-muted2 focus:outline-none focus:border-saffron focus:ring-2 focus:ring-saffron/20 transition-all"
-                />
-              </div>
+          <div className="mt-6 p-4 bg-blue-50/50 rounded-xl border border-blue-100 flex gap-3">
+            <div className="mt-0.5">
+              <Shield size={16} className="text-blue-500" />
             </div>
             <div>
-              <label className="text-xs font-semibold text-muted uppercase tracking-wider mb-1.5 block">
-                Confirm New Password
-              </label>
-              <div className="relative">
-                <Lock
-                  size={16}
-                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted2"
-                />
-                <input
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Repeat new password"
-                  className="w-full pl-10 pr-4 py-2.5 bg-paper border border-border rounded-xl text-sm text-ink placeholder-muted2 focus:outline-none focus:border-saffron focus:ring-2 focus:ring-saffron/20 transition-all"
-                />
-              </div>
+              <p className="text-sm font-semibold text-blue-900">Security Note</p>
+              <p className="text-xs text-blue-700/80 mt-1 leading-relaxed">
+                Super Admin credentials (email and password) are securely managed through server environment variables (`SUPER_ADMIN_EMAIL`, `SUPER_ADMIN_PASSWORD`). If you need to change your password, please update the `.env` file and restart the server.
+              </p>
             </div>
           </div>
-
-          <div className="flex justify-end">
-            <button
-              type="submit"
-              disabled={saving}
-              className="flex items-center gap-2 px-5 py-2.5 bg-ink text-white text-sm font-semibold rounded-xl hover:bg-ink/90 disabled:opacity-60 transition-all cursor-pointer"
-            >
-              {saving ? (
-                <Loader2 size={14} className="animate-spin" />
-              ) : (
-                <Lock size={14} />
-              )}
-              Update Password
-            </button>
-          </div>
-        </form>
+        </div>
       </Motion.div>
     </div>
   );
