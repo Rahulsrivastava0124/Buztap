@@ -18,11 +18,11 @@ import toast from "react-hot-toast";
 import { superAdminLogout, isSuperAdminLoggedIn } from "../services/superadminApi";
 
 const SIDEBAR_ITEMS = [
-  { path: "/admin/dashboard", icon: LayoutDashboard, label: "Dashboard" },
-  { path: "/admin/restaurants", icon: Store, label: "Restaurants" },
-  { path: "/admin/audit-logs", icon: ListFilter, label: "Audit Logs" },
-  { path: "/admin/system", icon: Activity, label: "System Health" },
-  { path: "/admin/profile", icon: UserCircle, label: "Profile" },
+  { path: "/superadmin/dashboard", icon: LayoutDashboard, label: "Dashboard" },
+  { path: "/superadmin/restaurants", icon: Store, label: "Restaurants" },
+  { path: "/superadmin/audit-logs", icon: ListFilter, label: "Audit Logs" },
+  { path: "/superadmin/system", icon: Activity, label: "System Health" },
+  { path: "/superadmin/profile", icon: UserCircle, label: "Profile" },
 ];
 
 function SidebarContent({ compactSidebar, handleLogout }) {
@@ -34,7 +34,7 @@ function SidebarContent({ compactSidebar, handleLogout }) {
         className={`h-16 flex items-center border-b border-border ${compactSidebar ? "px-3 justify-center" : "px-6"}`}
       >
         <Link
-          to="/admin/dashboard"
+          to="/superadmin/dashboard"
           className="flex items-center gap-2.5"
         >
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-saffron to-saffron2 flex items-center justify-center shadow-md shadow-saffron/20 shrink-0">
@@ -55,7 +55,7 @@ function SidebarContent({ compactSidebar, handleLogout }) {
       <nav className="flex-1 px-4 py-6 space-y-1">
         {SIDEBAR_ITEMS.map((item) => {
           const isActive = location.pathname === item.path ||
-            (item.path === "/admin/restaurants" && location.pathname.startsWith("/admin/restaurants"));
+            (item.path === "/superadmin/restaurants" && location.pathname.startsWith("/superadmin/restaurants"));
           return (
             <Link
               key={item.path}
@@ -100,7 +100,7 @@ export default function SuperAdminLayout() {
   // Auth guard
   useEffect(() => {
     if (!isSuperAdminLoggedIn()) {
-      navigate("/admin", { replace: true });
+      navigate("/superadmin", { replace: true });
     }
   }, [navigate]);
 
@@ -116,7 +116,7 @@ export default function SuperAdminLayout() {
   const handleLogout = () => {
     superAdminLogout();
     toast.success("Signed out");
-    navigate("/admin", { replace: true });
+    navigate("/superadmin", { replace: true });
   };
 
   const pageTitle =

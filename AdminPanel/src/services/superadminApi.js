@@ -22,44 +22,21 @@ async function saRequest(method, path, body) {
   if (!res.ok) {
     if (res.status === 401) {
       superAdminLogout();
-      window.location.href = "/admin";
+      window.location.href = "/superadmin";
     }
     throw new Error(data?.error || "Request failed");
   }
   return data;
 }
 
-// ── Auth: Legacy key login (fallback) ──────────────────────────────────────
-export function superAdminLogin(secretKey) {
-  return saRequest("POST", "/superadmin/login", { secretKey });
-}
-
-// ── Auth: Profile check (public) ───────────────────────────────────────────
-export function checkSuperAdminProfile() {
-  return saRequest("GET", "/superadmin/check-profile");
-}
-
-// ── Auth: Setup (first-time, requires secret key) ──────────────────────────
-export function superAdminSetup({ secretKey, name, email, password }) {
-  return saRequest("POST", "/superadmin/setup", { secretKey, name, email, password });
-}
-
-// ── Auth: OTP Login ────────────────────────────────────────────────────────
-export function superAdminRequestOtp(email) {
-  return saRequest("POST", "/superadmin/request-otp", { email });
-}
-
-export function superAdminVerifyOtp(email, otp) {
-  return saRequest("POST", "/superadmin/verify-otp", { email, otp });
+// ── Auth: Email Login (ENV) ──────────────────────────────────────────────
+export function superAdminLogin(email, password) {
+  return saRequest("POST", "/superadmin/login", { email, password });
 }
 
 // ── Profile ────────────────────────────────────────────────────────────────
 export function fetchSuperAdminProfile() {
   return saRequest("GET", "/superadmin/profile");
-}
-
-export function updateSuperAdminProfile(data) {
-  return saRequest("PUT", "/superadmin/profile", data);
 }
 
 export function fetchSuperAdminStats() {

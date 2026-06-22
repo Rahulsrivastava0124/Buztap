@@ -1,10 +1,6 @@
 const { Router } = require("express");
 const superadminAuth = require("../middleware/superadminAuth");
 const {
-  superadminSetup,
-  superadminCheckProfile,
-  superadminRequestOtp,
-  superadminVerifyOtp,
   superadminLogin,
   getProfile,
   updateProfile,
@@ -22,11 +18,7 @@ const {
 const router = Router();
 
 // Public — no auth required
-router.post("/login", superadminLogin);            // Legacy secret-key login
-router.post("/setup", superadminSetup);             // First-time profile setup
-router.get("/check-profile", superadminCheckProfile); // Check if profile exists
-router.post("/request-otp", superadminRequestOtp);  // Request OTP email
-router.post("/verify-otp", superadminVerifyOtp);    // Verify OTP → get JWT
+router.post("/login", superadminLogin);            // Email & Password login
 
 // Protected routes
 router.use(superadminAuth);
