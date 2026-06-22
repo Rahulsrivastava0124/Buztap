@@ -1294,3 +1294,29 @@ export async function uploadMenuImage(file: File): Promise<string> {
   // R2 returns an absolute URL directly
   return payload.url as string;
 }
+
+export async function parseMenuFile(file: File): Promise<any> {
+  const token = getAuthToken();
+  const formData = new FormData();
+  formData.append("menuFile", file);
+
+  const response = await fetch(`${API_BASE_URL}/menu/upload-parse`, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: formData,
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    if (response.status === 401) clearAuthSession();
+    throw new Error(buildApiErrorMessage(payload, response.status));
+  }
+  return payload.data;
+}
+
+export async function bulkCreateMenuItems(items: Partial<CreateMenuItemInput>[]): Promise<any> {
+  return request(`/menu/bulk`, {
+    method: "POST",
+    body: JSON.stringify({ items }),
+  });
+}

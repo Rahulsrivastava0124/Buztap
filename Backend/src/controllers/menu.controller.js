@@ -99,4 +99,23 @@ async function remove(req, res, next) {
   }
 }
 
-module.exports = { getAll, getOne, getCategories, create, update, remove };
+async function bulkCreate(req, res, next) {
+  try {
+    const itemsData = z.array(itemSchema).parse(req.body.items);
+    const itemsToInsert = itemsData.map(data => ({
+      ...data,
+      businessId: req.user.businessId,
+    }));
+    
+    if (itemsToInsert.length === 0) {
+      return res.status(400).json({ error: "No items provided" });
+    }
+
+    const insertedItems = await MenuItem.insertMany(itemsToInsert);
+    res.status(201).json({ success: true, count: insertedItems.length, items: insertedItems });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { getAll, getOne, getCategories, create, bulkCreate, update, remove };

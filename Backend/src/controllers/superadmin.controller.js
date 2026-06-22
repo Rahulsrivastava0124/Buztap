@@ -226,6 +226,27 @@ async function toggleBusiness(req, res) {
   }
 }
 
+// ── Delete Business ──────────────────────────────────────────────────────
+async function deleteBusiness(req, res) {
+  try {
+    const { id } = req.params;
+    const business = await Business.findById(id);
+    if (!business) {
+      return res.status(404).json({ error: "Business not found" });
+    }
+
+    // Delete associated data (Optional but recommended)
+    await User.deleteMany({ businessId: id });
+    await Order.deleteMany({ businessId: id });
+    
+    await Business.findByIdAndDelete(id);
+
+    res.json({ success: true, message: "Business deleted successfully" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
 // ── Advanced Features ────────────────────────────────────────────────────
 const AuditLog = require("../models/AuditLog");
 const mongoose = require("mongoose");
@@ -391,6 +412,7 @@ module.exports = {
   listBusinesses,
   getBusinessDetail,
   toggleBusiness,
+  deleteBusiness,
   getAnalyticsChart,
   getTopRestaurants,
   getAuditLogs,
