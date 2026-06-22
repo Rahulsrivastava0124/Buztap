@@ -60,6 +60,10 @@ export function toggleBusiness(id) {
   return saRequest("PUT", `/superadmin/businesses/${id}/toggle`);
 }
 
+export function deleteBusiness(id) {
+  return saRequest("DELETE", `/superadmin/businesses/${id}`);
+}
+
 export function superAdminLogout() {
   localStorage.removeItem("superAdminToken");
   localStorage.removeItem("superAdminProfile");

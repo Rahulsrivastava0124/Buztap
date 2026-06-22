@@ -66,15 +66,18 @@ function getTransporter() {
   }
 
   cachedTransporter = nodemailer.createTransport({
-    pool: true,
-    maxConnections: 5,
-    maxMessages: 100,
     host: cfg.host,
     port: cfg.port,
     secure: cfg.secure,
     auth: {
       user: cfg.user,
       pass: cfg.pass,
+    },
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 15000,
+    tls: {
+      rejectUnauthorized: false,
     },
   });
 

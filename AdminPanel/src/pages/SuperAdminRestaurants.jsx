@@ -20,11 +20,13 @@ import {
   Globe,
   Shield,
   User,
+  Trash2,
 } from "lucide-react";
 import {
   fetchAllBusinesses,
   fetchBusinessDetail,
   toggleBusiness,
+  deleteBusiness,
   updateBusinessDetails,
 } from "../services/superadminApi";
 import toast from "react-hot-toast";
@@ -68,7 +70,7 @@ function PlanBadge({ plan }) {
 }
 
 // ── Detail Modal ─────────────────────────────────────────────────────────────
-function DetailModal({ business, onClose, onToggle, onUpdate }) {
+function DetailModal({ business, onClose, onToggle, onUpdate, onDelete }) {
   const [detail, setDetail] = useState(null);
   const [loading, setLoading] = useState(true);
   const [toggling, setToggling] = useState(false);
@@ -106,6 +108,23 @@ function DetailModal({ business, onClose, onToggle, onUpdate }) {
       toast.error(err.message);
     } finally {
       setToggling(false);
+    }
+  };
+
+  const [deleting, setDeleting] = useState(false);
+  const handleDelete = async () => {
+    if (!window.confirm("Are you sure you want to permanently delete this business? This action cannot be undone.")) {
+      return;
+    }
+    setDeleting(true);
+    try {
+      await deleteBusiness(business._id);
+      toast.success("Business deleted permanently");
+      if (onDelete) onDelete(business._id);
+      onClose();
+    } catch (err) {
+      toast.error(err.message || "Failed to delete business");
+      setDeleting(false);
     }
   };
 
@@ -302,34 +321,47 @@ function DetailModal({ business, onClose, onToggle, onUpdate }) {
               </div>
             )}
 
-            {/* Toggle Button */}
+            {/* Actions */}
             <div className="flex items-center justify-between p-4 bg-paper rounded-xl border border-border">
               <div>
-                <p className="text-sm font-semibold text-ink">Business Status</p>
+                <p className="text-sm font-semibold text-ink">Business Actions</p>
                 <p className="text-xs text-muted mt-0.5">
-                  {detail.isActive
-                    ? "This business is currently active"
-                    : "This business is currently disabled"}
+                  Manage the active status or permanently delete.
                 </p>
               </div>
-              <button
-                onClick={handleToggle}
-                disabled={toggling}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
-                  detail.isActive
-                    ? "bg-red-50 text-red-600 hover:bg-red-100 border border-red-100"
-                    : "bg-sage-lt text-sage hover:bg-green-100 border border-green-200"
-                } disabled:opacity-50`}
-              >
-                {toggling ? (
-                  <Loader2 size={14} className="animate-spin" />
-                ) : detail.isActive ? (
-                  <ToggleRight size={14} />
-                ) : (
-                  <ToggleLeft size={14} />
-                )}
-                {detail.isActive ? "Deactivate" : "Activate"}
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleToggle}
+                  disabled={toggling}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                    detail.isActive
+                      ? "bg-red-50 text-red-600 hover:bg-red-100 border border-red-100"
+                      : "bg-sage-lt text-sage hover:bg-green-100 border border-green-200"
+                  } disabled:opacity-50`}
+                >
+                  {toggling ? (
+                    <Loader2 size={14} className="animate-spin" />
+                  ) : detail.isActive ? (
+                    <ToggleRight size={14} />
+                  ) : (
+                    <ToggleLeft size={14} />
+                  )}
+                  {detail.isActive ? "Deactivate" : "Activate"}
+                </button>
+                <button
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold bg-red-600 text-white hover:bg-red-700 transition-colors cursor-pointer disabled:opacity-50"
+                  title="Permanently Delete Business"
+                >
+                  {deleting ? (
+                    <Loader2 size={14} className="animate-spin" />
+                  ) : (
+                    <Trash2 size={14} />
+                  )}
+                  Delete
+                </button>
+              </div>
             </div>
           </div>
         ) : (
@@ -410,6 +442,10 @@ export default function SuperAdminRestaurants() {
     setBusinesses((prev) =>
       prev.map((b) => (b._id === updatedBiz._id ? { ...b, ...updatedBiz } : b)),
     );
+  };
+
+  const handleDeleteFromModal = (id) => {
+    setBusinesses((prev) => prev.filter((b) => b._id !== id));
   };
 
   const hasFilters = search || statusFilter || typeFilter;
@@ -619,6 +655,7 @@ export default function SuperAdminRestaurants() {
             onClose={() => setSelectedBiz(null)}
             onToggle={handleToggleFromModal}
             onUpdate={handleUpdateFromModal}
+            onDelete={handleDeleteFromModal}
           />
         )}
       </AnimatePresence>

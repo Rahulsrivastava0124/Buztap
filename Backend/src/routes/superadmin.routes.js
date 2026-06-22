@@ -8,6 +8,7 @@ const {
   listBusinesses,
   getBusinessDetail,
   toggleBusiness,
+  deleteBusiness,
   getAnalyticsChart,
   getTopRestaurants,
   getAuditLogs,
@@ -30,6 +31,7 @@ router.get("/stats", superadminStats);
 router.get("/businesses", listBusinesses);
 router.get("/businesses/:id", getBusinessDetail);
 router.put("/businesses/:id/toggle", toggleBusiness);
+router.delete("/businesses/:id", deleteBusiness);
 
 // Advanced routes
 router.get("/analytics/chart", getAnalyticsChart);
