@@ -1,9 +1,9 @@
 import { Navigate, Outlet, useParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { getDefaultAdminPathByRole, hasPermissionAccess, hasRoleAccess } from "../utils/access";
+import { getDefaultAdminPathByRole, hasRoleAccess } from "../utils/access";
 
-export default function ProtectedRoute({ minimumRole, requiredPermission }) {
-  const { isAuthenticated, role, permissions, subdomain } = useAuth();
+export default function ProtectedRoute({ minimumRole = "cashier" }) {
+  const { isAuthenticated, role, subdomain } = useAuth();
   const { slug } = useParams();
   const fallbackPath = getDefaultAdminPathByRole(role);
 
@@ -16,19 +16,12 @@ export default function ProtectedRoute({ minimumRole, requiredPermission }) {
     return <Navigate to={`/${subdomain}${fallbackPath}`} replace />;
   }
 
-  if (requiredPermission) {
-    if (!hasPermissionAccess(permissions, requiredPermission, role)) {
-      const base = slug || subdomain;
-      if (!base) return <Navigate to="/auth" replace />;
-      return <Navigate to={`/${base}${fallbackPath}`} replace />;
+  if (!hasRoleAccess(role, minimumRole)) {
+    const base = slug || subdomain;
+    if (!base) {
+      return <Navigate to="/auth" replace />;
     }
-  } else if (minimumRole) {
-    // Legacy support
-    if (!hasRoleAccess(role, minimumRole)) {
-      const base = slug || subdomain;
-      if (!base) return <Navigate to="/auth" replace />;
-      return <Navigate to={`/${base}${fallbackPath}`} replace />;
-    }
+    return <Navigate to={`/${base}${fallbackPath}`} replace />;
   }
 
   return <Outlet />;

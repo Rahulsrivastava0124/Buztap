@@ -1,6 +1,6 @@
 const { Router } = require("express");
 const authenticate = require("../middleware/auth");
-const requirePermission = require("../middleware/requirePermission");
+const requireRole = require("../middleware/requireRole");
 const {
   getSettlements,
   getChannels,
@@ -9,7 +9,7 @@ const {
 
 const router = Router();
 
-router.use(authenticate, requirePermission("menu:manage"));
+router.use(authenticate, requireRole("manager"));
 
 router.get("/settlements", getSettlements);
 router.get("/channels", getChannels);

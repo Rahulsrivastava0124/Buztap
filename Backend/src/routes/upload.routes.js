@@ -3,7 +3,7 @@ const path = require("path");
 const multer = require("multer");
 const { S3Client, PutObjectCommand } = require("@aws-sdk/client-s3");
 const authenticate = require("../middleware/auth");
-const requirePermission = require("../middleware/requirePermission");
+const requireRole = require("../middleware/requireRole");
 
 const {
   R2_ACCOUNT_ID,
@@ -37,7 +37,7 @@ const router = Router();
 router.post(
   "/",
   authenticate,
-  requirePermission("menu:manage"),
+  requireRole("manager"),
   upload.single("image"),
   async (req, res, next) => {
     try {

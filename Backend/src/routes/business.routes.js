@@ -1,6 +1,6 @@
 const { Router } = require("express");
 const authenticate = require("../middleware/auth");
-const requirePermission = require("../middleware/requirePermission");
+const requireRole = require("../middleware/requireRole");
 const {
   getBusinessProfile,
   getPublicHeaderImage,
@@ -14,13 +14,13 @@ router.get("/public/header-image", getPublicHeaderImage);
 router.get(
   "/profile",
   authenticate,
-  requirePermission("pos:access"),
+  requireRole("cashier"),
   getBusinessProfile,
 );
 router.put(
   "/profile",
   authenticate,
-  requirePermission("menu:manage"),
+  requireRole("manager"),
   updateBusinessProfile,
 );
 

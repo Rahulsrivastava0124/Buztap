@@ -30,7 +30,7 @@ import {
 import { motion as Motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 import { useAuth } from "../context/AuthContext";
-import { hasRoleAccess, hasPermissionAccess } from "../utils/access";
+import { hasRoleAccess } from "../utils/access";
 import {
   fetchIncomingQrOrders,
   approveQrOrder,
@@ -44,63 +44,63 @@ const SIDEBAR_ITEMS = [
     path: "/dashboard/overview",
     icon: LayoutDashboard,
     label: "Dashboard",
-    requiredPermission: "reports:view", // Actually overview needs to be accessible by all managers usually. Let's say reports:view or a base permission. Let's use pos:access for cashier fallback. Wait, actually we can just check if they have reports:view or pos:access. Let's use minimumRole logic equivalent.
+    minimumRole: "cashier",
   },
   {
     path: "/dashboard/finance",
     icon: Banknote,
     label: "Sales & Finance",
-    requiredPermission: "reports:view",
+    minimumRole: "manager",
   },
   {
     path: "/menu",
     icon: UtensilsCrossed,
     label: "Menu & Products",
-    requiredPermission: "menu:read",
+    minimumRole: "manager",
   },
   {
     path: "/dashboard/operations",
     icon: Smartphone,
     label: "Operations & Tables",
-    requiredPermission: "pos:access",
+    minimumRole: "cashier",
   },
   {
     path: "/pos",
     icon: MonitorSmartphone,
     label: "POS",
-    requiredPermission: "pos:access",
+    minimumRole: "cashier",
   },
   {
     path: "/orders",
     icon: ClipboardList,
     label: "KOT",
-    requiredPermission: "orders:read",
+    minimumRole: "cashier",
   },
-  { path: "/inventory", icon: Boxes, label: "Inventory", requiredPermission: "inventory:read" },
-  { path: "/staff", icon: Users2, label: "Staff", requiredPermission: "staff:read" },
+  { path: "/inventory", icon: Boxes, label: "Inventory", minimumRole: "admin" },
+  { path: "/staff", icon: Users2, label: "Staff", minimumRole: "manager" },
   {
     path: "/dashboard/visitors",
     icon: Users,
     label: "Visitors",
-    requiredPermission: "reports:view",
+    minimumRole: "manager",
   },
   {
     path: "/reports",
     icon: FileBarChart2,
     label: "Reports",
-    requiredPermission: "reports:view",
+    minimumRole: "manager",
   },
   {
     path: "/offers",
     icon: TicketPercent,
     label: "Coupons & Offers",
-    requiredPermission: "offers:manage",
+    minimumRole: "manager",
   },
   {
     path: "/settings",
     icon: Settings,
     label: "Settings",
-    requiredPermission: "staff:write", // Only admins
+    minimumRole: "admin",
   },
 ];
 
@@ -189,7 +189,7 @@ export default function AdminLayout() {
   );
   const location = useLocation();
   const { slug } = useParams();
-  const { logout, role, permissions, businessType, businessName, userName } = useAuth();
+  const { logout, role, businessType, businessName, userName } = useAuth();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [incomingQrOrders, setIncomingQrOrders] = useState([]);
@@ -201,14 +201,9 @@ export default function AdminLayout() {
   const notificationRef = useRef(null);
   const audioContextRef = useRef(null);
   const hasUserInteractedRef = useRef(false);
-  const visibleSidebarItems = SIDEBAR_ITEMS.filter((item) => {
-    // Some dashboard items like overview can fallback to standard role logic or specific permission logic.
-    if (item.path === "/dashboard/overview") {
-      // Let everyone except maybe kitchen see it. fallback.
-      return hasPermissionAccess(permissions, item.requiredPermission, role) || hasRoleAccess(role, "cashier");
-    }
-    return hasPermissionAccess(permissions, item.requiredPermission, role);
-  });
+  const visibleSidebarItems = SIDEBAR_ITEMS.filter((item) =>
+    hasRoleAccess(role, item.minimumRole),
+  );
   const { data: businessProfile } = useQuery({
     queryKey: ["business-profile"],
     queryFn: fetchBusinessProfile,

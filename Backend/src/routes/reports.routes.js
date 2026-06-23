@@ -1,6 +1,6 @@
 const { Router } = require("express");
 const authenticate = require("../middleware/auth");
-const requirePermission = require("../middleware/requirePermission");
+const requireRole = require("../middleware/requireRole");
 const {
   getAvailableReports,
   getSalesSummary,
@@ -10,7 +10,7 @@ const {
 
 const router = Router();
 
-router.use(authenticate, requirePermission("menu:manage"));
+router.use(authenticate, requireRole("manager"));
 
 router.get("/", getAvailableReports);
 router.get("/sales-summary", getSalesSummary);

@@ -6,14 +6,10 @@ import { useAuth } from "../context/AuthContext";
 import { requestLoginOtp, verifyEmailOtp } from "../services/api";
 import { getDefaultAdminPathByRole } from "../utils/access";
 import useSEO from "../hooks/useSEO";
-import RegisterForm from "./RegisterForm";
-import RegistrationModal from "../components/registration/RegistrationModal";
 
 export default function AuthPage() {
   useSEO("auth");
 
-  const [isRegistering, setIsRegistering] = useState(false);
-  const [registrationModalOpen, setRegistrationModalOpen] = useState(false);
   const [loginMethod, setLoginMethod] = useState("phone");
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
@@ -341,38 +337,14 @@ export default function AuthPage() {
         <div className="w-full max-w-md mx-auto">
           <div className="mb-8">
             <h1 className="font-display text-3xl font-bold text-[#0f0e0b] mb-2">
-              {isRegistering ? "Create an account" : "Welcome back"}
+              Welcome back
             </h1>
             <p className="text-[#857c6e] text-sm">
-              {isRegistering
-                ? "Enter your details to register your restaurant."
-                : "Enter your details to access your dashboard."}
+              Enter your details to access your dashboard.
             </p>
           </div>
 
-          <div className="flex bg-[#faf7f2] p-1 rounded-xl mb-6">
-            <button
-              onClick={() => setIsRegistering(false)}
-              className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-colors ${
-                !isRegistering ? "bg-white text-[#0f0e0b] shadow-sm" : "text-[#857c6e] hover:text-[#0f0e0b]"
-              }`}
-            >
-              Sign In
-            </button>
-            <button
-              onClick={() => setIsRegistering(true)}
-              className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-colors ${
-                isRegistering ? "bg-white text-[#0f0e0b] shadow-sm" : "text-[#857c6e] hover:text-[#0f0e0b]"
-              }`}
-            >
-              Register
-            </button>
-          </div>
-
-          {isRegistering ? (
-            <RegisterForm onRegisterSuccess={() => setRegistrationModalOpen(true)} />
-          ) : (
-            <form className="space-y-4" onSubmit={handleLogin} noValidate>
+          <form className="space-y-4" onSubmit={handleLogin} noValidate>
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-[#0f0e0b]">
                 Login Method
@@ -516,7 +488,6 @@ export default function AuthPage() {
               )}
             </button>
           </form>
-          )}
         </div>
       </div>
 
@@ -602,17 +573,6 @@ export default function AuthPage() {
           </div>
         </div>
       )}
-
-      <RegistrationModal
-        isOpen={registrationModalOpen}
-        onClose={() => setRegistrationModalOpen(false)}
-        onComplete={(data) => {
-          // If we want to save AI menu we can, but they are already registered!
-          setRegistrationModalOpen(false);
-          // navigate to dashboard
-          window.location.reload();
-        }}
-      />
     </div>
   );
 }

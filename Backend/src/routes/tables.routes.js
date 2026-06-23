@@ -1,6 +1,6 @@
 const { Router } = require("express");
 const authenticate = require("../middleware/auth");
-const requirePermission = require("../middleware/requirePermission");
+const requireRole = require("../middleware/requireRole");
 const {
   getAll,
   getOne,
@@ -13,13 +13,13 @@ const {
 
 const router = Router();
 
-router.use(authenticate, requirePermission("pos:access"));
+router.use(authenticate, requireRole("cashier"));
 
 router.get("/", getAll);
-router.post("/", requirePermission("menu:manage"), create);
+router.post("/", requireRole("manager"), create);
 router.get("/:id", getOne);
-router.put("/:id", requirePermission("menu:manage"), update);
-router.delete("/:id", requirePermission("menu:manage"), remove);
+router.put("/:id", requireRole("manager"), update);
+router.delete("/:id", requireRole("manager"), remove);
 router.put("/:id/status", updateStatus);
 router.put("/:id/guest", assignGuest);
 

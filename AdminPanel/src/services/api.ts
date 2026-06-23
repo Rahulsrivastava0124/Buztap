@@ -719,8 +719,8 @@ export async function registerBusiness(
     tableCount?: number;
     otpToken: string;
   }
-): Promise<LoginResponse> {
-  const res = await request<LoginResponse>(
+): Promise<AdminLoginResponse> {
+  const res = await request<AdminLoginResponse>(
     "/auth/register",
     {
       method: "POST",

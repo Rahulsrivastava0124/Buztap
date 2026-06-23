@@ -12,12 +12,8 @@ const userSchema = new Schema(
     passwordHash: { type: String, required: true },
     role: {
       type: String,
-      // No longer strictly enforcing enum so custom roles can be added easily
-      default: "Employee"
-    },
-    permissions: {
-      type: [String],
-      default: [],
+      enum: ["admin", "manager", "cashier"],
+      required: true,
     },
     designation: {
       type: String,
