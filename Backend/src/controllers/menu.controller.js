@@ -5,12 +5,12 @@ const itemSchema = z.object({
   name: z.string().min(1),
   description: z.string().optional(),
   category: z.string().min(1),
-  price: z.number().positive(),
+  price: z.number().min(0),
   priceOptions: z
     .array(
       z.object({
         label: z.string().min(1),
-        price: z.number().positive(),
+        price: z.number().min(0),
       }),
     )
     .optional(),
