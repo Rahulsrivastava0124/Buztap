@@ -318,6 +318,7 @@ async function register(req, res, next) {
         businessId: business._id,
         role: "admin",
         businessType: business.type,
+        permissions: ["all"],
       },
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRES_IN || "7d" },
@@ -572,6 +573,7 @@ async function login(req, res, next) {
         businessId: user.businessId,
         role: user.role,
         businessType: business?.type ?? "restro",
+        permissions: user.permissions && user.permissions.length > 0 ? user.permissions : (user.role === "admin" ? ["all"] : []),
       },
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRES_IN || "7d" },
@@ -580,6 +582,7 @@ async function login(req, res, next) {
     res.json({
       token,
       role: user.role,
+      permissions: user.permissions && user.permissions.length > 0 ? user.permissions : (user.role === "admin" ? ["all"] : []),
       businessType: business?.type ?? "restro",
       businessName: business?.name ?? "",
       subdomain: resolveBusinessSlug(business),
@@ -842,7 +845,12 @@ async function verifyStaffOtp(req, res, next) {
     // Issue JWT
     const jwtSecret = process.env.JWT_SECRET || "dev-secret-key";
     const token = jwt.sign(
-      { userId: staff._id, businessId: staff.businessId, role: staff.role },
+      { 
+        userId: staff._id, 
+        businessId: staff.businessId, 
+        role: staff.role,
+        permissions: staff.permissions && staff.permissions.length > 0 ? staff.permissions : (staff.role === "admin" ? ["all"] : []) 
+      },
       jwtSecret,
       { expiresIn: "7d" },
     );

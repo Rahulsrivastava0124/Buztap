@@ -1,6 +1,6 @@
 const { Router } = require("express");
 const authenticate = require("../middleware/auth");
-const requireRole = require("../middleware/requireRole");
+const requirePermission = require("../middleware/requirePermission");
 const {
   getAll,
   getOne,
@@ -17,7 +17,7 @@ const router = Router();
 // Public guest-facing endpoint — no auth required
 router.get("/guest", getGuestOrders);
 
-router.use(authenticate, requireRole("cashier"));
+router.use(authenticate, requirePermission("pos:access"));
 
 router.get("/incoming/qr", getIncomingQr);
 router.get("/", getAll);

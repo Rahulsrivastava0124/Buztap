@@ -55,6 +55,14 @@ export function AuthProvider({ children }) {
   const [subdomain, setSubdomain] = useState(
     () => getStoredValue("adminSubdomain") || "",
   );
+  const [permissions, setPermissions] = useState(() => {
+    try {
+      const stored = getStoredValue("adminPermissions");
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
 
   useEffect(() => {
     let mounted = true;
@@ -85,6 +93,10 @@ export function AuthProvider({ children }) {
           "adminBusinessType",
           me.businessType || BUSINESS_TYPES.RESTRO,
         );
+        if (me.permissions) {
+          setPermissions(me.permissions);
+          setStoredValue("adminPermissions", JSON.stringify(me.permissions));
+        }
         if (me.businessName) {
           setBusinessName(me.businessName);
           setStoredValue("adminBusinessName", me.businessName);
@@ -107,6 +119,7 @@ export function AuthProvider({ children }) {
         setBusinessName("");
         setUserName("");
         setSubdomain("");
+        setPermissions([]);
       } finally {
         if (mounted) setLoading(false);
       }
@@ -127,6 +140,7 @@ export function AuthProvider({ children }) {
       setBusinessName("");
       setUserName("");
       setSubdomain("");
+      setPermissions([]);
     };
     window.addEventListener("auth:expired", handleExpired);
     return () => window.removeEventListener("auth:expired", handleExpired);
@@ -142,6 +156,10 @@ export function AuthProvider({ children }) {
       "adminBusinessType",
       data.businessType || BUSINESS_TYPES.RESTRO,
     );
+    if (data.permissions) {
+      setPermissions(data.permissions);
+      setStoredValue("adminPermissions", JSON.stringify(data.permissions));
+    }
     if (data.businessName) {
       setBusinessName(data.businessName);
       setStoredValue("adminBusinessName", data.businessName);
@@ -181,6 +199,7 @@ export function AuthProvider({ children }) {
     setBusinessName("");
     setUserName("");
     setSubdomain("");
+    setPermissions([]);
     clearAuthSession();
   };
 
@@ -189,6 +208,7 @@ export function AuthProvider({ children }) {
       value={{
         isAuthenticated,
         role,
+        permissions,
         businessType,
         setBusinessType,
         businessName,

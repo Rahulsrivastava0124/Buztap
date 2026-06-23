@@ -119,13 +119,13 @@ export default function App() {
               }
             />
             <Route path="orders" element={<OrdersPage />} />
-            <Route element={<ProtectedRoute minimumRole="manager" />}>
+            <Route element={<ProtectedRoute requiredPermission="menu:read" />}>
               <Route path="menu" element={<MenuPage />} />
               <Route path="staff" element={<StaffPage />} />
               <Route path="reports" element={<ReportsPage />} />
               <Route path="offers" element={<OffersPage />} />
             </Route>
-            <Route element={<ProtectedRoute minimumRole="admin" />}>
+            <Route element={<ProtectedRoute requiredPermission="staff:write" />}>
               <Route path="inventory" element={<InventoryPage />} />
               <Route path="settings" element={<SettingsPage />} />
             </Route>

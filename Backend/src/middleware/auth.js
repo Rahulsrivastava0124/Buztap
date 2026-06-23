@@ -20,6 +20,7 @@ function authenticate(req, res, next) {
       businessId: payload.businessId,
       role: payload.role,
       businessType: payload.businessType,
+      permissions: payload.permissions || [],
     };
     req.token = token;
     req.tokenExp = payload.exp * 1000; // ms

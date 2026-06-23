@@ -1,6 +1,6 @@
 const { Router } = require("express");
 const authenticate = require("../middleware/auth");
-const requireRole = require("../middleware/requireRole");
+const requirePermission = require("../middleware/requirePermission");
 const {
   getSnapshot,
   getKitchenQueue,
@@ -12,7 +12,7 @@ const {
 
 const router = Router();
 
-router.use(authenticate, requireRole("cashier"));
+router.use(authenticate, requirePermission("pos:access"));
 
 router.get("/snapshot", getSnapshot);
 router.get("/kitchen-queue", getKitchenQueue);

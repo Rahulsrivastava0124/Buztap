@@ -1,6 +1,6 @@
 const { Router } = require("express");
 const authenticate = require("../middleware/auth");
-const requireRole = require("../middleware/requireRole");
+const requirePermission = require("../middleware/requirePermission");
 const {
   getAll,
   getOne,
@@ -21,14 +21,14 @@ const router = Router();
 router.use(authenticate);
 
 // Leave management routes — manager or above
-router.get("/leave-requests", requireRole("manager"), getAllLeaveRequests);
+router.get("/leave-requests", requirePermission("menu:manage"), getAllLeaveRequests);
 
 // Staff member self-service routes — any authenticated role
 router.get("/:id/leave-requests", getLeaveRequests);
 router.post("/:id/leave-requests", createLeaveRequest);
 router.patch(
   "/:id/leave-requests/:requestId",
-  requireRole("manager"),
+  requirePermission("menu:manage"),
   reviewLeaveRequest,
 );
 router.get("/:id", getOne);
@@ -36,9 +36,9 @@ router.post("/:id/punch-in", punchIn);
 router.post("/:id/punch-out", punchOut);
 
 // Management routes — manager or above
-router.get("/", requireRole("manager"), getAll);
-router.post("/", requireRole("admin"), create);
-router.put("/:id", requireRole("manager"), update);
-router.delete("/:id", requireRole("admin"), remove);
+router.get("/", requirePermission("menu:manage"), getAll);
+router.post("/", requirePermission("staff:write"), create);
+router.put("/:id", requirePermission("menu:manage"), update);
+router.delete("/:id", requirePermission("staff:write"), remove);
 
 module.exports = router;

@@ -1,6 +1,6 @@
 const { Router } = require("express");
 const authenticate = require("../middleware/auth");
-const requireRole = require("../middleware/requireRole");
+const requirePermission = require("../middleware/requirePermission");
 const {
   getAll,
   create,
@@ -13,7 +13,7 @@ const router = Router();
 
 router.get("/public", getPublicOffers);
 
-router.use(authenticate, requireRole("manager"));
+router.use(authenticate, requirePermission("menu:manage"));
 router.get("/", getAll);
 router.post("/", create);
 router.patch("/:id", update);

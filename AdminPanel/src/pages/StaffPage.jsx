@@ -746,6 +746,22 @@ const SHIFT_COLORS = {
   Custom: "badge-secondary",
 };
 
+const AVAILABLE_PERMISSIONS = [
+  { value: "all", label: "Full Admin Access" },
+  { value: "pos:access", label: "POS & Billing" },
+  { value: "menu:read", label: "View Menu" },
+  { value: "menu:write", label: "Edit Menu" },
+  { value: "menu:manage", label: "Manage Menu" },
+  { value: "orders:read", label: "View Orders (KOT)" },
+  { value: "orders:write", label: "Update Orders" },
+  { value: "inventory:read", label: "View Inventory" },
+  { value: "inventory:write", label: "Manage Inventory" },
+  { value: "staff:read", label: "View Staff" },
+  { value: "staff:write", label: "Manage Staff" },
+  { value: "reports:view", label: "View Reports" },
+  { value: "offers:manage", label: "Manage Offers" },
+];
+
 const EMPTY_FORM = {
   name: "",
   username: "",
@@ -759,6 +775,7 @@ const EMPTY_FORM = {
   leavesTaken: "0",
   joiningDate: "",
   weekOffDays: [0],
+  permissions: [],
 };
 
 // ─── Staff Form Panel ─────────────────────────────────────────────────────────
@@ -795,9 +812,21 @@ function StaffFormPanel({ mode, initial, onClose, onSave, isSaving }) {
             ? new Date(initial.joiningDate).toISOString().slice(0, 10)
             : "",
           weekOffDays: initial.weekOffDays || [0],
+          permissions: initial.permissions || [],
         }
       : { ...EMPTY_FORM },
   );
+
+  function togglePermission(permValue) {
+    setForm(prev => {
+      const perms = prev.permissions || [];
+      if (perms.includes(permValue)) {
+        return { ...prev, permissions: perms.filter(p => p !== permValue) };
+      } else {
+        return { ...prev, permissions: [...perms, permValue] };
+      }
+    });
+  }
 
   function set(key, value) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -930,21 +959,31 @@ function StaffFormPanel({ mode, initial, onClose, onSave, isSaving }) {
           </select>
         </div>
 
-        {/* Permissions preview */}
-        {perms.length > 0 && (
-          <div className="bg-paper rounded-lg p-3">
-            <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-2 flex items-center gap-1.5">
-              <Eye size={12} /> Permissions for {form.designation}
-            </p>
-            <div className="flex flex-wrap gap-1.5">
-              {perms.map((p) => (
-                <span key={p.label} className={`badge badge-sm ${p.color}`}>
-                  {p.label}
-                </span>
-              ))}
-            </div>
+        {/* Permissions Selection */}
+        <div className="form-control">
+          <label className="label">
+            <span className="label-text font-semibold">Custom Access / Permissions</span>
+          </label>
+          <div className="grid grid-cols-2 gap-2 mt-1">
+            {AVAILABLE_PERMISSIONS.map((p) => {
+              const isChecked = (form.permissions || []).includes(p.value);
+              return (
+                <label key={p.value} className="flex items-center gap-2 cursor-pointer p-2 border border-border rounded-lg hover:bg-paper transition-colors">
+                  <input
+                    type="checkbox"
+                    className="checkbox checkbox-sm checkbox-primary rounded-md"
+                    checked={isChecked}
+                    onChange={() => togglePermission(p.value)}
+                  />
+                  <span className="text-sm font-medium text-ink">{p.label}</span>
+                </label>
+              );
+            })}
           </div>
-        )}
+          <p className="text-xs text-muted mt-2">
+            These explicit permissions override standard role defaults.
+          </p>
+        </div>
 
         {/* Shift Timing */}
         <div className="form-control">
@@ -1778,8 +1817,7 @@ export default function StaffPage() {
                 </thead>
                 <tbody>
                   {filteredTeam.map((member) => {
-                    const perms =
-                      DESIGNATION_PERMISSIONS[member.designation] || [];
+                    const memberPerms = member.permissions || [];
                     return (
                       <tr
                         key={member.id}
@@ -1827,17 +1865,20 @@ export default function StaffPage() {
                         </td>
                         <td>
                           <div className="flex flex-wrap gap-1 max-w-65">
-                            {perms.length > 0 ? (
-                              perms.map((p) => (
-                                <span
-                                  key={p.label}
-                                  className={`badge badge-xs ${p.color}`}
-                                >
-                                  {p.label}
-                                </span>
-                              ))
+                            {memberPerms.length > 0 ? (
+                              memberPerms.map((p) => {
+                                const matched = AVAILABLE_PERMISSIONS.find(ap => ap.value === p);
+                                return (
+                                  <span
+                                    key={p}
+                                    className="badge badge-xs badge-info"
+                                  >
+                                    {matched ? matched.label : p}
+                                  </span>
+                                );
+                              })
                             ) : (
-                              <span className="text-xs text-muted">-</span>
+                              <span className="text-xs text-muted">No specific access</span>
                             )}
                           </div>
                         </td>

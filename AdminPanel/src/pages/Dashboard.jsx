@@ -36,7 +36,7 @@ import {
 } from "../services/api";
 import ProtectedRoute from "../components/ProtectedRoute";
 import { useAuth } from "../context/AuthContext";
-import { hasRoleAccess } from "../utils/access";
+import { hasRoleAccess, hasPermissionAccess } from "../utils/access";
 import KpiCard from "../components/shared/KpiCard";
 import OrderStatusBadge from "../components/shared/OrderStatusBadge";
 import ErrorBoundary from "../components/shared/ErrorBoundary";
@@ -128,7 +128,7 @@ export default function Dashboard() {
         }
       />
 
-      <Route element={<ProtectedRoute minimumRole="manager" />}>
+      <Route element={<ProtectedRoute requiredPermission="reports:view" />}>
         <Route
           path="finance"
           element={
@@ -162,7 +162,7 @@ export default function Dashboard() {
         }
       />
 
-      <Route element={<ProtectedRoute minimumRole="manager" />}>
+      <Route element={<ProtectedRoute requiredPermission="reports:view" />}>
         <Route
           path="visitors"
           element={
@@ -252,8 +252,8 @@ const buildVisitorChartData = (trend) => {
 
 export function OverviewTab() {
   const navigate = useNavigate();
-  const { role } = useAuth();
-  const canViewFinance = hasRoleAccess(role, "manager");
+  const { role, permissions } = useAuth();
+  const canViewFinance = hasPermissionAccess(permissions, "reports:view", role);
   const [timeRange, setTimeRange] = useState("1D");
   const [visitorTimeRange, setVisitorTimeRange] = useState("1D");
   const [detailsView, setDetailsView] = useState(null);

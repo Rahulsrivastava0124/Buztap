@@ -706,6 +706,32 @@ export async function resetAdminPassword(
   );
 }
 
+export async function registerBusiness(
+  data: {
+    ownerName: string;
+    email: string;
+    username: string;
+    password: string;
+    businessName: string;
+    businessType?: "restro" | "hotel";
+    phone?: string;
+    address?: string;
+    tableCount?: number;
+    otpToken: string;
+  }
+): Promise<LoginResponse> {
+  const res = await request<LoginResponse>(
+    "/auth/register",
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    },
+    false,
+  );
+  setStoredValue(AUTH_TOKEN_KEY, res.token);
+  return res;
+}
+
 export async function fetchAuthMe(): Promise<{
   role: UserRole;
   businessType: "restro" | "hotel";
