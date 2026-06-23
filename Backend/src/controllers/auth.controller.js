@@ -16,6 +16,16 @@ function normalizePhone(value) {
   return String(value || "").replace(/\D/g, "");
 }
 
+function hasDuplicatePhone(existingPhone, candidatePhone) {
+  const normalizedExisting = normalizePhone(existingPhone);
+  const normalizedCandidate = normalizePhone(candidatePhone);
+  return Boolean(
+    normalizedExisting &&
+    normalizedCandidate &&
+    normalizedExisting === normalizedCandidate,
+  );
+}
+
 function normalizeEmail(value) {
   return String(value || "")
     .trim()
@@ -272,6 +282,31 @@ const registerSchema = z.object({
   otpToken: z.string().min(10),
 });
 
+async function checkPhoneAvailability(req, res, next) {
+  try {
+    const { phone } = z
+      .object({ phone: z.string().trim().min(1) })
+      .parse(req.body);
+    const normalizedPhone = normalizePhone(phone);
+
+    if (normalizedPhone.length !== 10) {
+      return res.status(400).json({ error: "Phone number must be 10 digits" });
+    }
+
+    const existingBusinesses = await Business.find({
+      phone: { $exists: true, $ne: "" },
+    }).select("phone");
+
+    const isTaken = existingBusinesses.some((business) =>
+      hasDuplicatePhone(business.phone, normalizedPhone),
+    );
+
+    return res.json({ available: !isTaken });
+  } catch (err) {
+    next(err);
+  }
+}
+
 async function register(req, res, next) {
   try {
     const data = registerSchema.parse(req.body);
@@ -281,6 +316,21 @@ async function register(req, res, next) {
     const existingUser = await User.findOne({ username: data.username });
     if (existingUser) {
       return res.status(409).json({ error: "Username already taken" });
+    }
+
+    const normalizedPhone = normalizePhone(data.phone);
+    if (normalizedPhone) {
+      const existingBusinesses = await Business.find({
+        phone: { $exists: true, $ne: "" },
+      }).select("phone");
+      const duplicateBusiness = existingBusinesses.find((business) =>
+        hasDuplicatePhone(business.phone, normalizedPhone),
+      );
+      if (duplicateBusiness) {
+        return res
+          .status(409)
+          .json({ error: "This phone number is already registered" });
+      }
     }
 
     const subdomain = await generateUniqueSubdomain(data.businessName);
@@ -919,7 +969,7 @@ async function staffLogin(req, res, next) {
         })
           .select("_id phone")
           .lean();
-          
+
         const businessMatch = businessCandidates.find((row) => {
           const candidate = normalizePhone(row.phone || "");
           return (
@@ -1016,6 +1066,7 @@ module.exports = {
   requestPhoneLoginOtp,
   verifyEmailOtp,
   resetPassword,
+  checkPhoneAvailability,
   register,
   login,
   me,

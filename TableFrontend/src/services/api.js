@@ -12,11 +12,12 @@ function authHeaders() {
   };
 }
 
-async function request(method, path, body) {
+async function request(method, path, body, options = {}) {
   const res = await fetch(`${BASE}${path}`, {
     method,
     headers: authHeaders(),
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+    ...options,
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data?.error || "Request failed");
@@ -26,6 +27,10 @@ async function request(method, path, body) {
 // ── Auth ────────────────────────────────────────────────────────────────────
 export function registerRestro(payload) {
   return request("POST", "/auth/register", payload);
+}
+
+export function checkPhoneAvailability(phone, options = {}) {
+  return request("POST", "/auth/check-phone", { phone }, options);
 }
 
 export function loginRestro(identifier, password, otpToken) {

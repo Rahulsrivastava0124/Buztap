@@ -6,6 +6,7 @@ const {
   requestPhoneLoginOtp,
   verifyEmailOtp,
   resetPassword,
+  checkPhoneAvailability,
   register,
   login,
   me,
@@ -22,6 +23,7 @@ router.post("/otp/request-login", requestLoginOtp);
 router.post("/otp/request-by-phone", requestPhoneLoginOtp);
 router.post("/otp/verify", verifyEmailOtp);
 router.post("/password/reset", resetPassword);
+router.post("/check-phone", checkPhoneAvailability);
 router.post("/register", register);
 router.post("/login", login);
 router.post("/staff/login", staffLogin);
