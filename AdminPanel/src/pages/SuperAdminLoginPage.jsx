@@ -53,7 +53,7 @@ export default function SuperAdminLoginPage() {
       toast.error("Enter email and password");
       return;
     }
-    
+
     setLoading(true);
     try {
       const data = await requestSuperAdminOtp(form.email, form.password);

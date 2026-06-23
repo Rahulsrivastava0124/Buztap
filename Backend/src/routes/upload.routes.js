@@ -34,6 +34,131 @@ const upload = multer({
 
 const router = Router();
 
+function getVisionApiKey() {
+  const raw = process.env.Google_vision_api_key;
+
+  return String(raw).trim().replace(/^['"]|['"]$/g, "");
+}
+
+function parseMenuItemsFromText(rawText = "") {
+  const lines = String(rawText)
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const items = [];
+  const seen = new Set();
+
+  const priceRegex =
+    /(?:₹|rs\.?|inr)\s*([0-9]{1,5}(?:\.[0-9]{1,2})?)|([0-9]{1,5}(?:\.[0-9]{1,2})?)\s*$/i;
+
+  for (const line of lines) {
+    const match = line.match(priceRegex);
+    if (!match) continue;
+
+    const price = Number(match[1] || match[2] || 0);
+    if (!Number.isFinite(price) || price <= 0) continue;
+
+    const name = line
+      .replace(priceRegex, "")
+      .replace(/[-:|]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    if (!name || name.length < 2) continue;
+
+    const key = `${name.toLowerCase()}::${price}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    items.push({
+      id: `ocr-${items.length + 1}`,
+      name,
+      price,
+      category: "Mains",
+      isVeg: true,
+      description: "",
+    });
+
+    if (items.length >= 80) break;
+  }
+
+  return items;
+}
+
+router.post("/ocr-menu", upload.single("image"), async (req, res, next) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+
+    const visionApiKey = getVisionApiKey();
+    if (!visionApiKey) {
+      return res.status(500).json({
+        error: "Vision API key is not configured. Set Google_vision_api_key.",
+      });
+    }
+
+    const imageBase64 = req.file.buffer.toString("base64");
+
+    const response = await fetch(
+      `https://vision.googleapis.com/v1/images:annotate?key=${encodeURIComponent(visionApiKey)}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          requests: [
+            {
+              image: { content: imageBase64 },
+              features: [{ type: "DOCUMENT_TEXT_DETECTION" }],
+            },
+          ],
+        }),
+      },
+    );
+
+    const payload = await response.json();
+    if (!response.ok) {
+      const details = payload?.error?.message || "Vision API request failed";
+      const normalized = String(details).toLowerCase();
+      const isBillingError =
+        normalized.includes("billing") ||
+        normalized.includes("enable billing") ||
+        normalized.includes("project") && normalized.includes("billing");
+
+      if (isBillingError) {
+        return res.status(402).json({
+          code: "VISION_BILLING_REQUIRED",
+          error:
+            "Google Vision billing is not enabled for this project. Enable billing in Google Cloud Console and retry after a few minutes.",
+          details,
+        });
+      }
+
+      return res.status(502).json({
+        code: "VISION_API_ERROR",
+        error: details,
+      });
+    }
+
+    const result = payload?.responses?.[0] || {};
+    const extractedText =
+      result?.fullTextAnnotation?.text ||
+      result?.textAnnotations?.[0]?.description ||
+      "";
+
+    if (!extractedText.trim()) {
+      return res.json({ text: "", items: [] });
+    }
+
+    const items = parseMenuItemsFromText(extractedText);
+    res.json({
+      text: extractedText,
+      items,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.post(
   "/",
   authenticate,

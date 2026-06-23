@@ -15,14 +15,17 @@ import {
 } from "lucide-react";
 import { motion as Motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
-import { superAdminLogout, isSuperAdminLoggedIn } from "../services/superadminApi";
+import {
+  superAdminLogout,
+  isSuperAdminLoggedIn,
+} from "../services/superadminApi";
 
 const SIDEBAR_ITEMS = [
-  { path: "/superadmin/dashboard", icon: LayoutDashboard, label: "Dashboard" },
-  { path: "/superadmin/restaurants", icon: Store, label: "Restaurants" },
-  { path: "/superadmin/audit-logs", icon: ListFilter, label: "Audit Logs" },
-  { path: "/superadmin/system", icon: Activity, label: "System Health" },
-  { path: "/superadmin/profile", icon: UserCircle, label: "Profile" },
+  { path: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
+  { path: "/restaurants", icon: Store, label: "Restaurants" },
+  { path: "/audit-logs", icon: ListFilter, label: "Audit Logs" },
+  { path: "/system", icon: Activity, label: "System Health" },
+  { path: "/profile", icon: UserCircle, label: "Profile" },
 ];
 
 function SidebarContent({ compactSidebar, handleLogout }) {
@@ -33,10 +36,7 @@ function SidebarContent({ compactSidebar, handleLogout }) {
       <div
         className={`h-16 flex items-center border-b border-border ${compactSidebar ? "px-3 justify-center" : "px-6"}`}
       >
-        <Link
-          to="/superadmin/dashboard"
-          className="flex items-center gap-2.5"
-        >
+        <Link to="/superadmin/dashboard" className="flex items-center gap-2.5">
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-saffron to-saffron2 flex items-center justify-center shadow-md shadow-saffron/20 shrink-0">
             <Shield size={18} className="text-white" />
           </div>
@@ -54,8 +54,10 @@ function SidebarContent({ compactSidebar, handleLogout }) {
       {/* Nav Items */}
       <nav className="flex-1 px-4 py-6 space-y-1">
         {SIDEBAR_ITEMS.map((item) => {
-          const isActive = location.pathname === item.path ||
-            (item.path === "/superadmin/restaurants" && location.pathname.startsWith("/superadmin/restaurants"));
+          const isActive =
+            location.pathname === item.path ||
+            (item.path === "/superadmin/restaurants" &&
+              location.pathname.startsWith("/superadmin/restaurants"));
           return (
             <Link
               key={item.path}
@@ -119,24 +121,25 @@ export default function SuperAdminLayout() {
     navigate("/superadmin", { replace: true });
   };
 
-  const pageTitle =
-    location.pathname.includes("/dashboard")
-      ? "Dashboard"
-      : location.pathname.includes("/restaurants")
-        ? "Restaurants"
-        : location.pathname.includes("/profile")
-          ? "Profile"
-          : location.pathname.includes("/audit-logs")
-            ? "Audit Logs"
-            : location.pathname.includes("/system")
-              ? "System Health"
-              : "Super Admin";
+  const pageTitle = location.pathname.includes("/dashboard")
+    ? "Dashboard"
+    : location.pathname.includes("/restaurants")
+      ? "Restaurants"
+      : location.pathname.includes("/profile")
+        ? "Profile"
+        : location.pathname.includes("/audit-logs")
+          ? "Audit Logs"
+          : location.pathname.includes("/system")
+            ? "System Health"
+            : "Super Admin";
 
   // Get admin profile from localStorage
   const adminProfile = (() => {
     try {
       return JSON.parse(localStorage.getItem("superAdminProfile") || "{}");
-    } catch { return {}; }
+    } catch {
+      return {};
+    }
   })();
 
   if (!isSuperAdminLoggedIn()) return null;
@@ -219,7 +222,9 @@ export default function SuperAdminLayout() {
               <p className="text-xs font-semibold text-ink leading-tight">
                 {adminProfile?.name || "Super Admin"}
               </p>
-              <p className="text-xs text-muted">{adminProfile?.email || "Platform"}</p>
+              <p className="text-xs text-muted">
+                {adminProfile?.email || "Platform"}
+              </p>
             </div>
           </div>
         </header>

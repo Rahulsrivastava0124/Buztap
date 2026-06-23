@@ -757,6 +757,7 @@ export default function DemoMenu() {
     eta: "15–20 mins",
     rating: 4.5,
     heroImage: DEFAULT_HERO_IMAGE,
+    logoImage: "/logo.jpeg",
     restroUpi: "",
     tableLabel: getTableLabel(currentTableId),
     totalTables: null,
@@ -1041,6 +1042,7 @@ export default function DemoMenu() {
           ...prev,
           name: payload.business?.name || restroNameFromSlug || prev.name,
           heroImage: payload.business?.headerImage || prev.heroImage,
+          logoImage: payload.business?.logoImage || prev.logoImage,
           restroUpi: payload.business?.restroUpi || prev.restroUpi,
           tableLabel: payload.table?.label || getTableLabel(currentTableId),
           totalTables:
@@ -1642,6 +1644,14 @@ export default function DemoMenu() {
         <div className="relative z-10 flex min-h-dvh flex-col justify-between p-5 sm:p-8">
           <div className="flex items-start justify-between gap-4 text-white">
             <div>
+              <img
+                src={restaurantProfile.logoImage || "/logo.jpeg"}
+                alt={`${restaurantDisplayName} logo`}
+                className="h-12 w-12 rounded-2xl object-cover border border-white/35 bg-white/90 p-1 shadow-lg"
+                onError={(e) => {
+                  e.currentTarget.src = "/logo.jpeg";
+                }}
+              />
               <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-white/70">
                 Scan And Order
               </p>
@@ -1817,7 +1827,15 @@ export default function DemoMenu() {
           <div className="absolute inset-0 bg-linear-to-b from-black/40 via-transparent to-black/65" />
 
           {/* Restaurant name overlay — bottom-left above social row */}
-          <div className="absolute top-4 left-4 right-20 backdrop-blur-sm bg-black/35 rounded-xl px-3.5 py-2 inline-flex items-center max-w-fit">
+          <div className="absolute top-4 left-4 right-20 backdrop-blur-sm bg-black/35 rounded-xl px-3 py-2 inline-flex items-center gap-2 max-w-fit">
+            <img
+              src={restaurantProfile.logoImage || "/logo.jpeg"}
+              alt={`${restaurantDisplayName} logo`}
+              className="h-8 w-8 rounded-lg object-cover border border-white/35 bg-white/90 p-0.5 shrink-0"
+              onError={(e) => {
+                e.currentTarget.src = "/logo.jpeg";
+              }}
+            />
             <span className="text-white font-bold text-xl leading-tight drop-shadow-sm truncate">
               {restaurantDisplayName}
             </span>
