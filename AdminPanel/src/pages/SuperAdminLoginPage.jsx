@@ -2,7 +2,10 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion as Motion } from "framer-motion";
 import { Shield, Loader2, ArrowRight, Mail, Lock } from "lucide-react";
-import { superAdminLogin, isSuperAdminLoggedIn } from "../services/superadminApi";
+import {
+  superAdminLogin,
+  isSuperAdminLoggedIn,
+} from "../services/superadminApi";
 import toast from "react-hot-toast";
 
 export default function SuperAdminLoginPage() {
@@ -16,7 +19,7 @@ export default function SuperAdminLoginPage() {
   // Redirect if already logged in
   useEffect(() => {
     if (isSuperAdminLoggedIn()) {
-      navigate("/superadmin/dashboard", { replace: true });
+      navigate("/dashboard", { replace: true });
     }
   }, [navigate]);
 
@@ -26,7 +29,7 @@ export default function SuperAdminLoginPage() {
       toast.error("Enter email and password");
       return;
     }
-    
+
     setLoading(true);
     try {
       const data = await superAdminLogin(form.email, form.password);
@@ -35,7 +38,7 @@ export default function SuperAdminLoginPage() {
         localStorage.setItem("superAdminProfile", JSON.stringify(data.profile));
       }
       toast.success("Welcome, Super Admin!");
-      navigate("/superadmin/dashboard", { replace: true });
+      navigate("/dashboard", { replace: true });
     } catch (err) {
       toast.error(err.message || "Login failed");
     } finally {
@@ -84,7 +87,7 @@ export default function SuperAdminLoginPage() {
                 Enter your credentials to access the dashboard
               </p>
             </div>
-            
+
             <form onSubmit={handleLogin} className="space-y-5">
               <InputField
                 icon={Mail}
@@ -116,7 +119,14 @@ export default function SuperAdminLoginPage() {
 
 // ── Shared Components ────────────────────────────────────────────────────────
 
-function InputField({ icon: Icon, type, value, onChange, placeholder, autoFocus }) {
+function InputField({
+  icon: Icon,
+  type,
+  value,
+  onChange,
+  placeholder,
+  autoFocus,
+}) {
   return (
     <div className="space-y-1.5">
       <div className="relative">
