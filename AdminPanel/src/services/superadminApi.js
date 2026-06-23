@@ -22,7 +22,8 @@ async function saRequest(method, path, body) {
   if (!res.ok) {
     if (res.status === 401) {
       superAdminLogout();
-      window.location.href = "/superadmin";
+      const isSuperAdminDomain = window.location.hostname.includes("superadmin");
+      window.location.href = isSuperAdminDomain ? "/" : "/superadmin";
     }
     throw new Error(data?.error || "Request failed");
   }

@@ -67,8 +67,8 @@ export default function App() {
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
 
         {/* Super Admin Routes (Fallback for normal domain) */}
-        {/* <Route path="/superadmin" element={<SuperAdminLoginPage />} /> */}
-        <Route path="/" element={<SuperAdminLayout />}>
+        <Route path="/superadmin" element={<SuperAdminLoginPage />} />
+        <Route path="/superadmin" element={<SuperAdminLayout />}>
           <Route path="dashboard" element={<SuperAdminDashboard />} />
           <Route path="restaurants" element={<SuperAdminRestaurants />} />
           <Route path="audit-logs" element={<SuperAdminAuditLogs />} />
