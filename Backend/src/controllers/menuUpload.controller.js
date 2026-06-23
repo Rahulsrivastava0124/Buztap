@@ -46,7 +46,8 @@ async function parseMenuUpload(req, res, next) {
         const pdfData = await pdfParse(buffer);
         extractedText = pdfData.text;
       } catch (err) {
-        return res.status(400).json({ error: "Failed to parse PDF file." });
+        console.error("PDF Parse Error:", err);
+        return res.status(400).json({ error: `Failed to parse PDF file: ${err.message}` });
       }
 
       chatCompletion = await groq.chat.completions.create({
@@ -56,6 +57,7 @@ async function parseMenuUpload(req, res, next) {
         ],
         model: "llama-3.3-70b-versatile",
         temperature: 0.1,
+        max_tokens: 8000,
         response_format: { type: "json_object" },
       });
     } 
@@ -77,6 +79,7 @@ async function parseMenuUpload(req, res, next) {
         ],
         model: "meta-llama/llama-4-scout-17b-16e-instruct",
         temperature: 0.1,
+        max_tokens: 8000,
       });
     } else {
       return res.status(400).json({ error: "Unsupported file type. Please upload a PDF or Image." });
