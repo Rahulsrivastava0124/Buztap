@@ -7,8 +7,16 @@ const SuperAdmin = require("../models/SuperAdmin");
 const EmailOtp = require("../models/EmailOtp");
 const { sendOtpEmail } = require("../utils/mailer");
 
+function generateOtpCode() {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
+const OTP_EXPIRY_MINUTES = 10;
+const OTP_HASH_ROUNDS = 12;
+
 // ── Email/Password Login (via ENV) ─────────────────────────────────────────
-async function superadminLogin(req, res) {
+
+async function requestSuperAdminOtp(req, res) {
   try {
     const { email, password } = req.body;
     const expectedEmail = process.env.SUPER_ADMIN_EMAIL;
@@ -25,6 +33,100 @@ async function superadminLogin(req, res) {
     if (email.toLowerCase().trim() !== expectedEmail.toLowerCase().trim() || password !== expectedPassword) {
       return res.status(401).json({ error: "Invalid email or password" });
     }
+
+    const normalizedEmail = expectedEmail.toLowerCase().trim();
+
+    // Spam guard: 60-second cooldown
+    const recentWindow = new Date(Date.now() - 60 * 1000);
+    const recentOtp = await EmailOtp.findOne({
+      email: normalizedEmail,
+      purpose: "superadmin-login",
+      createdAt: { $gte: recentWindow },
+    }).lean();
+
+    if (recentOtp) {
+      const waitMs = 60000 - (Date.now() - new Date(recentOtp.createdAt).getTime());
+      const retryAfterSeconds = Math.max(1, Math.ceil(waitMs / 1000));
+      return res.status(429).json({
+        error: "Please wait before requesting another OTP",
+        retryAfterSeconds,
+      });
+    }
+
+    const otp = generateOtpCode();
+    const otpHash = await bcrypt.hash(otp, OTP_HASH_ROUNDS);
+    const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
+
+    await EmailOtp.create({
+      email: normalizedEmail,
+      purpose: "superadmin-login",
+      otpHash,
+      expiresAt,
+    });
+
+    if (process.env.NODE_ENV !== "production") {
+      console.log(`\n============================\n[DEV] OTP for ${normalizedEmail} (superadmin-login): ${otp}\n============================\n`);
+    }
+
+    setImmediate(() => {
+      sendOtpEmail({ to: normalizedEmail, otp, purpose: "login" }).catch((err) => {
+        console.error(`SuperAdmin OTP email send failed for ${normalizedEmail}:`, err.message);
+      });
+    });
+
+    res.json({
+      success: true,
+      expiresInSeconds: OTP_EXPIRY_MINUTES * 60,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
+async function superadminLogin(req, res) {
+  try {
+    const { email, password, otp } = req.body;
+    const expectedEmail = process.env.SUPER_ADMIN_EMAIL;
+    const expectedPassword = process.env.SUPER_ADMIN_PASSWORD;
+
+    if (!expectedEmail || !expectedPassword) {
+      return res.status(500).json({ error: "Super admin credentials not configured in ENV" });
+    }
+    
+    if (!email || !password || !otp) {
+      return res.status(400).json({ error: "Email, password, and OTP are required" });
+    }
+
+    if (email.toLowerCase().trim() !== expectedEmail.toLowerCase().trim() || password !== expectedPassword) {
+      return res.status(401).json({ error: "Invalid email or password" });
+    }
+
+    const normalizedEmail = expectedEmail.toLowerCase().trim();
+
+    const otpDoc = await EmailOtp.findOne({
+      email: normalizedEmail,
+      purpose: "superadmin-login",
+      usedAt: null,
+      expiresAt: { $gt: new Date() },
+    }).sort({ createdAt: -1 });
+
+    if (!otpDoc) {
+      return res.status(400).json({ error: "OTP expired or not found" });
+    }
+
+    if (otpDoc.attempts >= 5) {
+      return res.status(400).json({ error: "OTP attempts exceeded" });
+    }
+
+    const isValid = await bcrypt.compare(otp, otpDoc.otpHash);
+    if (!isValid) {
+      otpDoc.attempts += 1;
+      await otpDoc.save();
+      return res.status(400).json({ error: "Invalid OTP" });
+    }
+
+    otpDoc.usedAt = new Date();
+    await otpDoc.save();
 
     const token = jwt.sign(
       { role: "superadmin", type: "superadmin", adminId: "env-admin" },
@@ -406,6 +508,7 @@ async function getSystemHealth(req, res) {
 
 module.exports = {
   superadminLogin,
+  requestSuperAdminOtp,
   getProfile,
   updateProfile,
   superadminStats,

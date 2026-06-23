@@ -38,6 +38,10 @@ async function issueEmailOtp(email, purpose) {
     expiresAt,
   });
 
+  if (process.env.NODE_ENV !== "production") {
+    console.log(`\n============================\n[DEV] OTP for ${email} (${purpose}): ${otp}\n============================\n`);
+  }
+
   setImmediate(() => {
     sendOtpEmail({ to: email, otp, purpose }).catch((err) => {
       console.error(`OTP email send failed for ${email}:`, err.message);

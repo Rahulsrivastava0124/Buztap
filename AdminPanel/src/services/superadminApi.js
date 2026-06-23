@@ -30,8 +30,12 @@ async function saRequest(method, path, body) {
 }
 
 // ── Auth: Email Login (ENV) ──────────────────────────────────────────────
-export function superAdminLogin(email, password) {
-  return saRequest("POST", "/superadmin/login", { email, password });
+export function requestSuperAdminOtp(email, password) {
+  return saRequest("POST", "/superadmin/request-otp", { email, password });
+}
+
+export function superAdminLogin(email, password, otp) {
+  return saRequest("POST", "/superadmin/login", { email, password, otp });
 }
 
 // ── Profile ────────────────────────────────────────────────────────────────

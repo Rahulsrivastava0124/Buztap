@@ -2,6 +2,7 @@ const { Router } = require("express");
 const superadminAuth = require("../middleware/superadminAuth");
 const {
   superadminLogin,
+  requestSuperAdminOtp,
   getProfile,
   updateProfile,
   superadminStats,
@@ -19,7 +20,8 @@ const {
 const router = Router();
 
 // Public — no auth required
-router.post("/login", superadminLogin);            // Email & Password login
+router.post("/request-otp", requestSuperAdminOtp);
+router.post("/login", superadminLogin);            // Email, Password & OTP login
 
 // Protected routes
 router.use(superadminAuth);

@@ -1,13 +1,18 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion as Motion } from "framer-motion";
-import { Shield, Loader2, ArrowRight, Mail, Lock } from "lucide-react";
-import { superAdminLogin, isSuperAdminLoggedIn } from "../services/superadminApi";
+import { motion as Motion, AnimatePresence } from "framer-motion";
+import { Shield, Loader2, ArrowRight, Mail, Lock, KeyRound } from "lucide-react";
+import { superAdminLogin, requestSuperAdminOtp, isSuperAdminLoggedIn } from "../services/superadminApi";
 import toast from "react-hot-toast";
 
 export default function SuperAdminLoginPage() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [showOtp, setShowOtp] = useState(false);
+  const [otp, setOtp] = useState("");
+  const [otpCooldown, setOtpCooldown] = useState(0);
+  const otpTimerRef = useRef(null);
+
   const [form, setForm] = useState({
     email: "",
     password: "",
@@ -20,6 +25,24 @@ export default function SuperAdminLoginPage() {
     }
   }, [navigate]);
 
+  useEffect(() => {
+    return () => clearInterval(otpTimerRef.current);
+  }, []);
+
+  function startCooldown(seconds) {
+    setOtpCooldown(seconds);
+    clearInterval(otpTimerRef.current);
+    otpTimerRef.current = setInterval(() => {
+      setOtpCooldown((prev) => {
+        if (prev <= 1) {
+          clearInterval(otpTimerRef.current);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  }
+
   const handleLogin = async (e) => {
     e.preventDefault();
     if (!form.email || !form.password) {
@@ -29,7 +52,27 @@ export default function SuperAdminLoginPage() {
     
     setLoading(true);
     try {
-      const data = await superAdminLogin(form.email, form.password);
+      const data = await requestSuperAdminOtp(form.email, form.password);
+      toast.success("OTP sent to your email");
+      setShowOtp(true);
+      startCooldown(60);
+    } catch (err) {
+      toast.error(err.message || "Failed to request OTP");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async (e) => {
+    e.preventDefault();
+    if (!otp || otp.length < 6) {
+      toast.error("Enter a valid 6-digit OTP");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const data = await superAdminLogin(form.email, form.password, otp);
       localStorage.setItem("superAdminToken", data.token);
       if (data.profile) {
         localStorage.setItem("superAdminProfile", JSON.stringify(data.profile));
@@ -37,10 +80,15 @@ export default function SuperAdminLoginPage() {
       toast.success("Welcome, Super Admin!");
       navigate("/superadmin/dashboard", { replace: true });
     } catch (err) {
-      toast.error(err.message || "Login failed");
+      toast.error(err.message || "Invalid OTP");
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleResendOtp = async () => {
+    if (otpCooldown > 0) return;
+    await handleLogin({ preventDefault: () => {} });
   };
 
   return (
@@ -81,28 +129,78 @@ export default function SuperAdminLoginPage() {
                 Super Admin Login
               </h1>
               <p className="text-sm text-muted mt-1.5">
-                Enter your credentials to access the dashboard
+                {showOtp ? "Enter the verification code sent to your email" : "Enter your credentials to access the dashboard"}
               </p>
             </div>
             
-            <form onSubmit={handleLogin} className="space-y-5">
-              <InputField
-                icon={Mail}
-                type="email"
-                value={form.email}
-                onChange={(v) => setForm((p) => ({ ...p, email: v }))}
-                placeholder="Admin Email"
-                autoFocus
-              />
-              <InputField
-                icon={Lock}
-                type="password"
-                value={form.password}
-                onChange={(v) => setForm((p) => ({ ...p, password: v }))}
-                placeholder="Password"
-              />
-              <SubmitButton loading={loading} text="Login" />
-            </form>
+            <AnimatePresence mode="wait">
+              {!showOtp ? (
+                <Motion.form
+                  key="login-form"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                  onSubmit={handleLogin}
+                  className="space-y-5"
+                >
+                  <InputField
+                    icon={Mail}
+                    type="email"
+                    value={form.email}
+                    onChange={(v) => setForm((p) => ({ ...p, email: v }))}
+                    placeholder="Admin Email"
+                    autoFocus
+                  />
+                  <InputField
+                    icon={Lock}
+                    type="password"
+                    value={form.password}
+                    onChange={(v) => setForm((p) => ({ ...p, password: v }))}
+                    placeholder="Password"
+                  />
+                  <SubmitButton loading={loading} text="Get OTP" />
+                </Motion.form>
+              ) : (
+                <Motion.form
+                  key="otp-form"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  onSubmit={handleVerifyOtp}
+                  className="space-y-5"
+                >
+                  <InputField
+                    icon={KeyRound}
+                    type="text"
+                    value={otp}
+                    onChange={(v) => setOtp(v.replace(/\D/g, "").slice(0, 6))}
+                    placeholder="6-digit OTP"
+                    autoFocus
+                  />
+                  <SubmitButton loading={loading} text="Verify & Login" />
+                  
+                  <div className="text-center pt-2">
+                    <button
+                      type="button"
+                      onClick={handleResendOtp}
+                      disabled={otpCooldown > 0 || loading}
+                      className="text-sm text-saffron hover:text-saffron2 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {otpCooldown > 0 ? `Resend OTP in ${otpCooldown}s` : "Resend OTP"}
+                    </button>
+                  </div>
+                  <div className="text-center">
+                    <button
+                      type="button"
+                      onClick={() => setShowOtp(false)}
+                      className="text-xs text-muted hover:text-ink transition-colors"
+                    >
+                      Back to Login
+                    </button>
+                  </div>
+                </Motion.form>
+              )}
+            </AnimatePresence>
 
             <p className="text-center text-xs text-muted2 mt-6">
               Authorized personnel only
