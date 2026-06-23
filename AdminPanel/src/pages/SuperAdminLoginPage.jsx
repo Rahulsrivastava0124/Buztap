@@ -18,10 +18,14 @@ export default function SuperAdminLoginPage() {
     password: "",
   });
 
+  const getDashboardPath = () => {
+    return window.location.hostname.includes("superadmin") ? "/dashboard" : "/superadmin/dashboard";
+  };
+
   // Redirect if already logged in
   useEffect(() => {
     if (isSuperAdminLoggedIn()) {
-      navigate("/superadmin/dashboard", { replace: true });
+      navigate(getDashboardPath(), { replace: true });
     }
   }, [navigate]);
 
@@ -78,7 +82,7 @@ export default function SuperAdminLoginPage() {
         localStorage.setItem("superAdminProfile", JSON.stringify(data.profile));
       }
       toast.success("Welcome, Super Admin!");
-      navigate("/superadmin/dashboard", { replace: true });
+      navigate(getDashboardPath(), { replace: true });
     } catch (err) {
       toast.error(err.message || "Invalid OTP");
     } finally {
@@ -214,7 +218,14 @@ export default function SuperAdminLoginPage() {
 
 // ── Shared Components ────────────────────────────────────────────────────────
 
-function InputField({ icon: Icon, type, value, onChange, placeholder, autoFocus }) {
+function InputField({
+  icon: Icon,
+  type,
+  value,
+  onChange,
+  placeholder,
+  autoFocus,
+}) {
   return (
     <div className="space-y-1.5">
       <div className="relative">
