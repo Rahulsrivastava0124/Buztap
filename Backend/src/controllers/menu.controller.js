@@ -102,13 +102,26 @@ async function remove(req, res, next) {
 async function bulkCreate(req, res, next) {
   try {
     const itemsData = z.array(itemSchema).parse(req.body.items);
-    const itemsToInsert = itemsData.map(data => ({
-      ...data,
-      businessId: req.user.businessId,
-    }));
+    
+    // Fetch existing item names for this business to avoid duplicates
+    const existingItems = await MenuItem.find({ businessId: req.user.businessId }, 'name');
+    const existingNames = new Set(existingItems.map(i => i.name.toLowerCase().trim()));
+
+    const itemsToInsert = [];
+    for (const data of itemsData) {
+      const normalizedName = data.name.toLowerCase().trim();
+      if (!existingNames.has(normalizedName)) {
+        itemsToInsert.push({
+          ...data,
+          businessId: req.user.businessId,
+        });
+        // Add to set to prevent duplicates within the uploaded batch itself
+        existingNames.add(normalizedName);
+      }
+    }
     
     if (itemsToInsert.length === 0) {
-      return res.status(400).json({ error: "No items provided" });
+      return res.status(400).json({ error: "All items provided already exist in your menu." });
     }
 
     const insertedItems = await MenuItem.insertMany(itemsToInsert);

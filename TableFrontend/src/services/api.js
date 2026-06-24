@@ -96,9 +96,28 @@ export async function extractMenuFromImage(file) {
     throw err;
   }
 
+  // Support both old flat format (just in case) and new categories format
+  let items = [];
+  if (data?.data?.categories) {
+    for (const cat of data.data.categories) {
+      if (!cat.items || !Array.isArray(cat.items)) continue;
+      for (const item of cat.items) {
+        items.push({
+          category: cat.name || "Uncategorized",
+          name: item.name || "Unknown Item",
+          description: item.description || "",
+          price: Number(item.price) || 0,
+          isVeg: Boolean(item.isVeg),
+        });
+      }
+    }
+  } else if (Array.isArray(data?.items)) {
+    items = data.items;
+  }
+
   return {
     text: data?.text || "",
-    items: Array.isArray(data?.items) ? data.items : [],
+    items,
   };
 }
 

@@ -5,6 +5,8 @@ const User = require("../models/User");
 const Business = require("../models/Business");
 const Table = require("../models/Table");
 const EmailOtp = require("../models/EmailOtp");
+const Role = require("../models/Role");
+const { PERMISSIONS, DEFAULT_ROLE_PERMISSIONS } = require("../config/permissions");
 const { addToBlacklist } = require("../middleware/tokenBlacklist");
 const { sendOtpEmail } = require("../utils/mailer");
 
@@ -47,6 +49,10 @@ async function issueEmailOtp(email, purpose) {
     otpHash,
     expiresAt,
   });
+
+  if (process.env.NODE_ENV !== "production") {
+    console.log(`\n============================\n[DEV] OTP for ${email} (${purpose}): ${otp}\n============================\n`);
+  }
 
   setImmediate(() => {
     sendOtpEmail({ to: email, otp, purpose }).catch((err) => {
@@ -351,12 +357,29 @@ async function register(req, res, next) {
       await Table.insertMany(initialTables, { ordered: false });
     }
 
+    // Create default roles
+    const adminRole = await Role.create({
+      businessId: business._id,
+      name: "Admin",
+      description: "Full access to all system features",
+      permissions: Object.values(PERMISSIONS),
+      isSystem: true,
+    });
+
+    await Role.insertMany([
+      { businessId: business._id, name: "Manager", description: "Manage day-to-day operations", permissions: DEFAULT_ROLE_PERMISSIONS.manager, isSystem: true },
+      { businessId: business._id, name: "Cashier", description: "Manage POS and table orders", permissions: DEFAULT_ROLE_PERMISSIONS.cashier, isSystem: true },
+      { businessId: business._id, name: "Kitchen", description: "Kitchen Display System access", permissions: [PERMISSIONS.KDS_ACCESS], isSystem: true },
+      { businessId: business._id, name: "Waiter", description: "Take orders and manage tables", permissions: [PERMISSIONS.ORDERS_MANAGE, PERMISSIONS.MENU_VIEW, PERMISSIONS.TABLES_MANAGE], isSystem: true },
+    ]);
+
     const passwordHash = await bcrypt.hash(data.password, 12);
     const user = await User.create({
       businessId: business._id,
       username: data.username,
       passwordHash,
       role: "admin",
+      customRole: adminRole._id,
       name: data.ownerName,
       email: data.email,
       isActive: true,
@@ -367,6 +390,11 @@ async function register(req, res, next) {
         sub: user._id,
         businessId: business._id,
         role: "admin",
+        customRole: {
+          _id: adminRole._id,
+          name: adminRole.name,
+          permissions: adminRole.permissions,
+        },
         businessType: business.type,
       },
       process.env.JWT_SECRET,
@@ -590,7 +618,7 @@ async function login(req, res, next) {
         user = await User.findOne({
           businessId: business._id,
           role: "admin",
-        }).lean();
+        }).populate("customRole", "name permissions").lean();
       }
     }
 
@@ -621,6 +649,7 @@ async function login(req, res, next) {
         sub: user._id,
         businessId: user.businessId,
         role: user.role,
+        customRole: user.customRole,
         businessType: business?.type ?? "restro",
       },
       process.env.JWT_SECRET,
@@ -630,6 +659,7 @@ async function login(req, res, next) {
     res.json({
       token,
       role: user.role,
+      customRole: user.customRole,
       businessType: business?.type ?? "restro",
       businessName: business?.name ?? "",
       subdomain: resolveBusinessSlug(business),
@@ -644,9 +674,10 @@ async function login(req, res, next) {
 async function me(req, res) {
   try {
     const business = await Business.findById(req.user.businessId).lean();
-    const user = await User.findById(req.user.userId).select("name").lean();
+    const user = await User.findById(req.user.userId).populate("customRole", "name permissions").select("name customRole").lean();
     res.json({
       ...req.user,
+      customRole: user?.customRole,
       businessName: business?.name ?? "",
       subdomain: resolveBusinessSlug(business),
       name: user?.name ?? "",
@@ -693,7 +724,7 @@ async function requestPhoneLoginOtp(req, res, next) {
     const user = await User.findOne({
       businessId: business._id,
       role: "admin",
-    }).lean();
+    }).populate("customRole", "name permissions").lean();
     if (!user?.email) {
       return res
         .status(404)
@@ -947,7 +978,7 @@ async function staffLogin(req, res, next) {
     if (isPhone) {
       const normalizedPhone = normalizePhone(login);
       const candidates = await User.find({
-        role: { $in: ["admin", "manager", "cashier"] },
+        role: { $in: ["admin", "manager", "cashier", "custom"] },
         phone: { $exists: true, $ne: "" },
       })
         .select("+passwordHash")
@@ -985,6 +1016,7 @@ async function staffLogin(req, res, next) {
             businessId: businessMatch._id,
             role: "admin",
           })
+            .populate("customRole", "name permissions")
             .select("+passwordHash")
             .lean();
         }
@@ -992,8 +1024,10 @@ async function staffLogin(req, res, next) {
     } else {
       staff = await User.findOne({
         username: { $regex: `^${login}$`, $options: "i" },
-        role: { $in: ["admin", "manager", "cashier"] },
-      }).select("+passwordHash");
+        role: { $in: ["admin", "manager", "cashier", "custom"] },
+      })
+      .populate("customRole", "name permissions")
+      .select("+passwordHash");
     }
 
     if (!staff) {
@@ -1017,6 +1051,7 @@ async function staffLogin(req, res, next) {
         userId: staff._id,
         businessId: staff.businessId,
         role: staff.role,
+        customRole: staff.customRole,
       },
       jwtSecret,
       { expiresIn: "7d" },
@@ -1048,6 +1083,7 @@ async function staffLogin(req, res, next) {
     res.json({
       token,
       role: staff.role,
+      customRole: staff.customRole,
       businessType: business?.type ?? "restro",
       businessName: business?.name ?? "",
       subdomain: resolveBusinessSlug(business),

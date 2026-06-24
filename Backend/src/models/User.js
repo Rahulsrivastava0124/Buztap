@@ -11,20 +11,15 @@ const userSchema = new Schema(
     username: { type: String, required: true, trim: true },
     passwordHash: { type: String, required: true },
     role: {
-      type: String,
-      enum: ["admin", "manager", "cashier"],
-      required: true,
+      type: String, // 'admin', 'manager', 'cashier', or 'custom'
+      default: "custom",
+    },
+    customRole: {
+      type: Schema.Types.ObjectId,
+      ref: "Role",
     },
     designation: {
       type: String,
-      enum: [
-        "Admin",
-        "Manager",
-        "Receptionist",
-        "Kitchen",
-        "Waiter",
-        "Employee",
-      ],
       default: "Employee",
     },
     name: { type: String, required: true, trim: true },

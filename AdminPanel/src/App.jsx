@@ -18,6 +18,7 @@ const ReportsPage = lazy(() => import("./pages/ReportsPage"));
 const OffersPage = lazy(() => import("./pages/OffersPage"));
 const SettingsPage = lazy(() => import("./pages/SettingsPage"));
 const MenuPage = lazy(() => import("./pages/MenuPage"));
+const SettingsRolesPage = lazy(() => import("./pages/SettingsRolesPage"));
 const SuperAdminLoginPage = lazy(() => import("./pages/SuperAdminLoginPage"));
 const SuperAdminDashboard = lazy(() => import("./pages/SuperAdminDashboard"));
 const SuperAdminRestaurants = lazy(() => import("./pages/SuperAdminRestaurants"));
@@ -67,8 +68,8 @@ export default function App() {
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
 
         {/* Super Admin Routes (Fallback for normal domain) */}
-        {/* <Route path="/superadmin" element={<SuperAdminLoginPage />} /> */}
-        <Route path="/" element={<SuperAdminLayout />}>
+        <Route path="/superadmin" element={<SuperAdminLoginPage />} />
+        <Route path="/superadmin" element={<SuperAdminLayout />}>
           <Route path="dashboard" element={<SuperAdminDashboard />} />
           <Route path="restaurants" element={<SuperAdminRestaurants />} />
           <Route path="audit-logs" element={<SuperAdminAuditLogs />} />
@@ -124,10 +125,11 @@ export default function App() {
               <Route path="staff" element={<StaffPage />} />
               <Route path="reports" element={<ReportsPage />} />
               <Route path="offers" element={<OffersPage />} />
-            </Route>
-            <Route element={<ProtectedRoute minimumRole="admin" />}>
               <Route path="inventory" element={<InventoryPage />} />
               <Route path="settings" element={<SettingsPage />} />
+              <Route element={<ProtectedRoute requiredPermission="roles.manage" />}>
+                <Route path="settings/roles" element={<SettingsRolesPage />} />
+              </Route>
             </Route>
           </Route>
         </Route>

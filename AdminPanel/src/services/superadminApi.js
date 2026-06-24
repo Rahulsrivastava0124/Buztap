@@ -22,7 +22,8 @@ async function saRequest(method, path, body) {
   if (!res.ok) {
     if (res.status === 401) {
       superAdminLogout();
-      window.location.href = "/superadmin";
+      const isSuperAdminDomain = window.location.hostname.includes("superadmin");
+      window.location.href = isSuperAdminDomain ? "/" : "/superadmin";
     }
     throw new Error(data?.error || "Request failed");
   }
@@ -30,8 +31,12 @@ async function saRequest(method, path, body) {
 }
 
 // ── Auth: Email Login (ENV) ──────────────────────────────────────────────
-export function superAdminLogin(email, password) {
-  return saRequest("POST", "/superadmin/login", { email, password });
+export function requestSuperAdminOtp(email, password) {
+  return saRequest("POST", "/superadmin/request-otp", { email, password });
+}
+
+export function superAdminLogin(email, password, otp) {
+  return saRequest("POST", "/superadmin/login", { email, password, otp });
 }
 
 // ── Profile ────────────────────────────────────────────────────────────────

@@ -11,7 +11,7 @@ const emailOtpSchema = new Schema(
     },
     purpose: {
       type: String,
-      enum: ["register", "login", "reset-password", "staff-login"],
+      enum: ["register", "login", "reset-password", "staff-login", "superadmin-login"],
       required: true,
       index: true,
     },

@@ -19,6 +19,7 @@ function authenticate(req, res, next) {
       userId: payload.sub || payload.userId,
       businessId: payload.businessId,
       role: payload.role,
+      customRole: payload.customRole,
       businessType: payload.businessType,
     };
     req.token = token;

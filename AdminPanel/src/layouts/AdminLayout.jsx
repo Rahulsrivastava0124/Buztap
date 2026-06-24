@@ -30,7 +30,7 @@ import {
 import { motion as Motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 import { useAuth } from "../context/AuthContext";
-import { hasRoleAccess } from "../utils/access";
+import { hasRoleAccess, hasPermission, PERMISSIONS } from "../utils/access";
 import {
   fetchIncomingQrOrders,
   approveQrOrder,
@@ -51,56 +51,77 @@ const SIDEBAR_ITEMS = [
     icon: Banknote,
     label: "Sales & Finance",
     minimumRole: "manager",
+    requiredPermission: PERMISSIONS.REPORTS_VIEW,
   },
   {
     path: "/menu",
     icon: UtensilsCrossed,
     label: "Menu & Products",
     minimumRole: "manager",
+    requiredPermission: PERMISSIONS.MENU_VIEW,
   },
   {
     path: "/dashboard/operations",
     icon: Smartphone,
     label: "Operations & Tables",
     minimumRole: "cashier",
+    requiredPermission: PERMISSIONS.TABLES_MANAGE,
   },
   {
     path: "/pos",
     icon: MonitorSmartphone,
     label: "POS",
     minimumRole: "cashier",
+    requiredPermission: PERMISSIONS.POS_ACCESS,
   },
   {
     path: "/orders",
     icon: ClipboardList,
     label: "KOT",
     minimumRole: "cashier",
+    requiredPermission: PERMISSIONS.ORDERS_VIEW,
   },
-  { path: "/inventory", icon: Boxes, label: "Inventory", minimumRole: "admin" },
-  { path: "/staff", icon: Users2, label: "Staff", minimumRole: "manager" },
+  { 
+    path: "/inventory", 
+    icon: Boxes, 
+    label: "Inventory", 
+    minimumRole: "admin",
+    requiredPermission: PERMISSIONS.SETTINGS_MANAGE,
+  },
+  { 
+    path: "/staff", 
+    icon: Users2, 
+    label: "Staff", 
+    minimumRole: "manager",
+    requiredPermission: PERMISSIONS.STAFF_VIEW,
+  },
   {
     path: "/dashboard/visitors",
     icon: Users,
     label: "Visitors",
     minimumRole: "manager",
+    requiredPermission: PERMISSIONS.REPORTS_VIEW,
   },
   {
     path: "/reports",
     icon: FileBarChart2,
     label: "Reports",
     minimumRole: "manager",
+    requiredPermission: PERMISSIONS.REPORTS_VIEW,
   },
   {
     path: "/offers",
     icon: TicketPercent,
     label: "Coupons & Offers",
     minimumRole: "manager",
+    requiredPermission: PERMISSIONS.SETTINGS_MANAGE,
   },
   {
     path: "/settings",
     icon: Settings,
     label: "Settings",
     minimumRole: "admin",
+    requiredPermission: PERMISSIONS.SETTINGS_MANAGE,
   },
 ];
 
@@ -189,7 +210,7 @@ export default function AdminLayout() {
   );
   const location = useLocation();
   const { slug } = useParams();
-  const { logout, role, businessType, businessName, userName } = useAuth();
+  const { logout, role, customRole, businessType, businessName, userName } = useAuth();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [incomingQrOrders, setIncomingQrOrders] = useState([]);
@@ -201,9 +222,12 @@ export default function AdminLayout() {
   const notificationRef = useRef(null);
   const audioContextRef = useRef(null);
   const hasUserInteractedRef = useRef(false);
-  const visibleSidebarItems = SIDEBAR_ITEMS.filter((item) =>
-    hasRoleAccess(role, item.minimumRole),
-  );
+  const visibleSidebarItems = SIDEBAR_ITEMS.filter((item) => {
+    if (item.requiredPermission) {
+      return hasPermission(customRole, role, item.requiredPermission);
+    }
+    return hasRoleAccess(role, item.minimumRole);
+  });
   const { data: businessProfile } = useQuery({
     queryKey: ["business-profile"],
     queryFn: fetchBusinessProfile,
@@ -213,9 +237,7 @@ export default function AdminLayout() {
   const brandLogo = businessProfile?.logoImage || "/logo.jpeg";
 
   const isHotelMode = businessType === "hotel";
-  const roleLabel = role
-    ? role.charAt(0).toUpperCase() + role.slice(1)
-    : "User";
+  const roleLabel = customRole?.name || (role ? role.charAt(0).toUpperCase() + role.slice(1) : "User");
   const canViewIncomingOrders = hasRoleAccess(role, "cashier");
   const unreadIncomingCount = incomingQrOrders.length;
   const formattedIncomingOrders = useMemo(

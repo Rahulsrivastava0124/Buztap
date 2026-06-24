@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from "react";
+import { Link, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Bell,
@@ -77,6 +78,7 @@ const SETTINGS = [
     title: "Access & Security",
     desc: "Roles, PIN lock, and device permissions",
     icon: ShieldCheck,
+    path: "/settings/roles"
   },
   {
     title: "Regional Preferences",
@@ -292,6 +294,19 @@ function AiMenuUpload() {
   const handleFileChange = (e) => {
     const selected = e.target.files?.[0];
     if (!selected) return;
+
+    // Check if this file was already successfully uploaded
+    try {
+      const uploadedFiles = JSON.parse(window.localStorage.getItem('uploadedAiMenus') || '[]');
+      if (uploadedFiles.includes(selected.name)) {
+        toast.error(`The file "${selected.name}" has already been uploaded.`);
+        e.target.value = "";
+        return;
+      }
+    } catch (err) {
+      // ignore
+    }
+
     setFile(selected);
     if (selected.type.startsWith("image/")) {
       setPreview(URL.createObjectURL(selected));
@@ -348,6 +363,18 @@ function AiMenuUpload() {
 
       const res = await bulkCreateMenuItems(itemsToCreate);
       toast.success(`${res.count} items added to your menu!`);
+      
+      // Save file name to prevent duplicate upload
+      if (file?.name) {
+        try {
+          const uploadedFiles = JSON.parse(window.localStorage.getItem('uploadedAiMenus') || '[]');
+          if (!uploadedFiles.includes(file.name)) {
+            uploadedFiles.push(file.name);
+            window.localStorage.setItem('uploadedAiMenus', JSON.stringify(uploadedFiles));
+          }
+        } catch (err) {}
+      }
+
       setFile(null);
       setPreview(null);
       setParsedData(null);
@@ -467,6 +494,7 @@ function AiMenuUpload() {
 }
 
 export default function SettingsPage() {
+  const { slug } = useParams();
   const queryClient = useQueryClient();
   const [edited, setEdited] = useState({});
   const [saveMessage, setSaveMessage] = useState("");
@@ -1106,12 +1134,22 @@ export default function SettingsPage() {
               </div>
               <h3 className="font-semibold text-ink">{item.title}</h3>
               <p className="text-sm text-muted mt-1">{item.desc}</p>
-              <button
-                type="button"
-                className="mt-4 text-sm px-3 py-1.5 rounded-md border border-border text-muted"
-              >
-                Coming Soon
-              </button>
+              
+              {item.path ? (
+                <Link
+                  to={`/${slug}${item.path}`}
+                  className="mt-4 inline-block text-sm px-3 py-1.5 rounded-md border border-border text-ink font-medium hover:bg-paper transition-colors"
+                >
+                  Manage
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  className="mt-4 text-sm px-3 py-1.5 rounded-md border border-border text-muted"
+                >
+                  Coming Soon
+                </button>
+              )}
             </div>
           ))}
         </div>
