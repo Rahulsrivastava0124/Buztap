@@ -325,6 +325,7 @@ export interface StaffRecord {
   username: string;
   name: string;
   role: StaffSystemRole;
+  customRole?: any;
   designation: StaffDesignation;
   shiftTiming: ShiftTiming;
   email: string;
@@ -1060,6 +1061,7 @@ function mapStaff(member: any): StaffRecord {
     username: member.username || "",
     name: member.name,
     role: member.role,
+    customRole: member.customRole,
     designation: member.designation || "Employee",
     shift,
     email: member.email || "",

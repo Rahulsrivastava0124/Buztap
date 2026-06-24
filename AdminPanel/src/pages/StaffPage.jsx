@@ -820,7 +820,7 @@ function StaffFormPanel({ mode, initial, roles = [], onClose, onSave, isSaving }
     payload.leaveAllowance = Number(form.leaveAllowance || 0);
     payload.leavesTaken = Number(form.leavesTaken || 0);
     // Always include role so older backend deployments don't fail with "role - Required"
-    payload.role = DESIGNATION_ROLE_MAP[form.designation] || "cashier";
+    payload.role = DESIGNATION_ROLE_MAP[form.designation] || "custom";
     if (form.customRole) {
       payload.customRole = form.customRole;
     } else {
@@ -916,7 +916,7 @@ function StaffFormPanel({ mode, initial, roles = [], onClose, onSave, isSaving }
           />
         </div>
 
-        {/* Designation */}
+        {/* Designation / Role */}
         <div className="form-control">
           <label className="label">
             <span className="label-text font-semibold">
@@ -925,36 +925,43 @@ function StaffFormPanel({ mode, initial, roles = [], onClose, onSave, isSaving }
           </label>
           <select
             className="select select-bordered w-full"
-            value={form.designation}
-            onChange={(e) => set("designation", e.target.value)}
+            value={form.customRole ? `custom:${form.customRole}` : form.designation}
+            onChange={(e) => {
+              const val = e.target.value;
+              if (val.startsWith("custom:")) {
+                const roleId = val.replace("custom:", "");
+                const roleObj = roles.find((r) => r._id === roleId);
+                setForm((prev) => ({
+                  ...prev,
+                  customRole: roleId,
+                  designation: roleObj ? roleObj.name : "Custom",
+                }));
+              } else {
+                setForm((prev) => ({
+                  ...prev,
+                  customRole: "",
+                  designation: val,
+                }));
+              }
+            }}
             required
           >
-            {DESIGNATIONS.map((d) => (
-              <option key={d.value} value={d.value}>
-                {d.label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Custom Role */}
-        <div className="form-control">
-          <label className="label">
-            <span className="label-text font-semibold">
-              Access Role
-            </span>
-          </label>
-          <select
-            className="select select-bordered w-full"
-            value={form.customRole}
-            onChange={(e) => set("customRole", e.target.value)}
-          >
-            <option value="">No Special Access (Legacy)</option>
-            {roles.map((r) => (
-              <option key={r._id} value={r._id}>
-                {r.name}
-              </option>
-            ))}
+            <optgroup label="Standard Roles">
+              {DESIGNATIONS.map((d) => (
+                <option key={d.value} value={d.value}>
+                  {d.label}
+                </option>
+              ))}
+            </optgroup>
+            {roles.length > 0 && (
+              <optgroup label="Custom Roles">
+                {roles.map((r) => (
+                  <option key={`custom:${r._id}`} value={`custom:${r._id}`}>
+                    {r.name} (Custom Role)
+                  </option>
+                ))}
+              </optgroup>
+            )}
           </select>
         </div>
 
@@ -1822,7 +1829,7 @@ export default function StaffPage() {
                 </thead>
                 <tbody>
                   {filteredTeam.map((member) => {
-                    const perms =
+                    const legacyPerms =
                       DESIGNATION_PERMISSIONS[member.designation] || [];
                     return (
                       <tr
@@ -1871,8 +1878,19 @@ export default function StaffPage() {
                         </td>
                         <td>
                           <div className="flex flex-wrap gap-1 max-w-65">
-                            {perms.length > 0 ? (
-                              perms.map((p) => (
+                            {member.customRole ? (
+                              <>
+                                <span className="badge badge-xs bg-saffron text-white border-none font-bold" title="Custom Role">
+                                  {member.customRole.name || "Custom Access"}
+                                </span>
+                                {(member.customRole.permissions || []).map((perm) => (
+                                  <span key={perm} className="badge badge-xs badge-ghost">
+                                    {perm}
+                                  </span>
+                                ))}
+                              </>
+                            ) : legacyPerms.length > 0 ? (
+                              legacyPerms.map((p) => (
                                 <span
                                   key={p.label}
                                   className={`badge badge-xs ${p.color}`}

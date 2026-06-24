@@ -18,7 +18,6 @@ const DESIGNATION_ROLE_MAP = {
   Employee: "cashier",
 };
 
-const VALID_DESIGNATIONS = Object.keys(DESIGNATION_ROLE_MAP);
 const ATTENDANCE_STATUSES = ["work", "absent", "holiday", "weekOff", "halfDay"];
 const LEAVE_TYPES = ["Casual", "Sick", "Paid", "Unpaid", "Other"];
 
@@ -49,7 +48,7 @@ const createSchema = z
     username: z.string().min(1),
     password: z.string().min(6),
     name: z.string().min(1),
-    designation: z.enum(VALID_DESIGNATIONS),
+    designation: z.string().min(1),
     role: z.enum(["admin", "manager", "cashier", "custom"]).optional(),
     customRole: z.string().nullable().optional(),
     shiftTiming: shiftTimingSchema.optional(),
@@ -69,7 +68,7 @@ const createSchema = z
 
 const updateSchema = z.object({
   name: z.string().min(1).optional(),
-  designation: z.enum(VALID_DESIGNATIONS).optional(),
+  designation: z.string().min(1).optional(),
   role: z.enum(["admin", "manager", "cashier", "custom"]).optional(),
   customRole: z.string().nullable().optional(),
   shiftTiming: shiftTimingSchema.optional(),
