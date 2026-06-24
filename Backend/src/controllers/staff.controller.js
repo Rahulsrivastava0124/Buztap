@@ -50,7 +50,8 @@ const createSchema = z
     password: z.string().min(6),
     name: z.string().min(1),
     designation: z.enum(VALID_DESIGNATIONS),
-    role: z.enum(["admin", "manager", "cashier"]).optional(),
+    role: z.enum(["admin", "manager", "cashier", "custom"]).optional(),
+    customRole: z.string().nullable().optional(),
     shiftTiming: shiftTimingSchema.optional(),
     email: z.string().email().optional().or(z.literal("")),
     phone: z.string().optional(),
@@ -63,13 +64,14 @@ const createSchema = z
   .transform((data) => ({
     ...data,
     // Auto-derive role from designation when not explicitly provided
-    role: data.role || DESIGNATION_ROLE_MAP[data.designation] || "cashier",
+    role: data.role || DESIGNATION_ROLE_MAP[data.designation] || "custom",
   }));
 
 const updateSchema = z.object({
   name: z.string().min(1).optional(),
   designation: z.enum(VALID_DESIGNATIONS).optional(),
-  role: z.enum(["admin", "manager", "cashier"]).optional(),
+  role: z.enum(["admin", "manager", "cashier", "custom"]).optional(),
+  customRole: z.string().nullable().optional(),
   shiftTiming: shiftTimingSchema.optional(),
   email: z.string().email().optional().or(z.literal("")),
   phone: z.string().optional(),
@@ -141,6 +143,7 @@ function mapMember(member, holidays = []) {
     username: member.username,
     name: member.name,
     role: member.role,
+    customRole: member.customRole,
     designation: member.designation || "Employee",
     shiftTiming: member.shiftTiming || {
       name: "Morning",
@@ -171,6 +174,7 @@ async function getAll(req, res, next) {
   try {
     const [staff, business] = await Promise.all([
       User.find({ businessId: req.user.businessId })
+        .populate("customRole", "name permissions")
         .select("-passwordHash")
         .sort({ name: 1 })
         .lean(),
@@ -191,6 +195,7 @@ async function getOne(req, res, next) {
         _id: req.params.id,
         businessId: req.user.businessId,
       })
+        .populate("customRole", "name permissions")
         .select("-passwordHash")
         .lean(),
       Business.findById(req.user.businessId).select("holidays").lean(),
@@ -213,6 +218,7 @@ async function create(req, res, next) {
       name: data.name,
       designation: data.designation,
       role: data.role,
+      customRole: data.customRole || undefined,
       shiftTiming: data.shiftTiming || {
         name: "Morning",
         startTime: "09:00",
@@ -231,6 +237,7 @@ async function create(req, res, next) {
     const business = await Business.findById(req.user.businessId)
       .select("holidays")
       .lean();
+    await member.populate("customRole", "name permissions");
     res
       .status(201)
       .json(mapMember(member.toObject(), business?.holidays || []));
@@ -259,8 +266,8 @@ async function update(req, res, next) {
     delete updatePayload.password;
 
     // If designation changed, auto-update role unless role is explicitly given
-    if (data.designation && !data.role) {
-      updatePayload.role = DESIGNATION_ROLE_MAP[data.designation] || "cashier";
+    if (data.designation && !data.role && !data.customRole) {
+      updatePayload.role = DESIGNATION_ROLE_MAP[data.designation] || "custom";
     }
 
     if (data.password) {
@@ -283,6 +290,7 @@ async function update(req, res, next) {
 
     Object.assign(member, updatePayload);
     await member.save();
+    await member.populate("customRole", "name permissions");
 
     const response = member.toObject();
     delete response.passwordHash;

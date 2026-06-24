@@ -1346,3 +1346,39 @@ export async function bulkCreateMenuItems(items: Partial<CreateMenuItemInput>[])
     body: JSON.stringify({ items }),
   });
 }
+
+// Roles APIs
+export interface CustomRole {
+  _id: string;
+  name: string;
+  description: string;
+  permissions: string[];
+  isSystem: boolean;
+}
+
+export async function fetchRoles(): Promise<CustomRole[]> {
+  return request("/roles");
+}
+
+export async function fetchRolePermissions(): Promise<string[]> {
+  const data = await request<{ permissions: string[] }>("/roles/permissions");
+  return data.permissions;
+}
+
+export async function createRole(payload: { name: string; description?: string; permissions: string[] }): Promise<CustomRole> {
+  return request("/roles", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateRole(id: string, payload: { name?: string; description?: string; permissions?: string[] }): Promise<CustomRole> {
+  return request(`/roles/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteRole(id: string): Promise<void> {
+  await request(`/roles/${id}`, { method: "DELETE" });
+}

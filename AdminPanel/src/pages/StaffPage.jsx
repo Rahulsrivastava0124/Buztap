@@ -31,6 +31,7 @@ import {
   punchOutStaff,
   fetchStaffLeaveRequests,
   reviewStaffLeaveRequest,
+  fetchRoles,
 } from "../services/api";
 import StatCard from "../components/shared/StatCard";
 import ErrorBoundary from "../components/shared/ErrorBoundary";
@@ -762,7 +763,7 @@ const EMPTY_FORM = {
 };
 
 // ─── Staff Form Panel ─────────────────────────────────────────────────────────
-function StaffFormPanel({ mode, initial, onClose, onSave, isSaving }) {
+function StaffFormPanel({ mode, initial, roles = [], onClose, onSave, isSaving }) {
   const [form, setForm] = useState(
     mode === "edit"
       ? {
@@ -770,6 +771,7 @@ function StaffFormPanel({ mode, initial, onClose, onSave, isSaving }) {
           username: initial.username || "",
           password: "",
           designation: initial.designation || "Employee",
+          customRole: initial.customRole?._id || initial.customRole || "",
           shiftTiming: initial.shiftTiming || {
             name: "Morning",
             startTime: "09:00",
@@ -796,7 +798,7 @@ function StaffFormPanel({ mode, initial, onClose, onSave, isSaving }) {
             : "",
           weekOffDays: initial.weekOffDays || [0],
         }
-      : { ...EMPTY_FORM },
+      : { ...EMPTY_FORM, customRole: "" },
   );
 
   function set(key, value) {
@@ -819,6 +821,11 @@ function StaffFormPanel({ mode, initial, onClose, onSave, isSaving }) {
     payload.leavesTaken = Number(form.leavesTaken || 0);
     // Always include role so older backend deployments don't fail with "role - Required"
     payload.role = DESIGNATION_ROLE_MAP[form.designation] || "cashier";
+    if (form.customRole) {
+      payload.customRole = form.customRole;
+    } else {
+      payload.customRole = null;
+    }
     if (form.joiningDate) {
       payload.joiningDate = form.joiningDate;
     } else {
@@ -930,8 +937,40 @@ function StaffFormPanel({ mode, initial, onClose, onSave, isSaving }) {
           </select>
         </div>
 
+        {/* Custom Role */}
+        <div className="form-control">
+          <label className="label">
+            <span className="label-text font-semibold">
+              Access Role
+            </span>
+          </label>
+          <select
+            className="select select-bordered w-full"
+            value={form.customRole}
+            onChange={(e) => set("customRole", e.target.value)}
+          >
+            <option value="">No Special Access (Legacy)</option>
+            {roles.map((r) => (
+              <option key={r._id} value={r._id}>
+                {r.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
         {/* Permissions preview */}
-        {perms.length > 0 && (
+        {form.customRole ? (
+          <div className="bg-paper rounded-lg p-3">
+            <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-2 flex items-center gap-1.5">
+              <Eye size={12} /> Access Granted by Custom Role
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              <span className="badge badge-sm badge-success">
+                {roles.find(r => r._id === form.customRole)?.name || "Custom Role"}
+              </span>
+            </div>
+          </div>
+        ) : perms.length > 0 ? (
           <div className="bg-paper rounded-lg p-3">
             <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-2 flex items-center gap-1.5">
               <Eye size={12} /> Permissions for {form.designation}
@@ -944,7 +983,7 @@ function StaffFormPanel({ mode, initial, onClose, onSave, isSaving }) {
               ))}
             </div>
           </div>
-        )}
+        ) : null}
 
         {/* Shift Timing */}
         <div className="form-control">
@@ -1375,6 +1414,11 @@ export default function StaffPage() {
   const { data: businessProfile } = useQuery({
     queryKey: ["business-profile"],
     queryFn: fetchBusinessProfile,
+  });
+
+  const { data: roles = [] } = useQuery({
+    queryKey: ["roles"],
+    queryFn: fetchRoles,
   });
 
   const createMutation = useMutation({
@@ -1893,7 +1937,10 @@ export default function StaffPage() {
                 key={panelMode === "edit" ? `edit-${editTarget?.id}` : "add"}
                 mode={panelMode}
                 initial={editTarget || {}}
-                onClose={() => setPanelMode(null)}
+                roles={roles}
+                onClose={() => {
+                  setPanelMode(null);
+                }}
                 onSave={handleSave}
                 isSaving={isSaving}
               />
