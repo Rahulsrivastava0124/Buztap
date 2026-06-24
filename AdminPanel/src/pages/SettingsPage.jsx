@@ -292,6 +292,19 @@ function AiMenuUpload() {
   const handleFileChange = (e) => {
     const selected = e.target.files?.[0];
     if (!selected) return;
+
+    // Check if this file was already successfully uploaded
+    try {
+      const uploadedFiles = JSON.parse(window.localStorage.getItem('uploadedAiMenus') || '[]');
+      if (uploadedFiles.includes(selected.name)) {
+        toast.error(`The file "${selected.name}" has already been uploaded.`);
+        e.target.value = "";
+        return;
+      }
+    } catch (err) {
+      // ignore
+    }
+
     setFile(selected);
     if (selected.type.startsWith("image/")) {
       setPreview(URL.createObjectURL(selected));
@@ -348,6 +361,18 @@ function AiMenuUpload() {
 
       const res = await bulkCreateMenuItems(itemsToCreate);
       toast.success(`${res.count} items added to your menu!`);
+      
+      // Save file name to prevent duplicate upload
+      if (file?.name) {
+        try {
+          const uploadedFiles = JSON.parse(window.localStorage.getItem('uploadedAiMenus') || '[]');
+          if (!uploadedFiles.includes(file.name)) {
+            uploadedFiles.push(file.name);
+            window.localStorage.setItem('uploadedAiMenus', JSON.stringify(uploadedFiles));
+          }
+        } catch (err) {}
+      }
+
       setFile(null);
       setPreview(null);
       setParsedData(null);
