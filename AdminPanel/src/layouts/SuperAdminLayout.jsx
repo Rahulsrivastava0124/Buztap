@@ -21,11 +21,11 @@ import {
 } from "../services/superadminApi";
 
 const SIDEBAR_ITEMS = [
-  { path: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
-  { path: "/restaurants", icon: Store, label: "Restaurants" },
-  { path: "/audit-logs", icon: ListFilter, label: "Audit Logs" },
-  { path: "/system", icon: Activity, label: "System Health" },
-  { path: "/profile", icon: UserCircle, label: "Profile" },
+  { path: "/superadmin/dashboard", icon: LayoutDashboard, label: "Dashboard" },
+  { path: "/superadmin/restaurants", icon: Store, label: "Restaurants" },
+  { path: "/superadmin/audit-logs", icon: ListFilter, label: "Audit Logs" },
+  { path: "/superadmin/system", icon: Activity, label: "System Health" },
+  { path: "/superadmin/profile", icon: UserCircle, label: "Profile" },
 ];
 
 function SidebarContent({ compactSidebar, handleLogout }) {
