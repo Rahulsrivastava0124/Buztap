@@ -4,7 +4,7 @@ import AdminLayout from "./layouts/AdminLayout";
 import ErrorBoundary from "./components/shared/ErrorBoundary";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { useAuth } from "./context/AuthContext";
-import { getDefaultAdminPathByRole } from "./utils/access";
+import { getDefaultAdminPathByRole, PERMISSIONS } from "./utils/access";
 
 const AuthPage = lazy(() => import("./pages/AuthPage"));
 const ForgotPasswordPage = lazy(() => import("./pages/ForgotPasswordPage"));
@@ -36,7 +36,7 @@ function AppLoader() {
 }
 
 export default function App() {
-  const { role } = useAuth();
+  const { role, customRole } = useAuth();
   
   // Check if we are on the superadmin subdomain
   const isSuperAdminDomain = window.location.hostname.includes("superadmin");
@@ -82,54 +82,66 @@ export default function App() {
           <Route path="/:slug" element={<AdminLayout />}>
             <Route
               index
-              element={
-                <Navigate to={getDefaultAdminPathByRole(role)} replace />
-              }
+              element={<Navigate to={getDefaultAdminPathByRole(role, customRole)} replace />}
             />
             <Route path="dashboard/*" element={<Dashboard />} />
-            <Route
-              path="pos"
-              element={
-                <ErrorBoundary label="POS">
-                  <PosSystem />
-                </ErrorBoundary>
-              }
-            />
-            <Route
-              path="pos/menu/:tableId"
-              element={
-                <ErrorBoundary label="POS">
-                  <PosSystem />
-                </ErrorBoundary>
-              }
-            />
-            <Route
-              path="pos/menu/:tableId/checkout"
-              element={
-                <ErrorBoundary label="POS Checkout">
-                  <PosCheckout />
-                </ErrorBoundary>
-              }
-            />
-            <Route
-              path="pos/checkout"
-              element={
-                <ErrorBoundary label="POS Checkout">
-                  <PosCheckout />
-                </ErrorBoundary>
-              }
-            />
-            <Route path="orders" element={<OrdersPage />} />
-            <Route element={<ProtectedRoute minimumRole="manager" />}>
+            <Route element={<ProtectedRoute requiredPermission={PERMISSIONS.POS_ACCESS} />}>
+              <Route
+                path="pos"
+                element={
+                  <ErrorBoundary label="POS">
+                    <PosSystem />
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="pos/menu/:tableId"
+                element={
+                  <ErrorBoundary label="POS">
+                    <PosSystem />
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="pos/menu/:tableId/checkout"
+                element={
+                  <ErrorBoundary label="POS Checkout">
+                    <PosCheckout />
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="pos/checkout"
+                element={
+                  <ErrorBoundary label="POS Checkout">
+                    <PosCheckout />
+                  </ErrorBoundary>
+                }
+              />
+            </Route>
+            <Route element={<ProtectedRoute requiredPermission={PERMISSIONS.ORDERS_VIEW} />}>
+              <Route path="orders" element={<OrdersPage />} />
+            </Route>
+            <Route element={<ProtectedRoute minimumRole="manager" requiredPermission={PERMISSIONS.MENU_VIEW} />}>
               <Route path="menu" element={<MenuPage />} />
+            </Route>
+            
+            <Route element={<ProtectedRoute minimumRole="manager" requiredPermission={PERMISSIONS.STAFF_VIEW} />}>
               <Route path="staff" element={<StaffPage />} />
+            </Route>
+            
+            <Route element={<ProtectedRoute minimumRole="manager" requiredPermission={PERMISSIONS.DASHBOARD_FINANCE} />}>
               <Route path="reports" element={<ReportsPage />} />
+            </Route>
+            
+            <Route element={<ProtectedRoute minimumRole="manager" requiredPermission={PERMISSIONS.SETTINGS_MANAGE} />}>
               <Route path="offers" element={<OffersPage />} />
               <Route path="inventory" element={<InventoryPage />} />
               <Route path="settings" element={<SettingsPage />} />
-              <Route element={<ProtectedRoute requiredPermission="roles.manage" />}>
-                <Route path="settings/roles" element={<SettingsRolesPage />} />
-              </Route>
+            </Route>
+
+            <Route element={<ProtectedRoute minimumRole="admin" requiredPermission={PERMISSIONS.ROLES_MANAGE} />}>
+              <Route path="settings/roles" element={<SettingsRolesPage />} />
             </Route>
           </Route>
         </Route>

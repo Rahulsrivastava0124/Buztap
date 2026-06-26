@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Shield, Plus, Edit2, Trash2, X, Check } from "lucide-react";
+import { 
+  Shield, Plus, Edit2, Trash2, X, Check,
+  LayoutDashboard, MonitorSmartphone, UtensilsCrossed, Users2, Settings
+} from "lucide-react";
 import toast from "react-hot-toast";
 import {
   fetchRoles,
@@ -10,6 +13,60 @@ import {
   deleteRole,
 } from "../services/api";
 import PageShell from "../components/layout/PageShell";
+
+const PERMISSION_GROUPS = [
+  {
+    name: "Dashboard & Analytics",
+    icon: LayoutDashboard,
+    color: "bg-blue-50 text-blue-600 border-blue-200",
+    permissions: [
+      { id: "dashboard.overview", label: "View Overview Stats" },
+      { id: "dashboard.finance", label: "View Sales & Finance" },
+      { id: "dashboard.operations", label: "View Operations Data" },
+      { id: "dashboard.visitors", label: "View Visitor Analytics" }
+    ]
+  },
+  {
+    name: "Orders & POS",
+    icon: MonitorSmartphone,
+    color: "bg-emerald-50 text-emerald-600 border-emerald-200",
+    permissions: [
+      { id: "pos.access", label: "Access POS System" },
+      { id: "orders.view", label: "View KOTs & Orders" },
+      { id: "orders.manage", label: "Manage Orders (Update/Cancel)" },
+      { id: "kds.access", label: "Access Kitchen Display (KDS)" }
+    ]
+  },
+  {
+    name: "Menu & Inventory",
+    icon: UtensilsCrossed,
+    color: "bg-orange-50 text-saffron border-saffron-lt",
+    permissions: [
+      { id: "menu.view", label: "View Menu Items" },
+      { id: "menu.manage", label: "Manage Menu (Add/Edit)" }
+    ]
+  },
+  {
+    name: "Staff & Tables",
+    icon: Users2,
+    color: "bg-purple-50 text-purple-600 border-purple-200",
+    permissions: [
+      { id: "tables.manage", label: "Manage Tables & QR" },
+      { id: "staff.view", label: "View Staff" },
+      { id: "staff.manage", label: "Manage Staff" },
+      { id: "roles.manage", label: "Manage Custom Roles" }
+    ]
+  },
+  {
+    name: "Business Settings",
+    icon: Settings,
+    color: "bg-gray-100 text-gray-700 border-gray-300",
+    permissions: [
+      { id: "settings.manage", label: "Manage Business Settings" },
+      { id: "billing.manage", label: "Manage Subscriptions" }
+    ]
+  }
+];
 
 export default function SettingsRolesPage() {
   const queryClient = useQueryClient();
@@ -230,24 +287,69 @@ export default function SettingsRolesPage() {
                   />
                 </div>
 
-                <div className="pt-4 border-t border-border">
-                  <h4 className="font-semibold text-ink mb-3">Permissions</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {availablePermissions.map((perm) => (
-                      <label key={perm} className="flex items-start gap-3 p-3 rounded-lg border border-border hover:bg-paper cursor-pointer select-none">
-                        <div className="pt-0.5">
-                          <input
-                            type="checkbox"
-                            checked={formPermissions.includes(perm)}
-                            onChange={() => togglePermission(perm)}
-                            className="w-4 h-4 text-saffron rounded border-border focus:ring-saffron/30"
-                          />
+                <div className="pt-4 border-t border-border mt-4">
+                  <h4 className="font-semibold text-ink mb-3 text-lg">Granular Permissions</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {PERMISSION_GROUPS.map((group) => {
+                      const Icon = group.icon;
+                      const groupIds = group.permissions.map(p => p.id);
+                      const isAllChecked = groupIds.every(id => formPermissions.includes(id));
+                      const isSomeChecked = groupIds.some(id => formPermissions.includes(id));
+
+                      const toggleGroup = () => {
+                        if (isAllChecked) {
+                          setFormPermissions(prev => prev.filter(p => !groupIds.includes(p)));
+                        } else {
+                          setFormPermissions(prev => {
+                            const newPerms = new Set([...prev, ...groupIds]);
+                            return Array.from(newPerms);
+                          });
+                        }
+                      };
+
+                      return (
+                        <div key={group.name} className="rounded-xl border border-border overflow-hidden bg-white hover:shadow-md transition-shadow">
+                          <div 
+                            className="px-4 py-3 border-b border-border flex items-center justify-between cursor-pointer select-none bg-paper/50 hover:bg-paper transition-colors"
+                            onClick={toggleGroup}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className={`p-1.5 rounded-lg border ${group.color}`}>
+                                <Icon size={16} strokeWidth={2.5} />
+                              </div>
+                              <span className="font-bold text-ink">{group.name}</span>
+                            </div>
+                            <div className="flex items-center">
+                              <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors
+                                ${isAllChecked ? 'bg-saffron border-saffron text-white' : 
+                                  isSomeChecked ? 'bg-saffron/20 border-saffron/50 text-saffron' : 'border-border bg-white'}`}
+                              >
+                                {isAllChecked ? <Check size={14} strokeWidth={3} /> : 
+                                 isSomeChecked ? <div className="w-2.5 h-0.5 bg-saffron rounded-full" /> : null}
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div className="p-2 flex flex-col gap-1 bg-white">
+                            {group.permissions.map((perm) => (
+                              <label key={perm.id} className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-paper cursor-pointer transition-colors group">
+                                <div className="flex-shrink-0 relative">
+                                  <input
+                                    type="checkbox"
+                                    checked={formPermissions.includes(perm.id)}
+                                    onChange={() => togglePermission(perm.id)}
+                                    className="w-4 h-4 text-saffron rounded border-border focus:ring-saffron/30 transition-colors"
+                                  />
+                                </div>
+                                <span className="text-sm font-medium text-muted group-hover:text-ink transition-colors">
+                                  {perm.label}
+                                </span>
+                              </label>
+                            ))}
+                          </div>
                         </div>
-                        <div>
-                          <p className="text-sm font-medium text-ink">{perm}</p>
-                        </div>
-                      </label>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               </div>

@@ -45,13 +45,14 @@ const SIDEBAR_ITEMS = [
     icon: LayoutDashboard,
     label: "Dashboard",
     minimumRole: "cashier",
+    requiredPermission: PERMISSIONS.DASHBOARD_OVERVIEW,
   },
   {
     path: "/dashboard/finance",
     icon: Banknote,
     label: "Sales & Finance",
     minimumRole: "manager",
-    requiredPermission: PERMISSIONS.REPORTS_VIEW,
+    requiredPermission: PERMISSIONS.DASHBOARD_FINANCE,
   },
   {
     path: "/menu",
@@ -65,7 +66,7 @@ const SIDEBAR_ITEMS = [
     icon: Smartphone,
     label: "Operations & Tables",
     minimumRole: "cashier",
-    requiredPermission: PERMISSIONS.TABLES_MANAGE,
+    requiredPermission: PERMISSIONS.DASHBOARD_OPERATIONS,
   },
   {
     path: "/pos",
@@ -100,14 +101,14 @@ const SIDEBAR_ITEMS = [
     icon: Users,
     label: "Visitors",
     minimumRole: "manager",
-    requiredPermission: PERMISSIONS.REPORTS_VIEW,
+    requiredPermission: PERMISSIONS.DASHBOARD_VISITORS,
   },
   {
     path: "/reports",
     icon: FileBarChart2,
     label: "Reports",
     minimumRole: "manager",
-    requiredPermission: PERMISSIONS.REPORTS_VIEW,
+    requiredPermission: PERMISSIONS.DASHBOARD_FINANCE,
   },
   {
     path: "/offers",

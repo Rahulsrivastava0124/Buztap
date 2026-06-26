@@ -36,7 +36,7 @@ import {
 } from "../services/api";
 import ProtectedRoute from "../components/ProtectedRoute";
 import { useAuth } from "../context/AuthContext";
-import { hasRoleAccess } from "../utils/access";
+import { hasRoleAccess, PERMISSIONS } from "../utils/access";
 import KpiCard from "../components/shared/KpiCard";
 import OrderStatusBadge from "../components/shared/OrderStatusBadge";
 import ErrorBoundary from "../components/shared/ErrorBoundary";
@@ -117,18 +117,20 @@ export default function Dashboard() {
   return (
     <Routes>
       <Route index element={<Navigate to="overview" replace />} />
-      <Route
-        path="overview"
-        element={
-          <PageShell>
-            <ErrorBoundary label="Overview">
-              <OverviewTab />
-            </ErrorBoundary>
-          </PageShell>
-        }
-      />
+        <Route
+          path="overview"
+          element={
+            <ProtectedRoute requiredPermission={PERMISSIONS.DASHBOARD_OVERVIEW}>
+              <PageShell>
+                <ErrorBoundary label="Overview">
+                  <OverviewTab />
+                </ErrorBoundary>
+              </PageShell>
+            </ProtectedRoute>
+          }
+        />
 
-      <Route element={<ProtectedRoute minimumRole="manager" />}>
+      <Route element={<ProtectedRoute minimumRole="manager" requiredPermission={PERMISSIONS.DASHBOARD_FINANCE} />}>
         <Route
           path="finance"
           element={
@@ -151,18 +153,20 @@ export default function Dashboard() {
         />
       </Route>
 
-      <Route
-        path="operations"
-        element={
-          <PageShell>
-            <ErrorBoundary label="Operations">
-              <OperationsTab />
-            </ErrorBoundary>
-          </PageShell>
-        }
-      />
+        <Route
+          path="operations"
+          element={
+            <ProtectedRoute requiredPermission={PERMISSIONS.DASHBOARD_OPERATIONS}>
+              <PageShell>
+                <ErrorBoundary label="Operations">
+                  <OperationsTab />
+                </ErrorBoundary>
+              </PageShell>
+            </ProtectedRoute>
+          }
+        />
 
-      <Route element={<ProtectedRoute minimumRole="manager" />}>
+      <Route element={<ProtectedRoute minimumRole="manager" requiredPermission={PERMISSIONS.DASHBOARD_VISITORS} />}>
         <Route
           path="visitors"
           element={
