@@ -26,6 +26,7 @@ import {
   Check,
   X,
   Users,
+  Armchair,
 } from "lucide-react";
 import { motion as Motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
@@ -64,7 +65,7 @@ const SIDEBAR_ITEMS = [
   {
     path: "/dashboard/operations",
     icon: Smartphone,
-    label: "Operations & Tables",
+    label: "Operations",
     minimumRole: "cashier",
     requiredPermission: PERMISSIONS.DASHBOARD_OPERATIONS,
   },
@@ -118,6 +119,13 @@ const SIDEBAR_ITEMS = [
     requiredPermission: PERMISSIONS.SETTINGS_MANAGE,
   },
   {
+    path: "/tables",
+    icon: Armchair,
+    label: "Floor Plan",
+    minimumRole: "admin",
+    requiredPermission: PERMISSIONS.SETTINGS_MANAGE,
+  },
+  {
     path: "/settings",
     icon: Settings,
     label: "Settings",
@@ -164,12 +172,10 @@ function SidebarContent({
           const dynamicLabel =
             item.path === "/tables"
               ? isHotelMode
-                ? "Rooms"
-                : "Tables"
+                ? "Rooms Plan"
+                : "Floor Plan"
               : item.path === "/dashboard/operations"
-                ? isHotelMode
-                  ? "Operations & Rooms"
-                  : "Operations & Tables"
+                ? "Operations"
                 : item.label;
           return (
             <Link
@@ -504,8 +510,8 @@ export default function AdminLayout() {
               {location.pathname.includes("/finance") && "Sales & Finance"}
               {location.pathname.includes("/visitors") && "Visitors"}
               {location.pathname.includes("/menu") && "Menu & Products"}
-              {location.pathname.includes("/operations") &&
-                (isHotelMode ? "Operations & Rooms" : "Operations & Tables")}
+              {location.pathname.includes("/operations") && "Operations"}
+              {location.pathname.includes("/floor-plan") && (isHotelMode ? "Rooms Plan" : "Floor Plan")}
               {location.pathname.includes("/pos/checkout") && "POS Checkout"}
               {location.pathname.includes("/pos") &&
                 !location.pathname.includes("/checkout") &&

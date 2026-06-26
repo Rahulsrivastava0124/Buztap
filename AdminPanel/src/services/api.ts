@@ -128,6 +128,7 @@ export interface TableRecord {
   id: string;
   seats: number;
   status: "Occupied" | "Free" | "Reserved" | "Cleaning";
+  area?: string;
   guestName: string | null;
   updatedAt: string | null;
 }
@@ -824,6 +825,7 @@ export async function fetchTables(): Promise<TableRecord[]> {
   return rows.map((table) => ({
     id: table.tableId,
     seats: Number(table.seats || 0),
+    area: table.area || "Main Floor",
     status: table.status,
     guestName: table.guestName ?? null,
     updatedAt: table.updatedAt ?? null,
@@ -841,10 +843,52 @@ export async function updateTableStatus(
   return {
     id: table.tableId,
     seats: Number(table.seats || 0),
+    area: table.area || "Main Floor",
     status: table.status,
     guestName: table.guestName ?? null,
     updatedAt: table.updatedAt ?? null,
   };
+}
+
+export async function updateTableArea(
+  tableId: string,
+  area: string,
+): Promise<TableRecord> {
+  const table = await request<any>(`/tables/${tableId}`, {
+    method: "PUT",
+    body: JSON.stringify({ area }),
+  });
+  return {
+    id: table.tableId,
+    seats: Number(table.seats || 0),
+    area: table.area || "Main Floor",
+    status: table.status,
+    guestName: table.guestName ?? null,
+    updatedAt: table.updatedAt ?? null,
+  };
+}
+
+export async function createTable(
+  data: { tableId: string; seats: number; area: string }
+): Promise<TableRecord> {
+  const table = await request<any>("/tables", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+  return {
+    id: table.tableId,
+    seats: Number(table.seats || 0),
+    area: table.area || "Main Floor",
+    status: table.status,
+    guestName: table.guestName ?? null,
+    updatedAt: table.updatedAt ?? null,
+  };
+}
+
+export async function deleteTable(tableId: string): Promise<void> {
+  await request(`/tables/${tableId}`, {
+    method: "DELETE",
+  });
 }
 
 export async function fetchIncomingQrOrders(): Promise<

@@ -20,7 +20,7 @@ import {
 import { AnimatePresence, motion as Motion } from "framer-motion";
 import { useQueryClient, useQuery, useMutation } from "@tanstack/react-query";
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams, Link } from "react-router-dom";
 import toast from "react-hot-toast";
 import {
   fetchBusinessProfile,
@@ -785,6 +785,7 @@ const EMPTY_FORM = {
 
 // ─── Staff Form Panel ─────────────────────────────────────────────────────────
 function StaffFormPanel({ mode, initial, roles = [], onClose, onSave, isSaving }) {
+  const { slug } = useParams();
   const [form, setForm] = useState(
     mode === "edit"
       ? {
@@ -939,10 +940,13 @@ function StaffFormPanel({ mode, initial, roles = [], onClose, onSave, isSaving }
 
         {/* Designation / Role */}
         <div className="form-control">
-          <label className="label">
+          <label className="label flex items-center justify-between">
             <span className="label-text font-semibold">
               Designation / Role *
             </span>
+            <Link to={`/${slug}/settings/roles`} className="text-[11px] font-bold text-saffron hover:underline flex items-center gap-1 bg-saffron/10 px-2 py-1 rounded-md">
+              <Plus size={12} /> Create Custom Role
+            </Link>
           </label>
           <select
             className="select select-bordered w-full"
@@ -986,16 +990,23 @@ function StaffFormPanel({ mode, initial, roles = [], onClose, onSave, isSaving }
           </select>
         </div>
 
-        {/* Permissions preview */}
         {form.customRole ? (
           <div className="bg-paper rounded-lg p-3">
             <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-2 flex items-center gap-1.5">
               <Eye size={12} /> Access Granted by Custom Role
             </p>
             <div className="flex flex-wrap gap-1.5">
-              <span className="badge badge-sm badge-success">
-                {roles.find(r => r._id === form.customRole)?.name || "Custom Role"}
-              </span>
+              {(() => {
+                const roleObj = roles.find(r => r._id === form.customRole);
+                if (!roleObj || !roleObj.permissions || roleObj.permissions.length === 0) {
+                  return <span className="badge badge-sm badge-success">{roleObj?.name || "Custom Role"}</span>;
+                }
+                return roleObj.permissions.map(p => (
+                  <span key={p} className="badge badge-sm badge-success capitalize">
+                    {p.replace(/\./g, " ")}
+                  </span>
+                ));
+              })()}
             </div>
           </div>
         ) : perms.length > 0 ? (

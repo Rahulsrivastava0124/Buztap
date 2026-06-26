@@ -17,6 +17,7 @@ const StaffPage = lazy(() => import("./pages/StaffPage"));
 const ReportsPage = lazy(() => import("./pages/ReportsPage"));
 const OffersPage = lazy(() => import("./pages/OffersPage"));
 const SettingsPage = lazy(() => import("./pages/SettingsPage"));
+const TablesPage = lazy(() => import("./pages/TablesPage"));
 const MenuPage = lazy(() => import("./pages/MenuPage"));
 const SettingsRolesPage = lazy(() => import("./pages/SettingsRolesPage"));
 const SuperAdminLoginPage = lazy(() => import("./pages/SuperAdminLoginPage"));
@@ -138,6 +139,7 @@ export default function App() {
               <Route path="offers" element={<OffersPage />} />
               <Route path="inventory" element={<InventoryPage />} />
               <Route path="settings" element={<SettingsPage />} />
+              <Route path="tables" element={<TablesPage />} />
             </Route>
 
             <Route element={<ProtectedRoute minimumRole="admin" requiredPermission={PERMISSIONS.ROLES_MANAGE} />}>
