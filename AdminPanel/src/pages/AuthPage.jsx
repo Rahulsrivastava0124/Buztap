@@ -1,6 +1,15 @@
 import { useState, useEffect, useRef } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { Mail, Phone, ArrowRight } from "lucide-react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import {
+  Mail,
+  Phone,
+  ArrowRight,
+  ShieldCheck,
+  Lock,
+  Zap,
+  Star,
+  TrendingUp,
+} from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "../context/AuthContext";
 import {
@@ -10,6 +19,7 @@ import {
 } from "../services/api";
 import { getDefaultAdminPathByRole } from "../utils/access";
 import useSEO from "../hooks/useSEO";
+import ForgotPasswordForm from "./ForgotPasswordForm";
 
 export default function AuthPage() {
   useSEO("auth");
@@ -62,6 +72,11 @@ export default function AuthPage() {
 
   const { login, subdomain, role, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // The forgot-password section lives inside this same login card; the URL
+  // (/auth/forget-password) decides which view is shown.
+  const isForgotView = location.pathname.includes("forget-password");
 
   useEffect(() => {
     if (!isAuthenticated || !subdomain) return;
@@ -289,16 +304,31 @@ export default function AuthPage() {
               <br />
               <span className="text-saffron">Delight guests.</span>
             </h2>
-            <p className="text-[#e8e0d4] text-lg max-w-md leading-relaxed selection:bg-saffron/30">
+            <p className="text-[#e8e0d4] text-lg max-w-md leading-relaxed selection:bg-saffron/30 mb-8">
               Join thousands of restaurants revolutionizing the dining
               experience with instant digital ordering.
             </p>
+
+            <div className="flex flex-wrap items-center gap-x-8 gap-y-3 pt-6 border-t border-white/10">
+              <div className="flex items-center gap-2 text-white/90">
+                <Zap className="h-5 w-5 text-saffron" />
+                <span className="text-sm font-medium">Faster Service</span>
+              </div>
+              <div className="flex items-center gap-2 text-white/90">
+                <Star className="h-5 w-5 text-saffron" />
+                <span className="text-sm font-medium">Happy Guests</span>
+              </div>
+              <div className="flex items-center gap-2 text-white/90">
+                <TrendingUp className="h-5 w-5 text-saffron" />
+                <span className="text-sm font-medium">Higher Revenue</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
       {/* ── Right Side Form ── */}
-      <div className="flex flex-col justify-center p-6 sm:p-12 lg:p-20 relative bg-white min-h-screen md:min-h-0">
+      <div className="flex flex-col justify-center p-6 sm:p-12 lg:p-16 relative bg-gradient-to-br from-[#fbfbfb] to-[#f4f1ec] min-h-screen md:min-h-0">
         {/* Mobile Header */}
         <div className="md:hidden absolute top-6 left-6 right-6 flex items-center justify-end">
           <Link to="/" className="flex items-center gap-2 shrink-0">
@@ -312,8 +342,18 @@ export default function AuthPage() {
           </Link>
         </div>
 
-        <div className="w-full max-w-md mx-auto">
-          <div className="mb-8">
+        <div className="w-full max-w-md mx-auto bg-white rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.08)] border border-black/[0.04] p-7 sm:p-10">
+          {isForgotView ? (
+            <ForgotPasswordForm
+              initialEmail={isPhone ? "" : identifier.trim().toLowerCase()}
+              onBackToLogin={() => navigate("/auth")}
+            />
+          ) : (
+            <>
+          <div className="mb-8 flex flex-col items-center text-center">
+            <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-[#e8720c]/10">
+              <ShieldCheck className="h-7 w-7 text-[#e8720c]" />
+            </div>
             <h1 className="font-display text-3xl font-bold text-[#0f0e0b] mb-2">
               Welcome back
             </h1>
@@ -358,7 +398,7 @@ export default function AuthPage() {
               {/* Sub-links: Forgot password & switch login method */}
               <div className="flex items-center justify-between pt-1">
                 <Link
-                  to="/forgot-password"
+                  to="/auth/forget-password"
                   className="text-xs font-medium text-[#857c6e] hover:text-[#0f0e0b] hover:underline"
                 >
                   Forgot password?
@@ -390,12 +430,19 @@ export default function AuthPage() {
                 </>
               ) : (
                 <>
-                  Send OTP
+                  Submit
                   <ArrowRight size={16} />
                 </>
               )}
             </button>
           </form>
+
+          <div className="mt-7 flex items-center justify-center gap-1.5 text-[#9a9183]">
+            <Lock className="h-3.5 w-3.5" />
+            <span className="text-xs font-medium">Secure. Fast. No spam.</span>
+          </div>
+            </>
+          )}
         </div>
       </div>
 

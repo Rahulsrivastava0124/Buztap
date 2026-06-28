@@ -7,7 +7,6 @@ import { useAuth } from "./context/AuthContext";
 import { getDefaultAdminPathByRole } from "./utils/access";
 
 const AuthPage = lazy(() => import("./pages/AuthPage"));
-const ForgotPasswordPage = lazy(() => import("./pages/ForgotPasswordPage"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const PosSystem = lazy(() => import("./pages/PosSystem"));
 const PosCheckout = lazy(() => import("./pages/PosCheckout"));
@@ -65,7 +64,13 @@ export default function App() {
         {/* Public Routes */}
         <Route path="/" element={<Navigate to="/auth" replace />} />
         <Route path="/auth" element={<AuthPage />} />
-        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        {/* Forgot password renders inline inside the auth/login card */}
+        <Route path="/auth/forget-password" element={<AuthPage />} />
+        {/* Legacy path → keep old links working */}
+        <Route
+          path="/forgot-password"
+          element={<Navigate to="/auth/forget-password" replace />}
+        />
 
         {/* Super Admin Routes (Fallback for normal domain) */}
         <Route path="/superadmin" element={<SuperAdminLoginPage />} />
