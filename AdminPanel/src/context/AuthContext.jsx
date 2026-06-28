@@ -3,7 +3,6 @@ import {
   clearAuthSession,
   fetchAuthMe,
   loginAdmin,
-  loginStaff,
   logoutAdmin,
 } from "../services/api";
 
@@ -16,6 +15,9 @@ const BUSINESS_TYPES = {
 
 const AUTH_EXPIRES_AT_KEY = "adminAuthExpiresAt";
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+// Keep the session alive for the full life of the JWT (7d) so users stay
+// signed in after a passwordless OTP login instead of being logged out daily.
+const SESSION_DURATION_MS = 7 * ONE_DAY_MS;
 
 function getStoredValue(key) {
   return localStorage.getItem(key) ?? sessionStorage.getItem(key);
@@ -158,15 +160,15 @@ export function AuthProvider({ children }) {
     return { subdomain: resolvedSubdomain || "", role: data.role || "cashier" };
   };
 
-  const login = async (identifier, password, otpToken, loginMode = "admin") => {
+  const login = async (identifier, otpToken) => {
     try {
-      const data =
-        loginMode === "staff"
-          ? await loginStaff(identifier, password)
-          : await loginAdmin(identifier, password, otpToken);
+      const data = await loginAdmin(identifier, otpToken);
 
       const session = applyAuthSession(data);
-      setStoredValue(AUTH_EXPIRES_AT_KEY, String(Date.now() + ONE_DAY_MS));
+      setStoredValue(
+        AUTH_EXPIRES_AT_KEY,
+        String(Date.now() + SESSION_DURATION_MS),
+      );
       return { success: true, ...session };
     } catch {
       return { success: false, subdomain: "", role: "cashier" };

@@ -342,7 +342,9 @@ const loginSchema = z
     identifier: z.string().trim().min(1).optional(),
     email: z.string().trim().email().optional(),
     phone: z.string().trim().min(1).optional(),
-    password: z.string().min(1),
+    // Passwordless email/phone OTP login — password is optional and only
+    // verified when supplied (kept for backward compatibility).
+    password: z.string().min(1).optional(),
     businessId: z.string().optional(),
     otpToken: z.string().optional(),
   })
@@ -355,7 +357,8 @@ const loginOtpRequestSchema = z
     identifier: z.string().trim().min(1).optional(),
     email: z.string().trim().email().optional(),
     phone: z.string().trim().min(1).optional(),
-    password: z.string().min(1),
+    // Passwordless login: omit password to receive an OTP without credentials.
+    password: z.string().min(1).optional(),
     businessId: z.string().optional(),
   })
   .refine((data) => Boolean(data.identifier || data.email || data.phone), {
@@ -423,10 +426,17 @@ async function requestLoginOtp(req, res, next) {
       }
     }
 
-    if (!user) return res.status(401).json({ error: "Invalid credentials" });
+    if (!user) {
+      return res
+        .status(404)
+        .json({ error: "No account found for this email or phone number" });
+    }
 
-    const valid = await bcrypt.compare(password, user.passwordHash);
-    if (!valid) return res.status(401).json({ error: "Invalid credentials" });
+    // Passwordless flow: only verify the password when one is supplied.
+    if (password) {
+      const valid = await bcrypt.compare(password, user.passwordHash);
+      if (!valid) return res.status(401).json({ error: "Invalid credentials" });
+    }
 
     if (!user.isActive) {
       return res.status(403).json({ error: "Account disabled" });
@@ -557,8 +567,12 @@ async function login(req, res, next) {
       }
     }
 
-    const valid = await bcrypt.compare(password, user.passwordHash);
-    if (!valid) return res.status(401).json({ error: "Invalid credentials" });
+    // Identity is proven by the verified email OTP token; the password is
+    // optional and only checked when explicitly provided.
+    if (password) {
+      const valid = await bcrypt.compare(password, user.passwordHash);
+      if (!valid) return res.status(401).json({ error: "Invalid credentials" });
+    }
 
     if (!user.isActive)
       return res.status(403).json({ error: "Account disabled" });
