@@ -5,12 +5,12 @@ const itemSchema = z.object({
   name: z.string().min(1),
   description: z.string().optional(),
   category: z.string().min(1),
-  price: z.number().positive(),
+  price: z.number().min(0),
   priceOptions: z
     .array(
       z.object({
         label: z.string().min(1),
-        price: z.number().positive(),
+        price: z.number().min(0),
       }),
     )
     .optional(),
@@ -99,4 +99,36 @@ async function remove(req, res, next) {
   }
 }
 
-module.exports = { getAll, getOne, getCategories, create, update, remove };
+async function bulkCreate(req, res, next) {
+  try {
+    const itemsData = z.array(itemSchema).parse(req.body.items);
+    
+    // Fetch existing item names for this business to avoid duplicates
+    const existingItems = await MenuItem.find({ businessId: req.user.businessId }, 'name');
+    const existingNames = new Set(existingItems.map(i => i.name.toLowerCase().trim()));
+
+    const itemsToInsert = [];
+    for (const data of itemsData) {
+      const normalizedName = data.name.toLowerCase().trim();
+      if (!existingNames.has(normalizedName)) {
+        itemsToInsert.push({
+          ...data,
+          businessId: req.user.businessId,
+        });
+        // Add to set to prevent duplicates within the uploaded batch itself
+        existingNames.add(normalizedName);
+      }
+    }
+    
+    if (itemsToInsert.length === 0) {
+      return res.status(400).json({ error: "All items provided already exist in your menu." });
+    }
+
+    const insertedItems = await MenuItem.insertMany(itemsToInsert);
+    res.status(201).json({ success: true, count: insertedItems.length, items: insertedItems });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { getAll, getOne, getCategories, create, bulkCreate, update, remove };

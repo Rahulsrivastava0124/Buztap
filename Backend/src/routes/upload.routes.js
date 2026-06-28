@@ -27,12 +27,21 @@ const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
   fileFilter: (_req, file, cb) => {
-    if (file.mimetype.startsWith("image/")) return cb(null, true);
-    cb(new Error("Only image files are allowed"));
+    if (file.mimetype.startsWith("image/") || file.mimetype === "application/pdf") {
+      return cb(null, true);
+    }
+    cb(new Error("Only images and PDF files are allowed"));
   },
 });
 
 const router = Router();
+const { parseMenuUpload } = require("../controllers/menuUpload.controller");
+
+router.post("/ocr-menu", upload.single("image"), async (req, res, next) => {
+  // Wrap req.file if it expects 'menuFile' or just use parseMenuUpload directly
+  // parseMenuUpload checks for req.file
+  return parseMenuUpload(req, res, next);
+});
 
 router.post(
   "/",

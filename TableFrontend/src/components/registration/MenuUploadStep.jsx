@@ -18,7 +18,7 @@ export default function MenuUploadStep({
       <label className="block border-2 border-dashed border-[#e0d9ce] bg-[#faf7f2] rounded-2xl p-8 text-center cursor-pointer hover:border-[#e8720c] transition-colors">
         <input
           type="file"
-          accept="image/*"
+          accept="image/*,application/pdf"
           onChange={onFileChange}
           className="hidden"
         />
@@ -26,7 +26,7 @@ export default function MenuUploadStep({
         <p className="text-sm font-semibold text-[#0f0e0b]">
           Drag & drop or click to upload
         </p>
-        <p className="text-xs text-[#857c6e] mt-1">PNG, JPG, WEBP supported</p>
+        <p className="text-xs text-[#857c6e] mt-1">PNG, JPG, WEBP, PDF supported</p>
       </label>
 
       <label className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-[#e0d9ce] text-[#0f0e0b] font-semibold text-sm cursor-pointer hover:border-[#e8720c] transition-colors">
@@ -43,11 +43,17 @@ export default function MenuUploadStep({
 
       {selectedFile && (
         <div className="rounded-2xl border border-[#e0d9ce] p-3 bg-white flex items-center gap-3">
-          <img
-            src={previewUrl}
-            alt="menu preview"
-            className="w-16 h-16 rounded-lg object-cover"
-          />
+          {selectedFile.type === "application/pdf" ? (
+            <div className="w-16 h-16 rounded-lg bg-[#faf7f2] border border-[#e0d9ce] flex flex-col items-center justify-center">
+              <span className="text-xs font-bold text-[#857c6e]">PDF</span>
+            </div>
+          ) : (
+            <img
+              src={previewUrl}
+              alt="menu preview"
+              className="w-16 h-16 rounded-lg object-cover"
+            />
+          )}
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-[#0f0e0b] truncate">
               {selectedFile.name}

@@ -1,7 +1,7 @@
 const jwt = require("jsonwebtoken");
 const { isBlacklisted } = require("./tokenBlacklist");
 
-function authenticate(req, res, next) {
+function superadminAuth(req, res, next) {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     return res.status(401).json({ error: "No token provided" });
@@ -15,19 +15,15 @@ function authenticate(req, res, next) {
 
   try {
     const payload = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = {
-      userId: payload.sub || payload.userId,
-      businessId: payload.businessId,
-      role: payload.role,
-      customRole: payload.customRole,
-      businessType: payload.businessType,
-    };
+    if (payload.role !== "superadmin") {
+      return res.status(403).json({ error: "Super Admin access required" });
+    }
+    req.superadmin = { role: "superadmin" };
     req.token = token;
-    req.tokenExp = payload.exp * 1000; // ms
     next();
   } catch {
     return res.status(401).json({ error: "Invalid or expired token" });
   }
 }
 
-module.exports = authenticate;
+module.exports = superadminAuth;

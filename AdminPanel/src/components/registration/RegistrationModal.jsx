@@ -81,8 +81,8 @@ export default function RegistrationModal({ isOpen, onClose, onComplete }) {
 
   return (
     <div className="fixed inset-0 z-[70] bg-black/45 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="w-full max-w-4xl max-h-[92vh] overflow-y-auto rounded-3xl bg-white border border-[#e0d9ce] shadow-[0_25px_80px_rgba(15,14,11,0.28)]">
-        <div className="p-5 sm:p-7 border-b border-[#f0ebe0] flex items-center justify-between">
+      <div className="w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden rounded-3xl bg-white border border-[#e0d9ce] shadow-[0_25px_80px_rgba(15,14,11,0.28)]">
+        <div className="p-5 sm:p-7 border-b border-[#f0ebe0] flex items-center justify-between shrink-0">
           <div>
             <h2 className="text-2xl font-bold text-[#0f0e0b]">
               Restaurant Registration
@@ -94,18 +94,18 @@ export default function RegistrationModal({ isOpen, onClose, onComplete }) {
           <button
             type="button"
             onClick={closeAndReset}
-            className="w-9 h-9 rounded-full border border-[#e0d9ce] flex items-center justify-center text-[#857c6e] hover:text-[#0f0e0b]"
+            className="w-9 h-9 rounded-[2px] border border-[#e0d9ce] flex items-center justify-center text-[#857c6e] hover:text-[#0f0e0b]"
           >
             <X size={17} />
           </button>
         </div>
 
-        <div className="px-5 sm:px-7 pt-5">
+        <div className="px-5 sm:px-7 pt-5 shrink-0">
           <div className="grid grid-cols-3 gap-2">
             {STEPS.map((step) => (
               <div key={step.id} className="flex items-center gap-2">
                 <div
-                  className={`w-7 h-7 rounded-full text-xs font-bold flex items-center justify-center ${
+                  className={`w-7 h-7 rounded-[2px] text-xs font-bold flex items-center justify-center ${
                     step.id <= currentStep
                       ? "bg-[#e8720c] text-white"
                       : "bg-[#f5f0e8] text-[#857c6e]"
@@ -121,7 +121,7 @@ export default function RegistrationModal({ isOpen, onClose, onComplete }) {
           </div>
         </div>
 
-        <div className="p-5 sm:p-7">
+        <div className="p-5 sm:p-7 overflow-y-auto flex-1">
           {currentStep === 1 && (
             <MenuUploadStep
               selectedFile={registrationData.menuImage}
@@ -158,7 +158,7 @@ export default function RegistrationModal({ isOpen, onClose, onComplete }) {
           )}
         </div>
 
-        <div className="px-5 sm:px-7 pb-6 flex items-center justify-between gap-3">
+        <div className="px-5 sm:px-7 pb-6 flex items-center justify-between gap-3 shrink-0">
           <button
             type="button"
             onClick={handleBack}

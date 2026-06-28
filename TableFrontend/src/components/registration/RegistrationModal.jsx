@@ -22,7 +22,13 @@ import { useRestroAuth } from "../../context/RestroAuthContext";
 import toast from "react-hot-toast";
 import MenuUploadStep from "./MenuUploadStep";
 import RegistrationReviewStep from "./RegistrationReviewStep";
-import { requestEmailOtp, verifyEmailOtp } from "../../services/api";
+import {
+  checkPhoneAvailability,
+  createMenuItem,
+  extractMenuFromImage,
+  requestEmailOtp,
+  verifyEmailOtp,
+} from "../../services/api";
 
 const STEPS = [
   { id: 1, label: "Account" },
@@ -77,18 +83,10 @@ function AccountStep({
 }) {
   const [showPw, setShowPw] = useState(false);
   return (
-    <div className="space-y-4">
-      <div>
-        <h3 className="text-xl font-bold text-[#0f0e0b]">
-          Create your account
-        </h3>
-        <p className="text-sm text-[#857c6e] mt-1">
-          Owner / admin credentials to access your dashboard.
-        </p>
-      </div>
-      <div className="space-y-3">
-        <div className="grid grid-cols-2 gap-3">
-          <label className="col-span-2 block space-y-1">
+    <div className="space-y-2">
+      <div className="space-y-2">
+        <div className="grid grid-cols-2 gap-2">
+          <label className="col-span-2 block space-y-0.5">
             <span className="text-xs font-semibold text-[#0f0e0b]">
               Restaurant / Hotel Name
             </span>
@@ -107,7 +105,7 @@ function AccountStep({
             </div>
             <FieldError msg={errors?.businessName} />
           </label>
-          <label className="col-span-2 block space-y-1">
+          <label className="col-span-2 block space-y-0.5">
             <span className="text-xs font-semibold text-[#0f0e0b]">
               Business Type
             </span>
@@ -122,7 +120,7 @@ function AccountStep({
             </select>
           </label>
         </div>
-        <label className="block space-y-1">
+        <label className="block space-y-0.5">
           <span className="text-xs font-semibold text-[#0f0e0b]">
             Your Name
           </span>
@@ -141,7 +139,7 @@ function AccountStep({
           </div>
           <FieldError msg={errors?.ownerName} />
         </label>
-        <label className="block space-y-1">
+        <label className="block space-y-0.5">
           <span className="text-xs font-semibold text-[#0f0e0b]">Email</span>
           <div className="relative">
             <Mail
@@ -212,7 +210,7 @@ function AccountStep({
           ) : null}
           <FieldError msg={errors?.otp} />
         </label>
-        <label className="block space-y-1">
+        <label className="block space-y-0.5">
           <span className="text-xs font-semibold text-[#0f0e0b]">Password</span>
           <div className="relative">
             <Lock
@@ -242,17 +240,21 @@ function AccountStep({
   );
 }
 
-function ProfileStep({ data, onChange, errors }) {
+function ProfileStep({ data, onChange, errors, phoneCheckStatus }) {
+  const phoneMessage =
+    phoneCheckStatus === "checking"
+      ? "Checking phone number..."
+      : phoneCheckStatus === "available"
+        ? "Phone number verified"
+        : phoneCheckStatus === "taken"
+          ? "This phone number is already registered"
+          : null;
+  const phoneFieldError = phoneCheckStatus === "taken" ? null : errors?.phone;
+
   return (
-    <div className="space-y-4">
-      <div>
-        <h3 className="text-xl font-bold text-[#0f0e0b]">Restaurant details</h3>
-        <p className="text-sm text-[#857c6e] mt-1">
-          These details appear on your guest menu and QR page.
-        </p>
-      </div>
-      <div className="space-y-3">
-        <label className="block space-y-1">
+    <div className="space-y-2">
+      <div className="space-y-2">
+        <label className="block space-y-0.5">
           <span className="text-xs font-semibold text-[#0f0e0b]">
             No. of Tables
           </span>
@@ -273,7 +275,7 @@ function ProfileStep({ data, onChange, errors }) {
             />
           </div>
         </label>
-        <label className="block space-y-1">
+        <label className="block space-y-0.5">
           <span className="text-xs font-semibold text-[#0f0e0b]">
             Cuisine Type
           </span>
@@ -298,9 +300,9 @@ function ProfileStep({ data, onChange, errors }) {
           </div>
           <FieldError msg={errors?.cuisine} />
         </label>
-        <label className="block space-y-1">
+        <label className="block space-y-0.5">
           <span className="text-xs font-semibold text-[#0f0e0b]">
-            Phone Number
+            Primary Phone Number
           </span>
           <div className="relative">
             <Phone
@@ -312,12 +314,25 @@ function ProfileStep({ data, onChange, errors }) {
               type="tel"
               value={data.phone}
               onChange={onChange}
-              className="w-full pl-9 pr-4 py-2.5 bg-[#faf7f2] border border-[#e0d9ce] rounded-lg text-sm text-[#0f0e0b] placeholder-[#b0a898] focus:outline-none focus:border-[#e8720c] focus:ring-1 focus:ring-[#e8720c]"
+              className="w-full pl-9 pr-10 py-2.5 bg-[#faf7f2] border border-[#e0d9ce] rounded-lg text-sm text-[#0f0e0b] placeholder-[#b0a898] focus:outline-none focus:border-[#e8720c] focus:ring-1 focus:ring-[#e8720c]"
               placeholder="+91 98765 43210"
             />
+            {phoneCheckStatus === "checking" ? (
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[#e8720c]">
+                <Loader2 size={15} className="animate-spin" />
+              </div>
+            ) : null}
           </div>
+          {phoneMessage ? (
+            <p
+              className={`text-xs mt-1 ${phoneCheckStatus === "available" ? "text-green-600" : phoneCheckStatus === "taken" ? "text-red-500" : "text-[#857c6e]"}`}
+            >
+              {phoneMessage}
+            </p>
+          ) : null}
+          <FieldError msg={phoneFieldError} />
         </label>
-        <label className="block space-y-1">
+        <label className="block space-y-0.5">
           <span className="text-xs font-semibold text-[#0f0e0b]">Address</span>
           <div className="relative">
             <MapPin
@@ -413,6 +428,7 @@ function validateAccount(d, otpVerifiedToken, requireOtp = true) {
 
 function validateProfile(d) {
   const e = {};
+  if (!d.phone?.trim()) e.phone = "Primary phone number is required";
   if (!d.cuisine) e.cuisine = "Select a cuisine type";
   if (!d.address.trim()) e.address = "Address is required";
   return e;
@@ -435,9 +451,19 @@ export default function RegistrationModal({ isOpen, onClose, onComplete }) {
   const [cooldownSecs, setCooldownSecs] = useState(0);
   const cooldownTimer = useRef(null);
   const [profile, setProfile] = useState(EMPTY_PROFILE);
+  const [phoneCheckStatus, setPhoneCheckStatus] = useState("idle");
+  const phoneCheckTimerRef = useRef(null);
+  const phoneCheckControllerRef = useRef(null);
   const [menuImage, setMenuImage] = useState(null);
   const [aiMenuJson, setAiMenuJson] = useState(null);
   const [completedBusinessName, setCompletedBusinessName] = useState("");
+
+  useEffect(() => {
+    return () => {
+      clearTimeout(phoneCheckTimerRef.current);
+      phoneCheckControllerRef.current?.abort();
+    };
+  }, []);
 
   useEffect(() => {
     if (cooldownEnd <= Date.now()) {
@@ -478,6 +504,9 @@ export default function RegistrationModal({ isOpen, onClose, onComplete }) {
     setCooldownSecs(0);
     clearInterval(cooldownTimer.current);
     setProfile(EMPTY_PROFILE);
+    setPhoneCheckStatus("idle");
+    clearTimeout(phoneCheckTimerRef.current);
+    phoneCheckControllerRef.current?.abort();
     setMenuImage(null);
     setAiMenuJson(null);
     clearError();
@@ -560,8 +589,68 @@ export default function RegistrationModal({ isOpen, onClose, onComplete }) {
     }
   }
 
+  async function checkPhoneAvailabilityForInput(nextPhone) {
+    const normalizedPhone = String(nextPhone || "").replace(/\D/g, "");
+
+    if (normalizedPhone.length !== 10) {
+      setPhoneCheckStatus("idle");
+      return;
+    }
+
+    phoneCheckControllerRef.current?.abort();
+    const controller = new AbortController();
+    phoneCheckControllerRef.current = controller;
+    setPhoneCheckStatus("checking");
+
+    try {
+      const result = await checkPhoneAvailability(normalizedPhone, {
+        signal: controller.signal,
+      });
+
+      if (controller.signal.aborted) return;
+
+      if (result?.available) {
+        setPhoneCheckStatus("available");
+        setFieldErrors((prev) => ({ ...prev, phone: undefined }));
+      } else {
+        setPhoneCheckStatus("taken");
+        setFieldErrors((prev) => ({
+          ...prev,
+          phone: "This phone number is already registered",
+        }));
+      }
+    } catch (err) {
+      if (controller.signal.aborted) return;
+      setPhoneCheckStatus("idle");
+      setFieldErrors((prev) => ({
+        ...prev,
+        phone: err?.message || "Unable to verify phone number",
+      }));
+    }
+  }
+
   function onProfileChange(e) {
     const { name, value } = e.target;
+
+    if (name === "phone") {
+      setProfile((prev) => ({ ...prev, phone: value }));
+      setFieldErrors((prev) => ({ ...prev, phone: undefined }));
+
+      const normalizedPhone = String(value || "").replace(/\D/g, "");
+      if (normalizedPhone.length !== 10) {
+        setPhoneCheckStatus("idle");
+        clearTimeout(phoneCheckTimerRef.current);
+        return;
+      }
+
+      setPhoneCheckStatus("checking");
+      clearTimeout(phoneCheckTimerRef.current);
+      phoneCheckTimerRef.current = setTimeout(() => {
+        void checkPhoneAvailabilityForInput(normalizedPhone);
+      }, 400);
+      return;
+    }
+
     setProfile((prev) => ({ ...prev, [name]: value }));
     setFieldErrors((prev) => ({ ...prev, [name]: undefined }));
   }
@@ -594,13 +683,23 @@ export default function RegistrationModal({ isOpen, onClose, onComplete }) {
         setFieldErrors(errs);
         return;
       }
+      if (phoneCheckStatus !== "available") {
+        setFieldErrors((prev) => ({
+          ...prev,
+          phone:
+            phoneCheckStatus === "checking"
+              ? "Checking phone number..."
+              : "Please verify the phone number first",
+        }));
+        return;
+      }
       setStep(3);
     } else if (step === 3) {
       await processAndRegister();
     }
   }
 
-  async function processAndRegister() {
+  async function processAndRegister({ skipMenu = false } = {}) {
     setStep("processing");
     clearError();
     let phase = 0;
@@ -609,16 +708,22 @@ export default function RegistrationModal({ isOpen, onClose, onComplete }) {
       setProcessingPhase(phase);
     }, 700);
 
-    if (menuImage) {
-      await new Promise((r) => setTimeout(r, 2400));
-      setAiMenuJson({
-        items: [
-          { name: "Paneer Butter Masala", category: "Mains", price: 280 },
-          { name: "Dal Makhani", category: "Mains", price: 220 },
-          { name: "Garlic Naan", category: "Breads", price: 60 },
-          { name: "Mango Lassi", category: "Beverages", price: 120 },
-        ],
-      });
+    if (menuImage && !skipMenu) {
+      try {
+        const extracted = await extractMenuFromImage(menuImage);
+        setAiMenuJson({ items: extracted.items || [] });
+      } catch (err) {
+        clearInterval(tick);
+        if (err?.code === "VISION_BILLING_REQUIRED" || err?.status === 402) {
+          toast.error(
+            "Google Vision billing is not enabled. Enable billing in Google Cloud and retry OCR, or continue registration without image processing.",
+          );
+        } else {
+          toast.error(err?.message || "Failed to extract menu from image");
+        }
+        setStep(3);
+        return;
+      }
     }
 
     const autoUsername =
@@ -646,20 +751,91 @@ export default function RegistrationModal({ isOpen, onClose, onComplete }) {
     clearInterval(tick);
 
     if (!result.success) {
-      toast.error(result.error || "Registration failed. Please try again.");
-      setStep(1);
+      const errorMessage = String(result.error || "");
+      const isPhoneDuplicate = /phone|registered|already/i.test(errorMessage);
+
+      if (isPhoneDuplicate) {
+        setPhoneCheckStatus("taken");
+        setFieldErrors((prev) => ({
+          ...prev,
+          phone: "This phone number is already registered",
+        }));
+        if (!skipMenu) {
+          setStep(2);
+        } else {
+          setStep(3);
+        }
+        toast.error("This phone number is already registered");
+      } else {
+        toast.error(result.error || "Registration failed. Please try again.");
+        if (!skipMenu) {
+          setStep(1);
+        } else {
+          setStep(3);
+        }
+      }
       return;
     }
 
     toast.success(`Welcome! ${account.businessName} is all set 🎉`);
     setCompletedBusinessName(account.businessName);
-    setStep(menuImage ? "review" : "done");
+    setStep(menuImage && !skipMenu ? "review" : "done");
+  }
+
+  async function handleSkipMenu() {
+    if (loading) return;
+    toast.success("Menu step skipped. Continuing without menu upload.");
+    await processAndRegister({ skipMenu: true });
+  }
+
+  async function handleReviewComplete(editedItems) {
+    const rows = Array.isArray(editedItems) ? editedItems : [];
+    if (rows.length === 0) {
+      setStep("done");
+      return;
+    }
+
+    setStep("processing");
+    setProcessingPhase(2);
+
+    try {
+      for (const row of rows) {
+        const name = String(row?.name || "").trim();
+        const category = String(row?.category || "Mains").trim() || "Mains";
+        const price = Number(row?.price || 0);
+
+        if (!name || !Number.isFinite(price) || price <= 0) continue;
+
+        await createMenuItem({
+          name,
+          category,
+          price,
+          description: String(row?.description || "").trim(),
+          isVeg: row?.isVeg !== false,
+          isAvailable: true,
+          preparationTime: 15,
+          spiceLevel: 2,
+          allergens: [],
+        });
+      }
+
+      toast.success("Menu created from uploaded image");
+      setStep("done");
+    } catch (err) {
+      toast.error(err?.message || "Failed to create menu items");
+      setStep("review");
+    }
   }
 
   const isProcessing = step === "processing";
   const isReview = step === "review";
   const isDoneStep = step === "done";
   const numericStep = typeof step === "number" ? step : null;
+  const phoneAlreadyRegistered = Boolean(
+    numericStep === 2 &&
+    fieldErrors.phone &&
+    /already registered/i.test(fieldErrors.phone),
+  );
 
   return (
     <div className="fixed inset-0 z-[70] bg-black/45 backdrop-blur-sm flex items-center justify-center p-4">
@@ -667,10 +843,10 @@ export default function RegistrationModal({ isOpen, onClose, onComplete }) {
         initial={{ opacity: 0, scale: 0.96, y: 16 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 0.2 }}
-        className="w-full max-w-xl max-h-[92vh] overflow-y-auto rounded-3xl bg-white border border-[#e0d9ce] shadow-[0_25px_80px_rgba(15,14,11,0.28)]"
+        className="w-full max-w-xl max-h-[92vh] flex flex-col overflow-hidden rounded-3xl bg-white border border-[#e0d9ce] shadow-[0_25px_80px_rgba(15,14,11,0.28)]"
       >
         {!isDoneStep && (
-          <div className="p-5 sm:p-6 border-b border-[#f0ebe0] flex items-center justify-between">
+          <div className="p-4 sm:px-6 sm:py-4 border-b border-[#f0ebe0] flex items-center justify-between shrink-0 bg-white z-10">
             <div>
               <h2 className="text-xl font-bold text-[#0f0e0b]">
                 Restaurant Registration
@@ -695,7 +871,7 @@ export default function RegistrationModal({ isOpen, onClose, onComplete }) {
         )}
 
         {numericStep && !isDoneStep && (
-          <div className="px-5 sm:px-6 pt-4">
+          <div className="px-4 sm:px-6 pt-3 shrink-0 bg-white z-10">
             <div className="flex gap-1">
               {STEPS.map((s) => (
                 <div
@@ -717,7 +893,7 @@ export default function RegistrationModal({ isOpen, onClose, onComplete }) {
           </div>
         )}
 
-        <div className="p-5 sm:p-6">
+        <div className="p-4 sm:p-6 overflow-y-auto flex-1">
           <AnimatePresence mode="wait">
             {isProcessing && (
               <Motion.div
@@ -752,7 +928,7 @@ export default function RegistrationModal({ isOpen, onClose, onComplete }) {
               >
                 <RegistrationReviewStep
                   aiGeneratedData={aiMenuJson}
-                  onComplete={() => setStep("done")}
+                  onComplete={handleReviewComplete}
                 />
               </Motion.div>
             )}
@@ -796,6 +972,7 @@ export default function RegistrationModal({ isOpen, onClose, onComplete }) {
                   data={profile}
                   onChange={onProfileChange}
                   errors={fieldErrors}
+                  phoneCheckStatus={phoneCheckStatus}
                 />
               </Motion.div>
             )}
@@ -817,10 +994,12 @@ export default function RegistrationModal({ isOpen, onClose, onComplete }) {
               </Motion.div>
             )}
           </AnimatePresence>
+        </div>
 
-          {numericStep && !isDoneStep && (
+        {numericStep && !isDoneStep && (
+          <div className="px-4 sm:px-6 pb-4 shrink-0 bg-white z-10">
             <div
-              className={`flex mt-6 gap-3 ${numericStep > 1 ? "justify-between" : "justify-end"}`}
+              className={`flex pt-2 gap-3 ${numericStep > 1 ? "justify-between" : "justify-end"}`}
             >
               {numericStep > 1 && (
                 <button
@@ -835,7 +1014,7 @@ export default function RegistrationModal({ isOpen, onClose, onComplete }) {
                 {numericStep === 3 && (
                   <button
                     type="button"
-                    onClick={processAndRegister}
+                    onClick={handleSkipMenu}
                     className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-[#e0d9ce] text-sm font-semibold text-[#857c6e] hover:text-[#0f0e0b] hover:border-[#0f0e0b] transition-colors"
                   >
                     Skip
@@ -846,6 +1025,8 @@ export default function RegistrationModal({ isOpen, onClose, onComplete }) {
                   onClick={handleNext}
                   disabled={
                     loading ||
+                    (numericStep === 2 && phoneCheckStatus !== "available") ||
+                    phoneAlreadyRegistered ||
                     (numericStep === 1 && (sendingOtp || verifyingOtp))
                   }
                   className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-[#e8720c] hover:bg-[#d4620a] text-white text-sm font-semibold transition-colors disabled:opacity-50 shadow-[0_4px_14px_rgba(232,114,12,0.2)]"
@@ -871,8 +1052,8 @@ export default function RegistrationModal({ isOpen, onClose, onComplete }) {
                 </button>
               </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </Motion.div>
     </div>
   );

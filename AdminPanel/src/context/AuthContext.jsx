@@ -44,6 +44,14 @@ export function AuthProvider({ children }) {
   const [role, setRole] = useState(
     () => getStoredValue("adminAuthRole") || "cashier",
   );
+  const [customRole, setCustomRole] = useState(() => {
+    try {
+      const stored = getStoredValue("adminCustomRole");
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  });
   const [businessType, setBusinessType] = useState(
     () => getStoredValue("adminBusinessType") || BUSINESS_TYPES.RESTRO,
   );
@@ -80,6 +88,13 @@ export function AuthProvider({ children }) {
 
         setIsAuthenticated(true);
         setRole(me.role || "cashier");
+        if (me.customRole) {
+          setCustomRole(me.customRole);
+          setStoredValue("adminCustomRole", JSON.stringify(me.customRole));
+        } else {
+          setCustomRole(null);
+          setStoredValue("adminCustomRole", "");
+        }
         setBusinessType(me.businessType || BUSINESS_TYPES.RESTRO);
         setStoredValue("adminAuth", "true");
         setStoredValue("adminAuthRole", me.role || "cashier");
@@ -105,6 +120,7 @@ export function AuthProvider({ children }) {
         if (!mounted) return;
         setIsAuthenticated(false);
         setRole("cashier");
+        setCustomRole(null);
         setBusinessType(BUSINESS_TYPES.RESTRO);
         setBusinessName("");
         setUserName("");
@@ -125,6 +141,7 @@ export function AuthProvider({ children }) {
     const handleExpired = () => {
       setIsAuthenticated(false);
       setRole("cashier");
+      setCustomRole(null);
       setBusinessType(BUSINESS_TYPES.RESTRO);
       setBusinessName("");
       setUserName("");
@@ -137,6 +154,13 @@ export function AuthProvider({ children }) {
   const applyAuthSession = (data) => {
     setIsAuthenticated(true);
     setRole(data.role || "cashier");
+    if (data.customRole) {
+      setCustomRole(data.customRole);
+      setStoredValue("adminCustomRole", JSON.stringify(data.customRole));
+    } else {
+      setCustomRole(null);
+      setStoredValue("adminCustomRole", "");
+    }
     setBusinessType(data.businessType || BUSINESS_TYPES.RESTRO);
     setStoredValue("adminAuth", "true");
     setStoredValue("adminAuthRole", data.role || "cashier");
@@ -179,6 +203,7 @@ export function AuthProvider({ children }) {
     await logoutAdmin();
     setIsAuthenticated(false);
     setRole("cashier");
+    setCustomRole(null);
     setBusinessType(BUSINESS_TYPES.RESTRO);
     setBusinessName("");
     setUserName("");
@@ -191,6 +216,7 @@ export function AuthProvider({ children }) {
       value={{
         isAuthenticated,
         role,
+        customRole,
         businessType,
         setBusinessType,
         businessName,

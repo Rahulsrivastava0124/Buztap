@@ -28,6 +28,7 @@ import {
   fetchBusinessProfile,
   fetchGuestByPhone,
   updateTableStatus,
+  updateOrderStatus,
   updateOrderPayment,
   updateOrderItems,
 } from "../services/api";
@@ -82,11 +83,8 @@ function buildTableIdCandidates(rawTableId) {
 }
 
 export default function PosSystem() {
-  // step: "table" | "menu"
-  const [step, setStep] = useState("table");
   const [activeCat, setActiveCat] = useState("All");
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedTable, setSelectedTable] = useState(null);
   // Occupied table detail panel
   const [detailTable, setDetailTable] = useState(null);
   const [guestName, setGuestName] = useState("");
@@ -97,14 +95,23 @@ export default function PosSystem() {
   const [paymentMode, setPaymentMode] = useState("UPI");
   const [transactionId, setTransactionId] = useState("");
   const [showPayModal, setShowPayModal] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelOrderId, setCancelOrderId] = useState("");
   const [editingOrderId, setEditingOrderId] = useState(null);
   const searchRef = useRef(null);
   const navigate = useNavigate();
-  const { slug } = useParams();
+  const { slug, tableId: routeTableId } = useParams();
+  const step = routeTableId ? "menu" : "table";
   const queryClient = useQueryClient();
   const { businessType } = useAuth();
   const isHotelMode = businessType === "hotel";
   const locationLabel = isHotelMode ? "Room" : "Table";
+
+  const normalizedRouteTableId = useMemo(() => {
+    const raw = String(routeTableId || "").trim();
+    if (!raw) return "";
+    return decodeURIComponent(raw);
+  }, [routeTableId]);
 
   const {
     cart,
@@ -133,6 +140,24 @@ export default function PosSystem() {
     queryFn: fetchTables,
     refetchInterval: 20_000,
   });
+
+  const selectedTable = useMemo(() => {
+    if (!normalizedRouteTableId) return null;
+    const routeCandidates = new Set(
+      buildTableIdCandidates(normalizedRouteTableId),
+    );
+    return (
+      tables.find((table) => {
+        const tableCandidates = buildTableIdCandidates(table.id);
+        return tableCandidates.some((candidate) =>
+          routeCandidates.has(candidate),
+        );
+      }) || {
+        id: normalizedRouteTableId,
+        status: "Free",
+      }
+    );
+  }, [normalizedRouteTableId, tables]);
 
   const getCleaningTimeLabel = (table) => {
     if (table?.status !== "Cleaning") return null;
@@ -198,7 +223,7 @@ export default function PosSystem() {
   });
 
   // Table status mutation (Occupied → Cleaning → Free)
-  const statusMutation = useMutation({
+  const _statusMutation = useMutation({
     mutationFn: ({ tableId, status }) => updateTableStatus(tableId, status),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tables"] });
@@ -223,12 +248,10 @@ export default function PosSystem() {
   useEffect(() => {
     const digits = guestPhone.replace(/\D/g, "");
     if (digits.length !== 10) {
-      if (guestLookupState !== "idle") setGuestLookupState("idle");
       return;
     }
 
     let cancelled = false;
-    setGuestLookupState("loading");
     fetchGuestByPhone(digits).then((guest) => {
       if (cancelled) return;
       if (guest?.name) {
@@ -301,9 +324,30 @@ export default function PosSystem() {
       toast.error(err?.message || "Unable to update existing order."),
   });
 
+  const cancelOrderMutation = useMutation({
+    mutationFn: (id) => updateOrderStatus(id, "Cancelled"),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      queryClient.invalidateQueries({ queryKey: ["tables"] });
+      queryClient.invalidateQueries({ queryKey: ["order-detail", id] });
+      toast.success("Order cancelled.");
+      setShowCancelModal(false);
+      setCancelOrderId("");
+      setEditingOrderId(null);
+      clearCart();
+      setDetailTable(null);
+    },
+    onError: (err) =>
+      toast.error(err?.message || "Unable to cancel order."),
+  });
+
   const isPaymentDone =
     detailOrderSummary?.paymentStatus === "Completed" ||
     detailOrder?.paymentStatus === "Completed";
+  const canCancelOrder =
+    Boolean(detailOrderSummary?._id) &&
+    detailOrderSummary?.status !== "Served" &&
+    !isPaymentDone;
 
   const markPayment = async () => {
     if (!detailOrderSummary?._id) return false;
@@ -335,53 +379,151 @@ export default function PosSystem() {
   const printInvoice = () => {
     const order = detailOrder;
     if (!order) return;
-    const popup = window.open("", "_blank", "width=860,height=920");
+    const popup = window.open("", "_blank", "width=380,height=860");
     if (!popup) {
       toast.error("Please allow popups to print invoice.");
       return;
     }
+    const receiptQrValue = encodeURIComponent(
+      `ORDER:${order.orderId || "-"}|TOTAL:${Number(order.total || 0).toFixed(2)}|DATE:${new Date(order.createdAt).toISOString()}`,
+    );
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${receiptQrValue}`;
     const lineRows = (order.items || [])
       .map(
-        (item) => `<tr>
-          <td>${item.name}</td>
-          <td style="text-align:center;">${item.quantity}</td>
-          <td style="text-align:right;">₹${Number(item.price || 0).toFixed(2)}</td>
-          <td style="text-align:right;">₹${Number(item.total || 0).toFixed(2)}</td>
-        </tr>`,
+        (item, index) => `<div class="item-row-wrap">
+          <div class="item-row">
+          <span class="item-code">${String(item.menuItemId || `I-${index + 1}`).slice(-6)}</span>
+          <span class="item-desc">${item.name} x ${Number(item.quantity || 0)}</span>
+          <span class="item-amt">₹${Number(item.total || 0).toFixed(2)}</span>
+          </div>
+          ${item.notes ? `<div class="item-note">Note: ${item.notes}</div>` : ""}
+        </div>`,
       )
       .join("");
     popup.document.write(`
-      <html><head><title>Invoice ${order.orderId}</title>
+      <html><head><title>Order ${order.orderId}</title>
       <style>
-        body{font-family:Arial,sans-serif;margin:22px;color:#222}
-        .head{display:flex;justify-content:space-between;margin-bottom:14px}
-        .title{font-size:22px;font-weight:700;margin:0}
-        .muted{color:#666;font-size:12px}
-        table{width:100%;border-collapse:collapse;margin-top:12px}
-        th,td{border-bottom:1px solid #ddd;padding:8px;font-size:13px}
-        th{text-align:left;background:#f8f8f8}
-        .totals{margin-top:14px;width:280px;margin-left:auto}
-        .totals p{display:flex;justify-content:space-between;margin:6px 0;font-size:13px}
-        .grand{font-size:16px;font-weight:700}
+        @page { size: 80mm auto; margin: 2mm; }
+        * { box-sizing: border-box; }
+        html, body { margin: 0; padding: 0; }
+        body {
+          font-family: "Roboto Condensed", "Arial Narrow", Arial, sans-serif;
+          color: #111;
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+        }
+        .receipt {
+          width: 300px;
+          max-width: 100%;
+          margin: 0 auto;
+          padding: 8px 7px;
+          font-size: 12px;
+          line-height: 1.3;
+        }
+        .center { text-align: center; }
+        .addr { margin: 0; font-size: 11px; text-transform: uppercase; letter-spacing: 0.25px; }
+        .receipt-title {
+          margin: 10px 0 8px;
+          text-align: center;
+          font-size: 42px;
+          line-height: 1;
+          font-weight: 700;
+          transform: scale(0.5);
+          transform-origin: center top;
+          height: 22px;
+        }
+        .datetime { text-align: center; margin: 2px 0 8px; font-size: 11px; }
+        .rule {
+          border-top: 1px solid #bcbcbc;
+          margin: 8px 0;
+        }
+        .item-row,
+        .sum-row,
+        .meta-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          gap: 6px;
+          margin: 3px 0;
+        }
+        .item-code { width: 52px; color: #333; }
+        .item-desc { flex: 1; word-break: break-word; }
+        .item-amt { width: 72px; text-align: right; font-weight: 600; }
+        .item-row-wrap { padding: 2px 0; border-bottom: 1px dotted #ccc; }
+        .item-note {
+          margin-left: 58px;
+          margin-top: 1px;
+          font-size: 10px;
+          color: #666;
+          word-break: break-word;
+        }
+        .section-title {
+          margin: 0 0 4px;
+          font-size: 11px;
+          font-weight: 700;
+          letter-spacing: 0.4px;
+        }
+        .label-strong { font-weight: 700; text-transform: uppercase; }
+        .grand {
+          font-size: 13px;
+          font-weight: 700;
+          margin-top: 8px;
+        }
+        .footer-text {
+          text-align: center;
+          margin: 8px 0 6px;
+          font-size: 11px;
+          color: #333;
+        }
+        .qr-wrap {
+          display: flex;
+          justify-content: center;
+          margin-top: 2px;
+        }
+        .qr-wrap img {
+          width: 86px;
+          height: 86px;
+          object-fit: contain;
+        }
+        @media print {
+          .receipt { width: 76mm; }
+        }
       </style></head>
       <body>
-        <div class="head">
-          <div><p class="title">${businessProfile?.name || "Restaurant"}</p><p class="muted">${businessProfile?.address || ""}</p></div>
-          <div style="text-align:right;"><p class="title">INVOICE</p>
-            <p class="muted">Order: ${order.orderId || "-"}</p>
-            <p class="muted">Table: ${order.tableId || "-"}</p>
-            <p class="muted">GST No: ${businessProfile?.gstNo || "-"}</p>
-            <p class="muted">Date: ${new Date(order.createdAt).toLocaleString("en-IN")}</p>
+        <div class="receipt">
+          <div class="center">
+            <p class="addr">${businessProfile?.address || ""}</p>
+            <p class="addr">${businessProfile?.name || "Restaurant"}</p>
           </div>
-        </div>
-        <table><thead><tr><th>Item</th><th style="text-align:center;">Qty</th><th style="text-align:right;">Price</th><th style="text-align:right;">Total</th></tr></thead>
-        <tbody>${lineRows}</tbody></table>
-        <div class="totals">
-          <p><span>Subtotal</span><span>₹${Number(order.subtotal || 0).toFixed(2)}</span></p>
-          <p><span>Discount</span><span>₹${Number(order.discount || 0).toFixed(2)}</span></p>
-          <p><span>Tax</span><span>₹${Number(order.tax || 0).toFixed(2)}</span></p>
-          <p class="grand"><span>Grand Total</span><span>₹${Number(order.total || 0).toFixed(2)}</span></p>
-          <p><span>Payment</span><span>${order.paymentMethod || "-"} / ${order.paymentStatus || "-"}</span></p>
+
+          <p class="receipt-title">RECEIPT</p>
+          <p class="datetime">${new Date(order.createdAt).toLocaleString("en-IN")}</p>
+
+          <div class="rule"></div>
+
+          <p class="section-title">ORDER DETAILS</p>
+          <div class="meta-row"><span>Order ID</span><span>${order.orderId || "-"}</span></div>
+          <div class="meta-row"><span>Table</span><span>${order.tableId || "-"}</span></div>
+          <div class="meta-row"><span>Order Type</span><span>${order.orderType || "-"}</span></div>
+          <div class="meta-row"><span>Guest</span><span>${order.guestName || "Guest"}</span></div>
+
+          <div class="rule"></div>
+
+          <div class="items">${lineRows}</div>
+
+          <div class="rule"></div>
+
+          <div class="sum-row grand"><span class="label-strong">TOTAL:</span><span>₹${Number(order.total || 0).toFixed(2)}</span></div>
+
+          <div class="meta-row" style="margin-top:8px;"><span>Method</span><span>${order.paymentMethod || "-"}</span></div>
+          <div class="meta-row"><span>Response</span><span>${order.paymentStatus === "Completed" ? "APPROVED" : String(order.paymentStatus || "PENDING").toUpperCase()}</span></div>
+          <div class="meta-row"><span>INV.</span><span>${order.orderId || "-"}</span></div>
+          <div class="meta-row"><span>Table</span><span>${order.tableId || "-"}</span></div>
+
+          <div class="rule"></div>
+
+          <p class="footer-text">Thank you for your order</p>
+          <div class="qr-wrap"><img src="${qrUrl}" alt="receipt qr" /></div>
         </div>
         <script>window.onload=function(){window.print()};</script>
       </body></html>
@@ -549,7 +691,9 @@ export default function PosSystem() {
       setGuestName(activeOrder?.guestName || "");
       // Normalize to last 10 digits — DB stores phones as +91XXXXXXXXXX
       const rawPhone = String(activeOrder?.guestPhone || "").replace(/\D/g, "");
-      setGuestPhone(rawPhone.slice(-10));
+      const normalizedPhone = rawPhone.slice(-10);
+      setGuestPhone(normalizedPhone);
+      if (normalizedPhone.length < 10) setGuestLookupState("idle");
       setDetailTable(table);
     } else {
       selectTable(table);
@@ -564,27 +708,36 @@ export default function PosSystem() {
       clearCart();
     }
     setEditingOrderId(existingOrder?._id || null);
-    setSelectedTable(table);
     setDetailTable(null);
-    setStep("menu");
+    const tableRef = encodeURIComponent(String(table?.id || ""));
+    navigate(`/${slug}/pos/menu/${tableRef}`);
   }
 
   function changeTable() {
     setDetailTable(null);
     setEditingOrderId(null);
     clearCart();
-    setStep("table");
+    navigate(`/${slug}/pos`);
   }
 
   const goToCheckout = () => {
     if (!cart.length) return;
-    navigate(`/${slug}/pos/checkout`, {
+    const currentTableId =
+      selectedTable?.id ||
+      normalizedRouteTableId ||
+      (isHotelMode ? "101" : "01");
+    const tableRef = encodeURIComponent(String(currentTableId));
+    const returnTo = currentTableId
+      ? `/${slug}/pos/menu/${tableRef}`
+      : `/${slug}/pos`;
+    navigate(`/${slug}/pos/menu/${tableRef}/checkout`, {
       state: {
-        selectedTable: selectedTable?.id,
+        selectedTable: currentTableId,
         orderType,
         locationLabel,
         guestName: guestName.trim() || "",
         guestPhone: guestPhone.trim() || "",
+        returnTo,
       },
     });
   };
@@ -613,7 +766,7 @@ export default function PosSystem() {
     setDetailTable(null);
     setEditingOrderId(null);
     clearCart();
-    setStep("table");
+    navigate(`/${slug}/pos`);
   };
 
   usePOSHotkeys({
@@ -913,7 +1066,11 @@ export default function PosSystem() {
                           value={guestPhone}
                           onChange={(e) => {
                             guestNameManuallyEditedRef.current = false;
-                            setGuestPhone(e.target.value);
+                            const raw = e.target.value
+                              .replace(/\D/g, "")
+                              .slice(0, 10);
+                            setGuestPhone(raw);
+                            if (raw.length < 10) setGuestLookupState("idle");
                           }}
                           placeholder="Guest phone number"
                           className="w-full pl-8 pr-3 py-2 text-sm border border-border rounded-lg bg-paper focus:outline-none focus:ring-2 focus:ring-saffron/30 focus:border-saffron"
@@ -970,32 +1127,107 @@ export default function PosSystem() {
 
                 {/* Panel Actions — fixed footer with action buttons only */}
                 <div className="p-4 border-t border-border space-y-2 bg-paper shrink-0">
-                  {/* Add Items / Print — show Print only after payment */}
+                  {/* Add Items + Cancel inline / Print after payment */}
                   {isPaymentDone ? (
                     <button
                       type="button"
                       onClick={printInvoice}
                       className="w-full py-2.5 rounded-xl border border-border bg-white hover:bg-paper text-sm font-semibold text-ink flex items-center justify-center gap-1.5 transition-colors"
                     >
-                      <Printer size={14} /> Print Invoice
+                      <Printer size={14} /> Print Order
                     </button>
                   ) : (
-                    <button
-                      onClick={() => {
-                        if (detailOrderLoading) {
-                          toast.error("Please wait, loading existing order...");
-                          return;
-                        }
-                        selectTable(detailTable, detailOrder);
-                      }}
-                      className="w-full py-2.5 rounded-xl bg-saffron hover:bg-saffron2 text-white font-bold text-sm flex items-center justify-center gap-1.5 transition-colors shadow-md"
-                    >
-                      <PlusCircle size={15} /> Add Items
-                    </button>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => {
+                          if (detailOrderLoading) {
+                            toast.error("Please wait, loading existing order...");
+                            return;
+                          }
+                          selectTable(detailTable, detailOrder);
+                        }}
+                        className="py-2.5 rounded-xl bg-saffron hover:bg-saffron2 text-white font-bold text-sm flex items-center justify-center gap-1.5 transition-colors shadow-md"
+                      >
+                        <PlusCircle size={15} /> Add Items
+                      </button>
+                      <button
+                        type="button"
+                        disabled={!canCancelOrder || cancelOrderMutation.isPending}
+                        onClick={() => {
+                          if (!detailOrderSummary?._id) return;
+                          setCancelOrderId(detailOrderSummary._id);
+                          setShowCancelModal(true);
+                        }}
+                        className="py-2.5 rounded-xl border border-red-300 bg-red-50 text-red-700 font-bold text-sm flex items-center justify-center transition-colors hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {cancelOrderMutation.isPending
+                          ? "Cancelling..."
+                          : "Cancel Order"}
+                      </button>
+                    </div>
                   )}
                 </div>
               </Motion.div>
             </>
+          )}
+        </AnimatePresence>
+
+        {/* Cancel confirmation modal */}
+        <AnimatePresence>
+          {showCancelModal && (
+            <Motion.div
+              key="cancel-modal-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+              onClick={() => {
+                if (cancelOrderMutation.isPending) return;
+                setShowCancelModal(false);
+                setCancelOrderId("");
+              }}
+            >
+              <Motion.div
+                key="cancel-modal"
+                initial={{ y: 40, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                exit={{ y: 40, opacity: 0 }}
+                transition={{ type: "spring", damping: 28, stiffness: 320 }}
+                className="w-full max-w-sm bg-white rounded-2xl shadow-2xl overflow-hidden"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="px-5 py-4 border-b border-border">
+                  <p className="font-bold text-ink text-base">Cancel Order?</p>
+                  <p className="text-sm text-muted mt-1">
+                    This action cannot be undone.
+                  </p>
+                </div>
+                <div className="p-4 grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    disabled={cancelOrderMutation.isPending}
+                    onClick={() => {
+                      setShowCancelModal(false);
+                      setCancelOrderId("");
+                    }}
+                    className="py-2.5 rounded-xl border border-border bg-white text-sm font-semibold text-muted hover:text-ink hover:bg-paper disabled:opacity-60"
+                  >
+                    Keep Order
+                  </button>
+                  <button
+                    type="button"
+                    disabled={cancelOrderMutation.isPending}
+                    onClick={() => {
+                      if (!cancelOrderId) return;
+                      cancelOrderMutation.mutate(cancelOrderId);
+                    }}
+                    className="py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-bold disabled:opacity-60"
+                  >
+                    {cancelOrderMutation.isPending ? "Cancelling..." : "Cancel Order"}
+                  </button>
+                </div>
+              </Motion.div>
+            </Motion.div>
           )}
         </AnimatePresence>
 

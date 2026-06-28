@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from "react";
+import { Link, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Bell,
@@ -18,6 +19,8 @@ import {
   fetchTables,
   updateBusinessProfile,
   uploadMenuImage,
+  parseMenuFile,
+  bulkCreateMenuItems,
 } from "../services/api";
 import PageShell from "../components/layout/PageShell";
 
@@ -75,6 +78,7 @@ const SETTINGS = [
     title: "Access & Security",
     desc: "Roles, PIN lock, and device permissions",
     icon: ShieldCheck,
+    path: "/settings/roles"
   },
   {
     title: "Regional Preferences",
@@ -279,7 +283,218 @@ function TableQrCard() {
   );
 }
 
+function AiMenuUpload() {
+  const [file, setFile] = useState(null);
+  const [preview, setPreview] = useState(null);
+  const [parsedData, setParsedData] = useState(null);
+  const [isParsing, setIsParsing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const fileInputRef = useRef(null);
+
+  const handleFileChange = (e) => {
+    const selected = e.target.files?.[0];
+    if (!selected) return;
+
+    // Check if this file was already successfully uploaded
+    try {
+      const uploadedFiles = JSON.parse(window.localStorage.getItem('uploadedAiMenus') || '[]');
+      if (uploadedFiles.includes(selected.name)) {
+        toast.error(`The file "${selected.name}" has already been uploaded.`);
+        e.target.value = "";
+        return;
+      }
+    } catch (err) {
+      // ignore
+    }
+
+    setFile(selected);
+    if (selected.type.startsWith("image/")) {
+      setPreview(URL.createObjectURL(selected));
+    } else if (selected.type === "application/pdf") {
+      setPreview("pdf");
+    } else {
+      setPreview(null);
+    }
+    setParsedData(null);
+    e.target.value = "";
+  };
+
+  const handleUpload = async () => {
+    if (!file) return;
+    setIsParsing(true);
+    try {
+      const data = await parseMenuFile(file);
+      if (data && data.categories) {
+        setParsedData(data);
+        toast.success("Menu extracted successfully. Please review.");
+      } else {
+        throw new Error("Invalid AI response structure.");
+      }
+    } catch (err) {
+      toast.error(err?.message || "Failed to parse menu using AI.");
+    } finally {
+      setIsParsing(false);
+    }
+  };
+
+  const handleConfirm = async () => {
+    if (!parsedData?.categories) return;
+    setIsSaving(true);
+    try {
+      // Flatten categories into items
+      const itemsToCreate = [];
+      for (const cat of parsedData.categories) {
+        if (!cat.items || !Array.isArray(cat.items)) continue;
+        for (const item of cat.items) {
+          itemsToCreate.push({
+            category: cat.name || "Uncategorized",
+            name: item.name || "Unknown Item",
+            description: item.description || "",
+            price: Number(item.price) || 0,
+            isVeg: Boolean(item.isVeg),
+          });
+        }
+      }
+      
+      if (itemsToCreate.length === 0) {
+        toast.error("No valid items found to save.");
+        return;
+      }
+
+      const res = await bulkCreateMenuItems(itemsToCreate);
+      toast.success(`${res.count} items added to your menu!`);
+      
+      // Save file name to prevent duplicate upload
+      if (file?.name) {
+        try {
+          const uploadedFiles = JSON.parse(window.localStorage.getItem('uploadedAiMenus') || '[]');
+          if (!uploadedFiles.includes(file.name)) {
+            uploadedFiles.push(file.name);
+            window.localStorage.setItem('uploadedAiMenus', JSON.stringify(uploadedFiles));
+          }
+        } catch (err) {}
+      }
+
+      setFile(null);
+      setPreview(null);
+      setParsedData(null);
+    } catch (err) {
+      toast.error(err?.message || "Failed to save menu items.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <div className="bg-white border border-border rounded-xl p-5 mb-6">
+      <div className="flex items-center gap-2 mb-3">
+        <h3 className="font-semibold text-ink text-lg">AI Menu Digitization ✨</h3>
+      </div>
+      <p className="text-sm text-muted mb-4">
+        Upload a photo or PDF of your physical menu. Our AI will automatically extract categories and items for you.
+      </p>
+
+      {!parsedData ? (
+        <div className="space-y-4">
+          <input
+            type="file"
+            accept="image/*,application/pdf"
+            className="hidden"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+          />
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="text-sm px-4 py-2 rounded-lg border border-border text-ink hover:bg-paper font-medium"
+            >
+              Select Menu File
+            </button>
+            {file && (
+              <span className="text-sm text-muted truncate max-w-[200px]">
+                {file.name}
+              </span>
+            )}
+          </div>
+
+          {preview && (
+            <div className="mt-4 p-3 border border-border rounded-lg bg-paper">
+              {preview === "pdf" ? (
+                <div className="text-center p-6 bg-white rounded border border-border text-saffron font-bold">
+                  PDF Document
+                </div>
+              ) : (
+                <img src={preview} alt="Menu preview" className="max-h-64 object-contain rounded mx-auto" />
+              )}
+            </div>
+          )}
+
+          {file && (
+            <button
+              type="button"
+              onClick={handleUpload}
+              disabled={isParsing}
+              className="w-full bg-saffron hover:bg-saffron2 text-white font-bold py-2.5 rounded-lg disabled:opacity-60 flex justify-center items-center gap-2"
+            >
+              {isParsing ? "Analyzing with AI..." : "Extract Menu Items"}
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <div className="max-h-80 overflow-y-auto border border-border rounded-lg p-4 bg-paper space-y-4">
+            {parsedData.categories.map((cat, i) => (
+              <div key={i} className="bg-white p-3 rounded-lg shadow-sm border border-border">
+                <h4 className="font-bold text-saffron border-b border-border pb-1 mb-2">
+                  {cat.name}
+                </h4>
+                <div className="space-y-2">
+                  {cat.items?.map((item, j) => (
+                    <div key={j} className="flex justify-between items-start text-sm">
+                      <div>
+                        <p className="font-semibold text-ink">
+                          {item.name} {item.isVeg && <span className="text-green-600 text-[10px] ml-1">● VEG</span>}
+                        </p>
+                        {item.description && <p className="text-muted text-xs">{item.description}</p>}
+                      </div>
+                      <span className="font-bold text-ink">₹{item.price}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                setParsedData(null);
+                setFile(null);
+                setPreview(null);
+              }}
+              className="flex-1 py-2 rounded-lg border border-border text-ink hover:bg-paper font-medium text-sm"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleConfirm}
+              disabled={isSaving}
+              className="flex-1 bg-saffron hover:bg-saffron2 text-white font-bold py-2 rounded-lg disabled:opacity-60 text-sm"
+            >
+              {isSaving ? "Saving..." : "Confirm & Add to Menu"}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function SettingsPage() {
+  const { slug } = useParams();
   const queryClient = useQueryClient();
   const [edited, setEdited] = useState({});
   const [saveMessage, setSaveMessage] = useState("");
@@ -907,6 +1122,7 @@ export default function SettingsPage() {
         </form>
 
         <div className="space-y-4">
+          <AiMenuUpload />
           <TableQrCard />
           {SETTINGS.map((item) => (
             <div
@@ -918,12 +1134,22 @@ export default function SettingsPage() {
               </div>
               <h3 className="font-semibold text-ink">{item.title}</h3>
               <p className="text-sm text-muted mt-1">{item.desc}</p>
-              <button
-                type="button"
-                className="mt-4 text-sm px-3 py-1.5 rounded-md border border-border text-muted"
-              >
-                Coming Soon
-              </button>
+              
+              {item.path ? (
+                <Link
+                  to={`/${slug}${item.path}`}
+                  className="mt-4 inline-block text-sm px-3 py-1.5 rounded-md border border-border text-ink font-medium hover:bg-paper transition-colors"
+                >
+                  Manage
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  className="mt-4 text-sm px-3 py-1.5 rounded-md border border-border text-muted"
+                >
+                  Coming Soon
+                </button>
+              )}
             </div>
           ))}
         </div>

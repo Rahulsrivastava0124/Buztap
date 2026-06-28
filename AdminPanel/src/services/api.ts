@@ -325,6 +325,7 @@ export interface StaffRecord {
   username: string;
   name: string;
   role: StaffSystemRole;
+  customRole?: any;
   designation: StaffDesignation;
   shiftTiming: ShiftTiming;
   email: string;
@@ -704,6 +705,32 @@ export async function resetAdminPassword(
   );
 }
 
+export async function registerBusiness(
+  data: {
+    ownerName: string;
+    email: string;
+    username: string;
+    password: string;
+    businessName: string;
+    businessType?: "restro" | "hotel";
+    phone?: string;
+    address?: string;
+    tableCount?: number;
+    otpToken: string;
+  }
+): Promise<AdminLoginResponse> {
+  const res = await request<AdminLoginResponse>(
+    "/auth/register",
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    },
+    false,
+  );
+  setStoredValue(AUTH_TOKEN_KEY, res.token);
+  return res;
+}
+
 export async function fetchAuthMe(): Promise<{
   role: UserRole;
   businessType: "restro" | "hotel";
@@ -1032,6 +1059,7 @@ function mapStaff(member: any): StaffRecord {
     username: member.username || "",
     name: member.name,
     role: member.role,
+    customRole: member.customRole,
     designation: member.designation || "Employee",
     shift,
     email: member.email || "",
@@ -1291,4 +1319,66 @@ export async function uploadMenuImage(file: File): Promise<string> {
 
   // R2 returns an absolute URL directly
   return payload.url as string;
+}
+
+export async function parseMenuFile(file: File): Promise<any> {
+  const token = getAuthToken();
+  const formData = new FormData();
+  formData.append("menuFile", file);
+
+  const response = await fetch(`${API_BASE_URL}/menu/upload-parse`, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: formData,
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    if (response.status === 401) clearAuthSession();
+    throw new Error(buildApiErrorMessage(payload, response.status));
+  }
+  return payload.data;
+}
+
+export async function bulkCreateMenuItems(items: Partial<CreateMenuItemInput>[]): Promise<any> {
+  return request(`/menu/bulk`, {
+    method: "POST",
+    body: JSON.stringify({ items }),
+  });
+}
+
+// Roles APIs
+export interface CustomRole {
+  _id: string;
+  name: string;
+  description: string;
+  permissions: string[];
+  isSystem: boolean;
+}
+
+export async function fetchRoles(): Promise<CustomRole[]> {
+  return request("/roles");
+}
+
+export async function fetchRolePermissions(): Promise<string[]> {
+  const data = await request<{ permissions: string[] }>("/roles/permissions");
+  return data.permissions;
+}
+
+export async function createRole(payload: { name: string; description?: string; permissions: string[] }): Promise<CustomRole> {
+  return request("/roles", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateRole(id: string, payload: { name?: string; description?: string; permissions?: string[] }): Promise<CustomRole> {
+  return request(`/roles/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteRole(id: string): Promise<void> {
+  await request(`/roles/${id}`, { method: "DELETE" });
 }

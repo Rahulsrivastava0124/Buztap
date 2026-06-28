@@ -31,6 +31,7 @@ import {
   punchOutStaff,
   fetchStaffLeaveRequests,
   reviewStaffLeaveRequest,
+  fetchRoles,
 } from "../services/api";
 import StatCard from "../components/shared/StatCard";
 import ErrorBoundary from "../components/shared/ErrorBoundary";
@@ -762,7 +763,7 @@ const EMPTY_FORM = {
 };
 
 // ─── Staff Form Panel ─────────────────────────────────────────────────────────
-function StaffFormPanel({ mode, initial, onClose, onSave, isSaving }) {
+function StaffFormPanel({ mode, initial, roles = [], onClose, onSave, isSaving }) {
   const [form, setForm] = useState(
     mode === "edit"
       ? {
@@ -770,6 +771,7 @@ function StaffFormPanel({ mode, initial, onClose, onSave, isSaving }) {
           username: initial.username || "",
           password: "",
           designation: initial.designation || "Employee",
+          customRole: initial.customRole?._id || initial.customRole || "",
           shiftTiming: initial.shiftTiming || {
             name: "Morning",
             startTime: "09:00",
@@ -796,7 +798,7 @@ function StaffFormPanel({ mode, initial, onClose, onSave, isSaving }) {
             : "",
           weekOffDays: initial.weekOffDays || [0],
         }
-      : { ...EMPTY_FORM },
+      : { ...EMPTY_FORM, customRole: "" },
   );
 
   function set(key, value) {
@@ -818,7 +820,12 @@ function StaffFormPanel({ mode, initial, onClose, onSave, isSaving }) {
     payload.leaveAllowance = Number(form.leaveAllowance || 0);
     payload.leavesTaken = Number(form.leavesTaken || 0);
     // Always include role so older backend deployments don't fail with "role - Required"
-    payload.role = DESIGNATION_ROLE_MAP[form.designation] || "cashier";
+    payload.role = DESIGNATION_ROLE_MAP[form.designation] || "custom";
+    if (form.customRole) {
+      payload.customRole = form.customRole;
+    } else {
+      payload.customRole = null;
+    }
     if (form.joiningDate) {
       payload.joiningDate = form.joiningDate;
     } else {
@@ -909,7 +916,7 @@ function StaffFormPanel({ mode, initial, onClose, onSave, isSaving }) {
           />
         </div>
 
-        {/* Designation */}
+        {/* Designation / Role */}
         <div className="form-control">
           <label className="label">
             <span className="label-text font-semibold">
@@ -918,20 +925,59 @@ function StaffFormPanel({ mode, initial, onClose, onSave, isSaving }) {
           </label>
           <select
             className="select select-bordered w-full"
-            value={form.designation}
-            onChange={(e) => set("designation", e.target.value)}
+            value={form.customRole ? `custom:${form.customRole}` : form.designation}
+            onChange={(e) => {
+              const val = e.target.value;
+              if (val.startsWith("custom:")) {
+                const roleId = val.replace("custom:", "");
+                const roleObj = roles.find((r) => r._id === roleId);
+                setForm((prev) => ({
+                  ...prev,
+                  customRole: roleId,
+                  designation: roleObj ? roleObj.name : "Custom",
+                }));
+              } else {
+                setForm((prev) => ({
+                  ...prev,
+                  customRole: "",
+                  designation: val,
+                }));
+              }
+            }}
             required
           >
-            {DESIGNATIONS.map((d) => (
-              <option key={d.value} value={d.value}>
-                {d.label}
-              </option>
-            ))}
+            <optgroup label="Standard Roles">
+              {DESIGNATIONS.map((d) => (
+                <option key={d.value} value={d.value}>
+                  {d.label}
+                </option>
+              ))}
+            </optgroup>
+            {roles.length > 0 && (
+              <optgroup label="Custom Roles">
+                {roles.map((r) => (
+                  <option key={`custom:${r._id}`} value={`custom:${r._id}`}>
+                    {r.name} (Custom Role)
+                  </option>
+                ))}
+              </optgroup>
+            )}
           </select>
         </div>
 
         {/* Permissions preview */}
-        {perms.length > 0 && (
+        {form.customRole ? (
+          <div className="bg-paper rounded-lg p-3">
+            <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-2 flex items-center gap-1.5">
+              <Eye size={12} /> Access Granted by Custom Role
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              <span className="badge badge-sm badge-success">
+                {roles.find(r => r._id === form.customRole)?.name || "Custom Role"}
+              </span>
+            </div>
+          </div>
+        ) : perms.length > 0 ? (
           <div className="bg-paper rounded-lg p-3">
             <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-2 flex items-center gap-1.5">
               <Eye size={12} /> Permissions for {form.designation}
@@ -944,7 +990,7 @@ function StaffFormPanel({ mode, initial, onClose, onSave, isSaving }) {
               ))}
             </div>
           </div>
-        )}
+        ) : null}
 
         {/* Shift Timing */}
         <div className="form-control">
@@ -1377,6 +1423,11 @@ export default function StaffPage() {
     queryFn: fetchBusinessProfile,
   });
 
+  const { data: roles = [] } = useQuery({
+    queryKey: ["roles"],
+    queryFn: fetchRoles,
+  });
+
   const createMutation = useMutation({
     mutationFn: createStaffMember,
     onSuccess: () => {
@@ -1778,7 +1829,7 @@ export default function StaffPage() {
                 </thead>
                 <tbody>
                   {filteredTeam.map((member) => {
-                    const perms =
+                    const legacyPerms =
                       DESIGNATION_PERMISSIONS[member.designation] || [];
                     return (
                       <tr
@@ -1827,8 +1878,19 @@ export default function StaffPage() {
                         </td>
                         <td>
                           <div className="flex flex-wrap gap-1 max-w-65">
-                            {perms.length > 0 ? (
-                              perms.map((p) => (
+                            {member.customRole ? (
+                              <>
+                                <span className="badge badge-xs bg-saffron text-white border-none font-bold" title="Custom Role">
+                                  {member.customRole.name || "Custom Access"}
+                                </span>
+                                {(member.customRole.permissions || []).map((perm) => (
+                                  <span key={perm} className="badge badge-xs badge-ghost">
+                                    {perm}
+                                  </span>
+                                ))}
+                              </>
+                            ) : legacyPerms.length > 0 ? (
+                              legacyPerms.map((p) => (
                                 <span
                                   key={p.label}
                                   className={`badge badge-xs ${p.color}`}
@@ -1893,7 +1955,10 @@ export default function StaffPage() {
                 key={panelMode === "edit" ? `edit-${editTarget?.id}` : "add"}
                 mode={panelMode}
                 initial={editTarget || {}}
-                onClose={() => setPanelMode(null)}
+                roles={roles}
+                onClose={() => {
+                  setPanelMode(null);
+                }}
                 onSave={handleSave}
                 isSaving={isSaving}
               />

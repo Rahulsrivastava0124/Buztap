@@ -7,7 +7,6 @@ import {
   CheckCircle2,
   ChefHat,
   CreditCard,
-  FileDown,
   Loader2,
   Phone,
   ReceiptText,
@@ -17,7 +16,6 @@ import {
   UserCheck,
   UserPlus,
   Utensils,
-  X,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { usePosStore } from "../features/pos/store/usePosStore";
@@ -26,6 +24,7 @@ import {
   createPosOrder,
   fetchBusinessProfile,
   fetchGuestByPhone,
+  fetchOffers,
   saveGuest,
   updateOrderPayment,
 } from "../services/api";
@@ -35,7 +34,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 export default function PosCheckout() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { slug } = useParams();
+  const { slug, tableId: routeTableId } = useParams();
   const { businessType } = useAuth();
   const isHotelMode = businessType === "hotel";
   const queryClient = useQueryClient();
@@ -54,7 +53,7 @@ export default function PosCheckout() {
   } = usePosStore();
 
   // ── Checkout steps ──
-  const [step, setStep] = useState("review"); // "review" | "payment" | "done"
+  const [step] = useState("review"); // "review" | "payment" | "done"
   const [kotOrder, setKotOrder] = useState(null); // response from createPosOrder
 
   // ── Guest info ──
@@ -105,7 +104,6 @@ export default function PosCheckout() {
   }, [guestPhone]);
 
   // ── Offers / coupon ──
-  const [couponModalOpen, setCouponModalOpen] = useState(false);
   const [couponCode, setCouponCode] = useState("");
   const [couponError, setCouponError] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState("");
@@ -114,9 +112,18 @@ export default function PosCheckout() {
   const [selectedPayment, setSelectedPayment] = useState("Card/UPI");
   const [submitting, setSubmitting] = useState(false);
   const [checkoutError, setCheckoutError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState({ guestPhone: "" });
 
+  const decodedRouteTableId = routeTableId
+    ? decodeURIComponent(String(routeTableId))
+    : "";
   const selectedTable =
-    location.state?.selectedTable || (isHotelMode ? "101" : "01");
+    decodedRouteTableId ||
+    location.state?.selectedTable ||
+    (isHotelMode ? "101" : "01");
+  const returnToPath =
+    location.state?.returnTo ||
+    `/${slug}/pos/menu/${encodeURIComponent(String(selectedTable))}`;
   const locationLabel =
     location.state?.locationLabel || (isHotelMode ? "Room" : "Table");
   const orderType =
@@ -143,6 +150,23 @@ export default function PosCheckout() {
     staleTime: 300_000,
   });
 
+  const { data: codedOffers = [] } = useQuery({
+    queryKey: ["offers"],
+    queryFn: fetchOffers,
+    staleTime: 30_000,
+    select: (offers) =>
+      (Array.isArray(offers) ? offers : []).filter((offer) => {
+        const isActive = Boolean(offer?.isActive);
+        const isVisible = Boolean(offer?.isVisible);
+        const hasCode = Boolean(String(offer?.code || "").trim());
+        if (!isActive || !isVisible || !hasCode) return false;
+        if (!offer?.expiresAt) return true;
+        const expiresAtMs = new Date(offer.expiresAt).getTime();
+        if (!Number.isFinite(expiresAtMs)) return true;
+        return expiresAtMs > Date.now();
+      }),
+  });
+
   useEffect(() => {
     setTaxRates({
       gstPct: Number(businessProfile?.gstPct ?? 5),
@@ -151,13 +175,6 @@ export default function PosCheckout() {
   }, [businessProfile?.gstPct, businessProfile?.taxPct, setTaxRates]);
 
   const taxLabel = `Tax (${Number(businessProfile?.gstPct ?? 5)}% GST${Number(businessProfile?.taxPct ?? 0) > 0 ? ` + ${Number(businessProfile?.taxPct ?? 0)}% Tax` : ""})`;
-
-  const offerOptions = [
-    { pct: 0, title: "No Offer", minSubtotal: 0 },
-    { pct: 5, title: "Saver 5%", minSubtotal: 500 },
-    { pct: 10, title: "Festival 10%", minSubtotal: 1000 },
-    { pct: 100, title: "Comped", minSubtotal: 0 },
-  ];
 
   const paymentOptions = isHotelMode
     ? ["Cash", "Card/UPI", "Room Charge"]
@@ -175,14 +192,46 @@ export default function PosCheckout() {
     return `INV-${String(hash).padStart(6, "0")}`;
   }, [kotOrder, cart, locationLabel, orderType, selectedTable, subtotal]);
 
+  const showErrorToast = (message) => {
+    toast.error(message, {
+      style: {
+        fontSize: "15px",
+        fontWeight: 600,
+        padding: "14px 16px",
+        borderRadius: "14px",
+      },
+    });
+  };
+
+  const validateRequiredFields = () => {
+    const digits = guestPhone.replace(/\D/g, "");
+    if (!digits) {
+      setFieldErrors({ guestPhone: "Phone number is required." });
+      return false;
+    }
+    if (digits.length !== 10) {
+      setFieldErrors({ guestPhone: "Enter a valid 10-digit phone number." });
+      return false;
+    }
+    setFieldErrors({ guestPhone: "" });
+    return true;
+  };
+
+  const completeAndGoToPos = (message = "Order placed successfully!") => {
+    clearCart();
+    queryClient.invalidateQueries({ queryKey: ["tables"] });
+    queryClient.invalidateQueries({ queryKey: ["orders"] });
+    toast.success(message);
+    navigate(`/${slug}/pos`, { replace: true });
+  };
+
   // ── Send to KOT ──
   const handleSendToKOT = async () => {
     if (!cart.length || submitting) return;
-    const phoneDigits = guestPhone.replace(/\D/g, "");
-    if (phoneDigits.length !== 10) {
-      toast.error("Please enter a valid 10-digit phone number");
+    if (!validateRequiredFields()) {
       return;
     }
+    const phoneDigits = guestPhone.replace(/\D/g, "");
     setSubmitting(true);
     setCheckoutError("");
     try {
@@ -205,18 +254,14 @@ export default function PosCheckout() {
         })),
       });
       setKotOrder(result);
-      toast.success("KOT sent to kitchen!");
-      // Immediately refresh tables + orders so the new order shows in POS
-      queryClient.invalidateQueries({ queryKey: ["tables"] });
-      queryClient.invalidateQueries({ queryKey: ["orders"] });
-      setStep("done");
+      completeAndGoToPos("Order placed successfully!");
       // Save guest name for future lookups if a real name was provided
       const trimmedName = guestName.trim();
       if (trimmedName && trimmedName.toLowerCase() !== "guest") {
         saveGuest(phoneDigits, trimmedName, slug);
       }
     } catch (err) {
-      toast.error(err?.message || "Unable to send KOT");
+      showErrorToast(err?.message || "Unable to send KOT");
       setCheckoutError(err?.message || "Unable to send KOT. Please try again.");
     } finally {
       setSubmitting(false);
@@ -233,155 +278,176 @@ export default function PosCheckout() {
         paymentMethod: selectedPayment,
         paymentStatus: "Completed",
       });
-      toast.success("Payment confirmed!");
-      setStep("done");
+      completeAndGoToPos("Payment confirmed!");
     } catch (err) {
-      toast.error(err?.message || "Unable to confirm payment");
+      showErrorToast(err?.message || "Unable to confirm payment");
       setCheckoutError(err?.message || "Unable to confirm payment.");
     } finally {
       setSubmitting(false);
     }
   };
 
-  // ── Download Invoice ──
-  const downloadInvoice = () => {
-    const lines = [
-      `Invoice: ${invoiceNumber}`,
-      `Business: ${isHotelMode ? "Hotel" : "Restaurant"}`,
-      `${locationLabel}: ${selectedTable}`,
-      `Order Type: ${orderType}`,
-      `Guest: ${guestName || "-"} | ${guestPhone || "-"}`,
-      `Payment: ${selectedPayment}`,
-      "",
-      "Items:",
-      ...cart.map(
-        (item) =>
-          `- ${item.name}${item.portion ? ` (${item.portion})` : ""} x${item.qty} = ₹${(item.price * item.qty).toFixed(2)}${item.notes ? ` (${item.notes})` : ""}`,
-      ),
-      "",
-      `Subtotal: ₹${subtotal.toFixed(2)}`,
-      `Discount (${discountPct}%): -₹${discount.toFixed(2)}`,
-      `${taxLabel}: ₹${tax.toFixed(2)}`,
-      `Total: ₹${total.toFixed(2)}`,
-    ].join("\n");
-    const blob = new Blob([lines], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = `${invoiceNumber}.txt`;
-    anchor.click();
-    URL.revokeObjectURL(url);
+  const normalizeMatchKey = (value) =>
+    String(value || "")
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, "");
+
+  const isItemIdMatch = (cartItemId, targetItemId) => {
+    const left = String(cartItemId || "").trim();
+    const right = String(targetItemId || "").trim();
+    if (!left || !right) return false;
+    if (left === right) return true;
+
+    const leftNorm = normalizeMatchKey(left);
+    const rightNorm = normalizeMatchKey(right);
+    if (!leftNorm || !rightNorm) return false;
+
+    return (
+      leftNorm === rightNorm ||
+      leftNorm.endsWith(rightNorm) ||
+      rightNorm.endsWith(leftNorm)
+    );
   };
+
+  const getOfferEligibility = (offer) => {
+    const offerType = String(offer?.offerType || "coupon");
+    const targetItemIds = Array.isArray(offer?.targetItemIds)
+      ? offer.targetItemIds
+      : [];
+    const targetCategory = String(offer?.targetCategory || "")
+      .trim()
+      .toLowerCase();
+
+    const eligibleItems = cart.filter((item) => {
+      if (offerType === "item") {
+        return targetItemIds.some((id) => isItemIdMatch(item.id, id));
+      }
+      if (offerType === "category") {
+        const itemCategory = String(item.cat || item.category || "")
+          .trim()
+          .toLowerCase();
+        return Boolean(targetCategory) && itemCategory === targetCategory;
+      }
+      return true;
+    });
+
+    const eligibleSubtotal = eligibleItems.reduce(
+      (sum, item) => sum + Number(item.price || 0) * Number(item.qty || 0),
+      0,
+    );
+
+    return {
+      offerType,
+      eligibleItems,
+      eligibleSubtotal,
+    };
+  };
+
+  const couponPreview = (() => {
+    const normalized = couponCode.trim().toUpperCase();
+    if (!normalized) return null;
+
+    const matched = codedOffers.find(
+      (offer) => String(offer.code || "").trim().toUpperCase() === normalized,
+    );
+    if (!matched) return { kind: "error", text: "Coupon code not found." };
+
+    const { offerType, eligibleItems, eligibleSubtotal } =
+      getOfferEligibility(matched);
+    const minSubtotal = Number(matched.minSubtotal || 0);
+
+    if (offerType === "item") {
+      if (eligibleItems.length === 0) {
+        return {
+          kind: "warn",
+          text: "Add selected offer items to cart to use this coupon.",
+        };
+      }
+      const names = Array.from(
+        new Set(eligibleItems.map((item) => String(item.name || "").trim())),
+      )
+        .filter(Boolean)
+        .slice(0, 2)
+        .join(", ");
+      return {
+        kind: "ok",
+        text: `Eligible item${eligibleItems.length > 1 ? "s" : ""}: ${names || "in cart"}`,
+      };
+    }
+
+    if (offerType === "category") {
+      if (eligibleItems.length === 0) {
+        return {
+          kind: "warn",
+          text: "No eligible category items in cart for this coupon.",
+        };
+      }
+      return {
+        kind: "ok",
+        text: `Eligible category subtotal: ₹${eligibleSubtotal.toFixed(2)}`,
+      };
+    }
+
+    if (subtotal < minSubtotal) {
+      return {
+        kind: "warn",
+        text: `Minimum bill ₹${minSubtotal} required.`,
+      };
+    }
+
+    return { kind: "ok", text: "Coupon is valid for current cart." };
+  })();
 
   const applyCouponCode = () => {
     const normalized = couponCode.trim().toUpperCase();
-    const couponMap = {
-      SAVE5: { pct: 5, minSubtotal: 500 },
-      FEST10: { pct: 10, minSubtotal: 1000 },
-      COMP100: { pct: 100, minSubtotal: 0 },
-    };
-    const matched = couponMap[normalized];
+    if (!normalized) {
+      setCouponError("Enter coupon code");
+      return;
+    }
+    const matched = codedOffers.find(
+      (offer) => String(offer.code || "").trim().toUpperCase() === normalized,
+    );
     if (!matched) {
-      toast.error("Invalid coupon code");
+      showErrorToast("Invalid coupon code");
       setCouponError("Invalid coupon code");
       return;
     }
-    if (subtotal < matched.minSubtotal) {
-      toast.error(`Minimum bill ₹${matched.minSubtotal} required`);
-      setCouponError(`Minimum bill ₹${matched.minSubtotal} required`);
+
+    const { offerType, eligibleSubtotal } = getOfferEligibility(matched);
+
+    if (offerType === "item" && eligibleSubtotal <= 0) {
+      showErrorToast("This coupon is valid only for selected items.");
+      setCouponError("This coupon does not match items in cart.");
       return;
     }
-    setDiscountPct(matched.pct);
+
+    if (offerType === "category" && eligibleSubtotal <= 0) {
+      showErrorToast("This coupon is valid only for selected category items.");
+      setCouponError("This coupon does not match item category in cart.");
+      return;
+    }
+
+    const minSubtotal = Number(matched.minSubtotal || 0);
+    if (subtotal < minSubtotal) {
+      showErrorToast(`Minimum bill ₹${minSubtotal} required`);
+      setCouponError(`Minimum bill ₹${minSubtotal} required`);
+      return;
+    }
+
+    const basePct = Number(matched.discountPct || 0);
+    const effectivePct =
+      subtotal > 0
+        ? Number(((eligibleSubtotal * basePct) / subtotal).toFixed(2))
+        : 0;
+
+    setDiscountPct(effectivePct);
     setAppliedCoupon(normalized);
     setCouponError("");
     setCouponCode("");
-    setCouponModalOpen(false);
     toast.success(`${normalized} applied successfully`);
   };
 
-  // ─────────────────────────────────────────────
-  // Step: DONE — auto-return to POS after 3 s
-  // ─────────────────────────────────────────────
-  useEffect(() => {
-    if (step !== "done") return;
-    const timer = setTimeout(() => {
-      clearCart();
-      queryClient.invalidateQueries({ queryKey: ["tables"] });
-      queryClient.invalidateQueries({ queryKey: ["orders"] });
-      navigate(`/${slug}/pos`, { replace: true });
-    }, 3000);
-    return () => clearTimeout(timer);
-  }, [step]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  if (step === "done") {
-    return (
-      <div className="h-[calc(100vh-64px)] flex items-center justify-center bg-white p-6">
-        <div className="bg-white border border-border rounded-2xl p-8 max-w-md w-full text-center space-y-5 shadow-lg">
-          <div className="mx-auto w-16 h-16 rounded-full bg-green-50 border border-green-200 flex items-center justify-center">
-            <CheckCircle2 size={32} className="text-green-500" />
-          </div>
-          <div>
-            <h2 className="font-bold text-xl text-ink">Order Complete!</h2>
-            <p className="text-xs text-muted mt-1">Returning to POS in 3 s…</p>
-            <p className="text-sm text-muted mt-1">
-              {locationLabel} {selectedTable} • {orderType}
-            </p>
-            {(guestName || guestPhone) && (
-              <p className="text-sm text-muted mt-0.5">
-                {guestName && <span className="font-medium">{guestName}</span>}
-                {guestName && guestPhone && " · "}
-                {guestPhone && <span>{guestPhone}</span>}
-              </p>
-            )}
-          </div>
-
-          <div className="rounded-xl border border-border bg-paper p-4 text-left space-y-1.5">
-            <div className="flex justify-between text-sm text-muted">
-              <span>Subtotal</span>
-              <span>₹{subtotal.toFixed(2)}</span>
-            </div>
-            {discount > 0 && (
-              <div className="flex justify-between text-sm text-muted">
-                <span>Discount ({discountPct}%)</span>
-                <span className="text-saffron">-₹{discount.toFixed(2)}</span>
-              </div>
-            )}
-            <div className="flex justify-between text-sm text-muted">
-              <span>{taxLabel}</span>
-              <span>₹{tax.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between font-black text-ink text-lg pt-2 border-t border-border mt-1">
-              <span>Total</span>
-              <span className="text-saffron">₹{total.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between text-xs text-muted">
-              <span>Order ID</span>
-              <span className="font-medium">{invoiceNumber}</span>
-            </div>
-          </div>
-
-          <button
-            onClick={downloadInvoice}
-            className="w-full py-3 rounded-xl border-2 border-saffron text-saffron font-bold flex items-center justify-center gap-2 hover:bg-saffron hover:text-white transition-colors"
-          >
-            <FileDown size={18} /> Download Invoice
-          </button>
-
-          <button
-            onClick={() => {
-              clearCart();
-              queryClient.invalidateQueries({ queryKey: ["tables"] });
-              queryClient.invalidateQueries({ queryKey: ["orders"] });
-              navigate(`/${slug}/pos`, { replace: true });
-            }}
-            className="w-full py-2.5 rounded-xl border border-border bg-paper text-sm font-semibold text-muted hover:text-ink transition-colors"
-          >
-            Go to POS Now
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   // ─────────────────────────────────────────────
   // Step: PAYMENT (after KOT sent)
@@ -546,7 +612,7 @@ export default function PosCheckout() {
           <div className="px-4 sm:px-5 py-4 border-b border-border">
             <div className="flex items-center justify-between gap-3">
               <button
-                onClick={() => navigate(`/${slug}/pos`)}
+                onClick={() => navigate(returnToPath)}
                 className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-border text-muted hover:text-ink hover:bg-paper"
               >
                 <ArrowLeft size={16} /> Back
@@ -693,17 +759,27 @@ export default function PosCheckout() {
                         .replace(/\D/g, "")
                         .slice(0, 10);
                       setGuestPhone(raw);
+                      if (fieldErrors.guestPhone) {
+                        setFieldErrors({ guestPhone: "" });
+                      }
                       if (raw.length < 10) {
                         setGuestName("");
                         setGuestLookupState("idle");
                       }
                     }}
+                    onBlur={() => {
+                      if (guestPhone.replace(/\D/g, "").length !== 10) {
+                        validateRequiredFields();
+                      }
+                    }}
                     placeholder="Phone number *"
                     maxLength={10}
-                    className={`w-full pl-8 pr-8 py-2 text-sm border rounded-lg bg-paper focus:outline-none focus:ring-2 focus:ring-saffron/30 focus:border-saffron ${
-                      guestPhone.replace(/\D/g, "").length === 10
-                        ? "border-sage"
-                        : "border-border"
+                    className={`w-full pl-8 pr-8 py-2 text-sm border rounded-lg bg-paper focus:outline-none focus:ring-2 ${
+                      fieldErrors.guestPhone
+                        ? "border-red-500 focus:ring-red-100 focus:border-red-500"
+                        : guestPhone.replace(/\D/g, "").length === 10
+                          ? "border-sage focus:ring-saffron/30 focus:border-saffron"
+                          : "border-border focus:ring-saffron/30 focus:border-saffron"
                     }`}
                   />
                   {guestLookupState === "loading" && (
@@ -725,6 +801,11 @@ export default function PosCheckout() {
                     />
                   )}
                 </div>
+                {fieldErrors.guestPhone && (
+                  <p className="text-xs text-red-600 font-medium px-1">
+                    {fieldErrors.guestPhone}
+                  </p>
+                )}
 
                 {/* Name — shows once phone is 10 digits */}
                 {(guestLookupState === "found" ||
@@ -761,49 +842,65 @@ export default function PosCheckout() {
               </div>
             </div>
 
-            {/* Offers */}
+            {/* Coupon */}
             <div>
               <p className="text-xs font-semibold text-muted uppercase tracking-wide">
-                Offers
+                Coupon
               </p>
-              <button
-                onClick={() => setCouponModalOpen(true)}
-                className="mt-2 w-full py-2 rounded-lg border border-border text-sm font-semibold text-muted hover:text-ink hover:bg-paper flex items-center justify-center gap-2"
-              >
-                <TicketPercent size={15} /> Apply Coupon
-              </button>
+              <div className="mt-2 relative">
+                <TicketPercent
+                  size={15}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-muted2"
+                />
+                <input
+                  value={couponCode}
+                  onChange={(e) => {
+                    const nextCode = e.target.value
+                      .toUpperCase()
+                      .replace(/\s+/g, "");
+                    setCouponCode(nextCode);
+                    if (couponError) setCouponError("");
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      applyCouponCode();
+                    }
+                  }}
+                  placeholder="Enter coupon code"
+                  className="w-full h-12 pl-10 pr-22 text-sm border border-border rounded-lg bg-paper focus:outline-none focus:ring-2 focus:ring-saffron/30 focus:border-saffron"
+                />
+                <button
+                  type="button"
+                  onClick={applyCouponCode}
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 h-9 px-4 rounded-md bg-saffron hover:bg-saffron2 text-white text-sm font-bold"
+                >
+                  Apply
+                </button>
+              </div>
+              {couponPreview && !couponError && (
+                <p
+                  className={`text-xs mt-1.5 px-1 ${
+                    couponPreview.kind === "ok"
+                      ? "text-sage"
+                      : couponPreview.kind === "warn"
+                        ? "text-[#9a6a00]"
+                        : "text-red-500"
+                  }`}
+                >
+                  {couponPreview.text}
+                </p>
+              )}
+              {couponError && (
+                <p className="text-xs text-red-500 mt-1.5 px-1">
+                  {couponError}
+                </p>
+              )}
               {appliedCoupon && (
                 <p className="text-xs text-sage mt-1.5">
                   Applied: {appliedCoupon}
                 </p>
               )}
-              <div className="grid grid-cols-2 gap-2 mt-2">
-                {offerOptions.map((offer) => {
-                  const eligible = subtotal >= offer.minSubtotal;
-                  return (
-                    <button
-                      key={offer.pct}
-                      onClick={() => setDiscountPct(offer.pct)}
-                      disabled={!eligible && offer.pct !== 0}
-                      className={`text-left px-2.5 py-2.5 rounded-lg border transition-colors ${
-                        discountPct === offer.pct
-                          ? "bg-saffron text-white border-saffron"
-                          : "bg-paper text-muted border-border"
-                      } disabled:opacity-50`}
-                    >
-                      <p className="font-semibold text-xs sm:text-sm">
-                        {offer.title}
-                      </p>
-                      <p className="text-xs">
-                        {offer.pct === 0 ? "No discount" : `${offer.pct}% off`}
-                      </p>
-                      {offer.minSubtotal > 0 && (
-                        <p className="text-[10px]">Min ₹{offer.minSubtotal}</p>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
             </div>
 
             {/* Bill summary */}
@@ -846,48 +943,6 @@ export default function PosCheckout() {
           </div>
         </div>
       </div>
-
-      {/* Coupon modal */}
-      {couponModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-white rounded-2xl border border-border shadow-xl">
-            <div className="px-4 py-3 border-b border-border flex items-center justify-between">
-              <h3 className="text-base font-bold text-ink">Apply Coupon</h3>
-              <button
-                onClick={() => setCouponModalOpen(false)}
-                className="p-1.5 rounded-md text-muted hover:bg-paper"
-              >
-                <X size={16} />
-              </button>
-            </div>
-            <div className="p-4 space-y-3">
-              <input
-                value={couponCode}
-                onChange={(e) => {
-                  setCouponCode(e.target.value);
-                  if (couponError) setCouponError("");
-                }}
-                placeholder="Enter coupon code (e.g. SAVE5)"
-                className="w-full border border-border rounded-lg px-3 py-2 text-sm"
-              />
-              {couponError && (
-                <p className="text-xs text-red-500">{couponError}</p>
-              )}
-              <div className="grid grid-cols-2 gap-2 text-xs text-muted bg-paper border border-border rounded-lg p-2">
-                <p>SAVE5 (min ₹500)</p>
-                <p>FEST10 (min ₹1000)</p>
-                <p className="col-span-2">COMP100 (no minimum)</p>
-              </div>
-              <button
-                onClick={applyCouponCode}
-                className="w-full py-2.5 rounded-lg bg-saffron hover:bg-saffron2 text-white font-bold"
-              >
-                Apply Coupon
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
