@@ -15,6 +15,7 @@ import {
   Phone,
   PlusCircle,
   Clock3,
+  Pencil,
 } from "lucide-react";
 import { motion as Motion, AnimatePresence } from "framer-motion";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -31,6 +32,7 @@ import {
   updateOrderStatus,
   updateOrderPayment,
   updateOrderItems,
+  updateTableArea,
 } from "../services/api";
 import { usePosStore } from "../features/pos/store/usePosStore";
 import usePOSHotkeys from "../hooks/usePOSHotkeys";
@@ -87,6 +89,8 @@ export default function PosSystem() {
   const [searchTerm, setSearchTerm] = useState("");
   // Occupied table detail panel
   const [detailTable, setDetailTable] = useState(null);
+  const [editingArea, setEditingArea] = useState(false);
+  const [areaInput, setAreaInput] = useState("");
   const [guestName, setGuestName] = useState("");
   const [guestPhone, setGuestPhone] = useState("");
   const [guestLookupState, setGuestLookupState] = useState("idle");
@@ -229,6 +233,19 @@ export default function PosSystem() {
       queryClient.invalidateQueries({ queryKey: ["tables"] });
     },
     onError: () => toast.error("Unable to update table status"),
+  });
+
+  const areaMutation = useMutation({
+    mutationFn: ({ tableId, area }) => updateTableArea(tableId, area),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tables"] });
+      setEditingArea(false);
+      toast.success("Table area updated");
+      if (detailTable) {
+        setDetailTable(prev => prev ? { ...prev, area: areaInput } : null);
+      }
+    },
+    onError: () => toast.error("Unable to update table area"),
   });
 
   // Business profile (for UPI id)
@@ -802,88 +819,105 @@ export default function PosSystem() {
                 No tables found. Add tables in the Tables page.
               </p>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-                {tables.map((table) => {
-                  const isActive = detailTable?.id === table.id;
-                  const cleaningTimeLabel = getCleaningTimeLabel(table);
-                  const orderInfo = getOrderInfo(table);
-                  const isReadyForPayment =
-                    table.status === "Occupied" &&
-                    orderInfo &&
-                    orderInfo.status === "Served" &&
-                    orderInfo.paymentStatus !== "Completed";
-                  const cardStatusClass = isReadyForPayment
-                    ? "border-sage bg-sage-lt text-sage"
-                    : TABLE_STATUS_STYLES[table.status] ||
-                      "border-border bg-white text-ink";
-                  const statusDotClass = isReadyForPayment
-                    ? "bg-sage"
-                    : TABLE_STATUS_DOT[table.status] || "bg-muted2";
-                  const orderStatusLabel = orderInfo
-                    ? orderInfo.status === "Ready"
-                      ? "Ready to Serve"
-                      : orderInfo.status === "Pending"
-                        ? "Preparing"
-                        : orderInfo.status
-                    : table.status;
-                  const statusLabel = isReadyForPayment
-                    ? "Ready to Payment"
-                    : table.status === "Occupied" && orderInfo
-                      ? orderStatusLabel
-                      : table.status;
-                  return (
-                    <Motion.button
-                      key={table.id}
-                      onClick={() => handleTableClick(table)}
-                      whileTap={{ scale: 0.96 }}
-                      className={`relative flex flex-col items-center justify-center gap-1.5 rounded-xl border font-semibold transition-all hover:shadow-md min-h-27.5 ${
-                        table.status === "Occupied" && orderInfo
-                          ? "pt-8 pb-4 px-4"
-                          : "p-4"
-                      } ${cardStatusClass} ${
-                        isActive ? "ring-2 ring-saffron/30 shadow-md" : ""
-                      }`}
-                    >
-                      <span className="text-2xl font-black">{table.id}</span>
-                      <span className="flex items-center gap-1.5 text-xs font-medium">
-                        <span
-                          className={`w-2 h-2 rounded-full ${statusDotClass}`}
-                        />
-                        {statusLabel}
-                      </span>
-                      {cleaningTimeLabel && (
-                        <span className="text-[11px] font-semibold text-muted">
-                          Cleaning: {cleaningTimeLabel}
-                        </span>
-                      )}
-                      {table.status === "Occupied" && orderInfo && (
-                        <div className="flex items-center gap-1.5 mt-1 text-xs font-semibold text-ink bg-saffron/10 px-2 py-0.5 rounded-full">
-                          <span className="text-[11px] text-muted font-medium">
-                            {orderInfo.orderId}
-                          </span>
-                          <span className="text-muted">•</span>
-                          <span className="font-bold text-ink">
-                            {orderInfo.itemCount} item
-                            {orderInfo.itemCount !== 1 ? "s" : ""}
-                          </span>
-                        </div>
-                      )}
-                      {table.status !== "Occupied" && (
-                        <ChevronRight
-                          size={14}
-                          className="absolute top-2 right-2 opacity-30"
-                        />
-                      )}
-                      {table.status === "Occupied" && (
-                        <span
-                          className={`absolute top-2 right-2 w-2 h-2 rounded-full animate-pulse ${
-                            isReadyForPayment ? "bg-sage" : "bg-warning"
-                          }`}
-                        />
-                      )}
-                    </Motion.button>
-                  );
-                })}
+              <div className="space-y-8">
+                {Object.entries(
+                  tables.reduce((acc, table) => {
+                    const area = table.area || "Main Floor";
+                    if (!acc[area]) acc[area] = [];
+                    acc[area].push(table);
+                    return acc;
+                  }, {})
+                ).map(([area, areaTables]) => (
+                  <div key={area}>
+                    <h3 className="font-bold text-ink mb-3 text-lg flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-saffron inline-block"></span>
+                      {area}
+                    </h3>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+                      {areaTables.map((table) => {
+                        const isActive = detailTable?.id === table.id;
+                        const cleaningTimeLabel = getCleaningTimeLabel(table);
+                        const orderInfo = getOrderInfo(table);
+                        const isReadyForPayment =
+                          table.status === "Occupied" &&
+                          orderInfo &&
+                          orderInfo.status === "Served" &&
+                          orderInfo.paymentStatus !== "Completed";
+                        const cardStatusClass = isReadyForPayment
+                          ? "border-sage bg-sage-lt text-sage"
+                          : TABLE_STATUS_STYLES[table.status] ||
+                            "border-border bg-white text-ink";
+                        const statusDotClass = isReadyForPayment
+                          ? "bg-sage"
+                          : TABLE_STATUS_DOT[table.status] || "bg-muted2";
+                        const orderStatusLabel = orderInfo
+                          ? orderInfo.status === "Ready"
+                            ? "Ready to Serve"
+                            : orderInfo.status === "Pending"
+                              ? "Preparing"
+                              : orderInfo.status
+                          : table.status;
+                        const statusLabel = isReadyForPayment
+                          ? "Ready to Payment"
+                          : table.status === "Occupied" && orderInfo
+                            ? orderStatusLabel
+                            : table.status;
+                        return (
+                          <Motion.button
+                            key={table.id}
+                            onClick={() => handleTableClick(table)}
+                            whileTap={{ scale: 0.96 }}
+                            className={`relative flex flex-col items-center justify-center gap-1.5 rounded-xl border font-semibold transition-all hover:shadow-md min-h-27.5 ${
+                              table.status === "Occupied" && orderInfo
+                                ? "pt-8 pb-4 px-4"
+                                : "p-4"
+                            } ${cardStatusClass} ${
+                              isActive ? "ring-2 ring-saffron/30 shadow-md" : ""
+                            }`}
+                          >
+                            <span className="text-2xl font-black">{table.id}</span>
+                            <span className="flex items-center gap-1.5 text-xs font-medium">
+                              <span
+                                className={`w-2 h-2 rounded-full ${statusDotClass}`}
+                              />
+                              {statusLabel}
+                            </span>
+                            {cleaningTimeLabel && (
+                              <span className="text-[11px] font-semibold text-muted">
+                                Cleaning: {cleaningTimeLabel}
+                              </span>
+                            )}
+                            {table.status === "Occupied" && orderInfo && (
+                              <div className="flex items-center gap-1.5 mt-1 text-xs font-semibold text-ink bg-saffron/10 px-2 py-0.5 rounded-full">
+                                <span className="text-[11px] text-muted font-medium">
+                                  {orderInfo.orderId}
+                                </span>
+                                <span className="text-muted">•</span>
+                                <span className="font-bold text-ink">
+                                  {orderInfo.itemCount} item
+                                  {orderInfo.itemCount !== 1 ? "s" : ""}
+                                </span>
+                              </div>
+                            )}
+                            {table.status !== "Occupied" && (
+                              <ChevronRight
+                                size={14}
+                                className="absolute top-2 right-2 opacity-30"
+                              />
+                            )}
+                            {table.status === "Occupied" && (
+                              <span
+                                className={`absolute top-2 right-2 w-2 h-2 rounded-full animate-pulse ${
+                                  isReadyForPayment ? "bg-sage" : "bg-warning"
+                                }`}
+                              />
+                            )}
+                          </Motion.button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>
@@ -913,25 +947,61 @@ export default function PosSystem() {
                 className="absolute top-0 right-0 h-full w-full max-w-sm bg-white border-l border-border flex flex-col shadow-xl z-50"
               >
                 {/* Panel Header */}
-                <div className="p-4 border-b border-border flex items-center justify-between bg-paper">
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={`text-sm font-bold px-2.5 py-1 rounded-lg border ${TABLE_STATUS_STYLES[detailTable.status]}`}
-                    >
-                      {detailTable.id}
-                    </span>
-                    {detailTable.seats > 0 && (
-                      <span className="text-xs text-muted">
-                        {detailTable.seats} seats
+                <div className="p-4 border-b border-border bg-paper">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`text-sm font-bold px-2.5 py-1 rounded-lg border ${TABLE_STATUS_STYLES[detailTable.status]}`}
+                      >
+                        {detailTable.id}
                       </span>
-                    )}
+                      {detailTable.seats > 0 && (
+                        <span className="text-xs text-muted">
+                          {detailTable.seats} seats
+                        </span>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => setDetailTable(null)}
+                      className="p-1.5 rounded-md text-muted hover:bg-border transition-colors"
+                    >
+                      <X size={16} />
+                    </button>
                   </div>
-                  <button
-                    onClick={() => setDetailTable(null)}
-                    className="p-1.5 rounded-md text-muted hover:bg-border transition-colors"
-                  >
-                    <X size={16} />
-                  </button>
+
+                  {!editingArea ? (
+                    <p className="text-xs text-muted flex items-center justify-between bg-white border border-border px-3 py-2 rounded-lg">
+                      <span>Area: <span className="font-semibold text-ink">{detailTable.area || "Main Floor"}</span></span>
+                      <button 
+                        onClick={() => { setAreaInput(detailTable.area || "Main Floor"); setEditingArea(true); }}
+                        className="text-[10px] text-saffron font-semibold hover:underline"
+                      >
+                        Edit
+                      </button>
+                    </p>
+                  ) : (
+                    <div className="flex gap-2 items-center mt-1 bg-white border border-border px-3 py-2 rounded-lg">
+                      <input 
+                        value={areaInput}
+                        onChange={(e) => setAreaInput(e.target.value)}
+                        placeholder="e.g. Garden"
+                        className="border border-border rounded px-2 py-1 text-xs flex-1 outline-none focus:border-saffron"
+                      />
+                      <button 
+                        disabled={areaMutation.isPending}
+                        onClick={() => areaMutation.mutate({ tableId: detailTable.id, area: areaInput })}
+                        className="bg-saffron text-white rounded px-2 py-1 text-[10px] font-bold"
+                      >
+                        Save
+                      </button>
+                      <button 
+                        onClick={() => setEditingArea(false)}
+                        className="bg-paper border border-border rounded px-2 py-1 text-[10px] text-muted font-medium hover:bg-border"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">

@@ -2,10 +2,10 @@ import { Navigate, Outlet, useParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { getDefaultAdminPathByRole, hasRoleAccess, hasPermission } from "../utils/access";
 
-export default function ProtectedRoute({ minimumRole = "cashier", requiredPermission }) {
+export default function ProtectedRoute({ minimumRole = "cashier", requiredPermission, children }) {
   const { isAuthenticated, role, customRole, subdomain } = useAuth();
   const { slug } = useParams();
-  const fallbackPath = getDefaultAdminPathByRole(role);
+  const fallbackPath = getDefaultAdminPathByRole(role, customRole);
 
   if (!isAuthenticated) {
     return <Navigate to="/auth" replace />;
@@ -28,5 +28,5 @@ export default function ProtectedRoute({ minimumRole = "cashier", requiredPermis
     return <Navigate to={`/${base}${fallbackPath}`} replace />;
   }
 
-  return <Outlet />;
+  return children ? children : <Outlet />;
 }
