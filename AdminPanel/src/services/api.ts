@@ -606,14 +606,13 @@ async function request<T>(
 
 export async function loginAdmin(
   identifier: string,
-  password: string,
   otpToken?: string,
 ): Promise<AdminLoginResponse> {
   const data = await request<AdminLoginResponse>(
     "/auth/login",
     {
       method: "POST",
-      body: JSON.stringify({ identifier, password, otpToken }),
+      body: JSON.stringify({ identifier, otpToken }),
     },
     false,
   );
@@ -665,13 +664,12 @@ export async function requestPhoneLoginOtp(
 
 export async function requestLoginOtp(
   identifier: string,
-  password: string,
 ): Promise<LoginOtpRequestResponse> {
   return request<LoginOtpRequestResponse>(
     "/auth/otp/request-login",
     {
       method: "POST",
-      body: JSON.stringify({ identifier, password }),
+      body: JSON.stringify({ identifier }),
     },
     false,
   );
