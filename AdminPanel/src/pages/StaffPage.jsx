@@ -8,6 +8,7 @@ import {
   Trash2,
   Users,
   X,
+  Shield,
 } from "lucide-react";
 import {
   ArrowPathIcon,
@@ -19,6 +20,7 @@ import {
 import { AnimatePresence, motion as Motion } from "framer-motion";
 import { useQueryClient, useQuery, useMutation } from "@tanstack/react-query";
 import { useState } from "react";
+import { useNavigate, useParams, Link } from "react-router-dom";
 import toast from "react-hot-toast";
 import {
   fetchBusinessProfile,
@@ -38,6 +40,25 @@ import ErrorBoundary from "../components/shared/ErrorBoundary";
 import PageShell from "../components/layout/PageShell";
 
 // ─── Designation config ───────────────────────────────────────────────────────
+const PERM_LABELS = {
+  "dashboard.overview": "Overview",
+  "dashboard.finance": "Finance",
+  "dashboard.operations": "Operations",
+  "dashboard.visitors": "Visitors",
+  "pos.access": "POS",
+  "orders.view": "View Orders",
+  "orders.manage": "Manage Orders",
+  "menu.view": "View Menu",
+  "menu.manage": "Manage Menu",
+  "kds.access": "KDS",
+  "tables.manage": "Tables",
+  "staff.view": "View Staff",
+  "staff.manage": "Manage Staff",
+  "roles.manage": "Roles",
+  "settings.manage": "Settings",
+  "billing.manage": "Billing",
+};
+
 const DESIGNATION_ROLE_MAP = {
   Admin: "admin",
   Manager: "manager",
@@ -764,6 +785,7 @@ const EMPTY_FORM = {
 
 // ─── Staff Form Panel ─────────────────────────────────────────────────────────
 function StaffFormPanel({ mode, initial, roles = [], onClose, onSave, isSaving }) {
+  const { slug } = useParams();
   const [form, setForm] = useState(
     mode === "edit"
       ? {
@@ -918,10 +940,13 @@ function StaffFormPanel({ mode, initial, roles = [], onClose, onSave, isSaving }
 
         {/* Designation / Role */}
         <div className="form-control">
-          <label className="label">
+          <label className="label flex items-center justify-between">
             <span className="label-text font-semibold">
               Designation / Role *
             </span>
+            <Link to={`/${slug}/settings/roles`} className="text-[11px] font-bold text-saffron hover:underline flex items-center gap-1 bg-saffron/10 px-2 py-1 rounded-md">
+              <Plus size={12} /> Create Custom Role
+            </Link>
           </label>
           <select
             className="select select-bordered w-full"
@@ -965,16 +990,23 @@ function StaffFormPanel({ mode, initial, roles = [], onClose, onSave, isSaving }
           </select>
         </div>
 
-        {/* Permissions preview */}
         {form.customRole ? (
           <div className="bg-paper rounded-lg p-3">
             <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-2 flex items-center gap-1.5">
               <Eye size={12} /> Access Granted by Custom Role
             </p>
             <div className="flex flex-wrap gap-1.5">
-              <span className="badge badge-sm badge-success">
-                {roles.find(r => r._id === form.customRole)?.name || "Custom Role"}
-              </span>
+              {(() => {
+                const roleObj = roles.find(r => r._id === form.customRole);
+                if (!roleObj || !roleObj.permissions || roleObj.permissions.length === 0) {
+                  return <span className="badge badge-sm badge-success">{roleObj?.name || "Custom Role"}</span>;
+                }
+                return roleObj.permissions.map(p => (
+                  <span key={p} className="badge badge-sm badge-success capitalize">
+                    {p.replace(/\./g, " ")}
+                  </span>
+                ));
+              })()}
             </div>
           </div>
         ) : perms.length > 0 ? (
@@ -1383,6 +1415,7 @@ function DeleteModal({ member, onConfirm, onCancel, isDeleting }) {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function StaffPage() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [panelMode, setPanelMode] = useState(null); // "add" | "edit" | null
   const [editTarget, setEditTarget] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
@@ -1765,6 +1798,12 @@ export default function StaffPage() {
                 <CalendarDays size={15} /> Holidays ({holidayList.length})
               </button>
               <button
+                onClick={() => navigate("../settings/roles")}
+                className="btn btn-outline btn-sm gap-1.5 text-primary border-primary/30 hover:bg-primary/10 hover:border-primary/50"
+              >
+                <Shield size={15} /> Manage Roles
+              </button>
+              <button
                 onClick={openAdd}
                 className="btn btn-primary btn-sm gap-1.5"
               >
@@ -1877,18 +1916,22 @@ export default function StaffPage() {
                           </span>
                         </td>
                         <td>
-                          <div className="flex flex-wrap gap-1 max-w-65">
+                          <div className="flex flex-col gap-1.5 max-w-[200px]">
                             {member.customRole ? (
-                              <>
-                                <span className="badge badge-xs bg-saffron text-white border-none font-bold" title="Custom Role">
-                                  {member.customRole.name || "Custom Access"}
-                                </span>
-                                {(member.customRole.permissions || []).map((perm) => (
-                                  <span key={perm} className="badge badge-xs badge-ghost">
-                                    {perm}
+                              <div className="flex flex-col gap-1.5 max-w-[250px]">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="px-2 py-0.5 bg-saffron text-white rounded-md text-xs font-bold shadow-sm whitespace-nowrap" title="Custom Role">
+                                    {member.customRole.name || "Custom Access"}
                                   </span>
-                                ))}
-                              </>
+                                </div>
+                                <div className="flex flex-wrap gap-1">
+                                  {(member.customRole.permissions || []).map((perm) => (
+                                    <span key={perm} className="px-1.5 py-0.5 bg-paper text-muted border border-border rounded text-[10px] font-medium whitespace-nowrap">
+                                      {PERM_LABELS[perm] || perm}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
                             ) : legacyPerms.length > 0 ? (
                               legacyPerms.map((p) => (
                                 <span

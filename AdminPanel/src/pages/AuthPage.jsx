@@ -60,15 +60,15 @@ export default function AuthPage() {
     return undefined;
   }, [showOtpModal]);
 
-  const { login, subdomain, role, isAuthenticated } = useAuth();
+  const { login, subdomain, role, customRole, isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
     if (!isAuthenticated || !subdomain) return;
-    navigate(`/${subdomain}${getDefaultAdminPathByRole(role)}`, {
+    navigate(`/${subdomain}${getDefaultAdminPathByRole(role, customRole)}`, {
       replace: true,
     });
-  }, [isAuthenticated, navigate, role, subdomain]);
+  }, [isAuthenticated, navigate, role, customRole, subdomain]);
 
   const isPhone = loginMethod === "phone";
 
@@ -102,10 +102,7 @@ export default function AuthPage() {
     const result = await login(loginIdentifier, otpToken);
     if (result.success) {
       const targetSlug = result.subdomain || subdomain;
-      const targetPath = getDefaultAdminPathByRole(
-        result.role || role,
-        result.customRole || customRole,
-      );
+      const targetPath = getDefaultAdminPathByRole(result.role || role, result.customRole || customRole);
       if (!targetSlug) {
         toast.error("Could not resolve business URL. Please contact support.");
         setSubmitting(false);

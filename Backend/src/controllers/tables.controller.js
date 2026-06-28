@@ -144,101 +144,7 @@ async function reconcileTableOccupancy(businessId) {
   }
 }
 
-async function syncTablesWithBusinessCount(businessId) {
-  const business = await Business.findById(businessId)
-    .select("tableCount")
-    .lean();
-  const targetCount = Math.max(0, Number(business?.tableCount || 0));
 
-  const allTables = await Table.find({ businessId })
-    .select("_id tableId isActive")
-    .lean();
-
-  const tableNo = (tableId) => {
-    const n = Number(String(tableId || "").replace(/\D/g, ""));
-    return Number.isFinite(n) && n > 0 ? n : Number.MAX_SAFE_INTEGER;
-  };
-
-  const activeTables = allTables
-    .filter((row) => row.isActive !== false)
-    .sort((a, b) => tableNo(a.tableId) - tableNo(b.tableId));
-  const inactiveTables = allTables
-    .filter((row) => row.isActive === false)
-    .sort((a, b) => tableNo(a.tableId) - tableNo(b.tableId));
-
-  if (activeTables.length > targetCount) {
-    const toDeactivate = activeTables
-      .slice(targetCount)
-      .map((row) => row._id)
-      .filter(Boolean);
-    if (toDeactivate.length > 0) {
-      await Table.updateMany(
-        { _id: { $in: toDeactivate } },
-        {
-          $set: {
-            isActive: false,
-            status: "Free",
-            guestName: null,
-            guestPhone: null,
-          },
-        },
-      );
-    }
-    return;
-  }
-
-  let missing = targetCount - activeTables.length;
-  if (missing <= 0) return;
-
-  const toReactivate = inactiveTables
-    .slice(0, missing)
-    .map((row) => row._id)
-    .filter(Boolean);
-  if (toReactivate.length > 0) {
-    await Table.updateMany(
-      { _id: { $in: toReactivate } },
-      {
-        $set: {
-          isActive: true,
-          status: "Free",
-          guestName: null,
-          guestPhone: null,
-        },
-      },
-    );
-    missing -= toReactivate.length;
-  }
-
-  if (missing <= 0) return;
-
-  const usedIds = new Set(
-    allTables
-      .map((row) => tableNo(row.tableId))
-      .filter((n) => n < Number.MAX_SAFE_INTEGER),
-  );
-  const rows = [];
-  let pointer = 1;
-  while (rows.length < missing) {
-    if (!usedIds.has(pointer)) {
-      usedIds.add(pointer);
-      rows.push({
-        businessId,
-        tableId: `T-${String(pointer).padStart(2, "0")}`,
-        seats: 4,
-        area: "Main Floor",
-        status: "Free",
-        guestName: null,
-        guestPhone: null,
-        isActive: true,
-      });
-    }
-    pointer += 1;
-  }
-
-  if (rows.length > 0) {
-    await Table.insertMany(rows, { ordered: false });
-  }
-}
 
 const statusSchema = z.object({
   status: z.enum(["Free", "Occupied", "Reserved", "Cleaning"]),
@@ -335,7 +241,6 @@ async function autoFreeCleaning(businessId) {
 
 async function getAll(req, res, next) {
   try {
-    await syncTablesWithBusinessCount(req.user.businessId);
     await reconcileTableOccupancy(req.user.businessId);
     await autoFreeCleaning(req.user.businessId);
     const tables = await Table.find({
@@ -433,7 +338,7 @@ async function update(req, res, next) {
   try {
     const data = updateSchema.parse(req.body);
     const table = await Table.findOneAndUpdate(
-      { _id: req.params.id, businessId: req.user.businessId },
+      { tableId: req.params.id, businessId: req.user.businessId },
       { $set: data },
       { new: true },
     );
@@ -447,7 +352,7 @@ async function update(req, res, next) {
 async function remove(req, res, next) {
   try {
     const table = await Table.findOneAndUpdate(
-      { _id: req.params.id, businessId: req.user.businessId },
+      { tableId: req.params.id, businessId: req.user.businessId },
       { $set: { isActive: false } },
       { new: true },
     );

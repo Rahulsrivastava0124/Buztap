@@ -26,6 +26,7 @@ import {
   Check,
   X,
   Users,
+  Armchair,
 } from "lucide-react";
 import { motion as Motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
@@ -45,13 +46,14 @@ const SIDEBAR_ITEMS = [
     icon: LayoutDashboard,
     label: "Dashboard",
     minimumRole: "cashier",
+    requiredPermission: PERMISSIONS.DASHBOARD_OVERVIEW,
   },
   {
     path: "/dashboard/finance",
     icon: Banknote,
     label: "Sales & Finance",
     minimumRole: "manager",
-    requiredPermission: PERMISSIONS.REPORTS_VIEW,
+    requiredPermission: PERMISSIONS.DASHBOARD_FINANCE,
   },
   {
     path: "/menu",
@@ -63,9 +65,9 @@ const SIDEBAR_ITEMS = [
   {
     path: "/dashboard/operations",
     icon: Smartphone,
-    label: "Operations & Tables",
+    label: "Operations",
     minimumRole: "cashier",
-    requiredPermission: PERMISSIONS.TABLES_MANAGE,
+    requiredPermission: PERMISSIONS.DASHBOARD_OPERATIONS,
   },
   {
     path: "/pos",
@@ -100,20 +102,27 @@ const SIDEBAR_ITEMS = [
     icon: Users,
     label: "Visitors",
     minimumRole: "manager",
-    requiredPermission: PERMISSIONS.REPORTS_VIEW,
+    requiredPermission: PERMISSIONS.DASHBOARD_VISITORS,
   },
   {
     path: "/reports",
     icon: FileBarChart2,
     label: "Reports",
     minimumRole: "manager",
-    requiredPermission: PERMISSIONS.REPORTS_VIEW,
+    requiredPermission: PERMISSIONS.DASHBOARD_FINANCE,
   },
   {
     path: "/offers",
     icon: TicketPercent,
     label: "Coupons & Offers",
     minimumRole: "manager",
+    requiredPermission: PERMISSIONS.SETTINGS_MANAGE,
+  },
+  {
+    path: "/tables",
+    icon: Armchair,
+    label: "Floor Plan",
+    minimumRole: "admin",
     requiredPermission: PERMISSIONS.SETTINGS_MANAGE,
   },
   {
@@ -163,12 +172,10 @@ function SidebarContent({
           const dynamicLabel =
             item.path === "/tables"
               ? isHotelMode
-                ? "Rooms"
-                : "Tables"
+                ? "Rooms Plan"
+                : "Floor Plan"
               : item.path === "/dashboard/operations"
-                ? isHotelMode
-                  ? "Operations & Rooms"
-                  : "Operations & Tables"
+                ? "Operations"
                 : item.label;
           return (
             <Link
@@ -503,8 +510,8 @@ export default function AdminLayout() {
               {location.pathname.includes("/finance") && "Sales & Finance"}
               {location.pathname.includes("/visitors") && "Visitors"}
               {location.pathname.includes("/menu") && "Menu & Products"}
-              {location.pathname.includes("/operations") &&
-                (isHotelMode ? "Operations & Rooms" : "Operations & Tables")}
+              {location.pathname.includes("/operations") && "Operations"}
+              {location.pathname.includes("/floor-plan") && (isHotelMode ? "Rooms Plan" : "Floor Plan")}
               {location.pathname.includes("/pos/checkout") && "POS Checkout"}
               {location.pathname.includes("/pos") &&
                 !location.pathname.includes("/checkout") &&

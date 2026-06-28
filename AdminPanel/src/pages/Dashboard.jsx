@@ -20,6 +20,11 @@ import {
   Activity,
   ArrowUpRight,
   ArrowDownRight,
+  Crown,
+  Building2,
+  Mail,
+  MapPin,
+  BadgeCheck
 } from "lucide-react";
 const TrendLineChart = lazy(
   () => import("../components/shared/TrendLineChart"),
@@ -33,10 +38,11 @@ import {
   fetchRevenueTrend,
   fetchVisitorTrend,
   fetchTodayStats,
+  fetchBusinessProfile,
 } from "../services/api";
 import ProtectedRoute from "../components/ProtectedRoute";
 import { useAuth } from "../context/AuthContext";
-import { hasRoleAccess } from "../utils/access";
+import { hasRoleAccess, PERMISSIONS } from "../utils/access";
 import KpiCard from "../components/shared/KpiCard";
 import OrderStatusBadge from "../components/shared/OrderStatusBadge";
 import ErrorBoundary from "../components/shared/ErrorBoundary";
@@ -117,18 +123,20 @@ export default function Dashboard() {
   return (
     <Routes>
       <Route index element={<Navigate to="overview" replace />} />
-      <Route
-        path="overview"
-        element={
-          <PageShell>
-            <ErrorBoundary label="Overview">
-              <OverviewTab />
-            </ErrorBoundary>
-          </PageShell>
-        }
-      />
+        <Route
+          path="overview"
+          element={
+            <ProtectedRoute requiredPermission={PERMISSIONS.DASHBOARD_OVERVIEW}>
+              <PageShell>
+                <ErrorBoundary label="Overview">
+                  <OverviewTab />
+                </ErrorBoundary>
+              </PageShell>
+            </ProtectedRoute>
+          }
+        />
 
-      <Route element={<ProtectedRoute minimumRole="manager" />}>
+      <Route element={<ProtectedRoute minimumRole="manager" requiredPermission={PERMISSIONS.DASHBOARD_FINANCE} />}>
         <Route
           path="finance"
           element={
@@ -151,18 +159,20 @@ export default function Dashboard() {
         />
       </Route>
 
-      <Route
-        path="operations"
-        element={
-          <PageShell>
-            <ErrorBoundary label="Operations">
-              <OperationsTab />
-            </ErrorBoundary>
-          </PageShell>
-        }
-      />
+        <Route
+          path="operations"
+          element={
+            <ProtectedRoute requiredPermission={PERMISSIONS.DASHBOARD_OPERATIONS}>
+              <PageShell>
+                <ErrorBoundary label="Operations">
+                  <OperationsTab />
+                </ErrorBoundary>
+              </PageShell>
+            </ProtectedRoute>
+          }
+        />
 
-      <Route element={<ProtectedRoute minimumRole="manager" />}>
+      <Route element={<ProtectedRoute minimumRole="manager" requiredPermission={PERMISSIONS.DASHBOARD_VISITORS} />}>
         <Route
           path="visitors"
           element={
@@ -252,7 +262,7 @@ const buildVisitorChartData = (trend) => {
 
 export function OverviewTab() {
   const navigate = useNavigate();
-  const { role } = useAuth();
+  const { role, userName, businessName } = useAuth();
   const canViewFinance = hasRoleAccess(role, "manager");
   const [timeRange, setTimeRange] = useState("1D");
   const [visitorTimeRange, setVisitorTimeRange] = useState("1D");
@@ -268,6 +278,12 @@ export function OverviewTab() {
     queryKey: ["dashboard-recent-orders"],
     queryFn: fetchRecentOrders,
     refetchInterval: 12_000,
+  });
+
+  const { data: businessProfile } = useQuery({
+    queryKey: ["business-profile"],
+    queryFn: fetchBusinessProfile,
+    staleTime: 5 * 60 * 1000,
   });
 
   const { data: stats } = useQuery({
@@ -338,7 +354,68 @@ export function OverviewTab() {
     : null;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 sm:space-y-8">
+      {/* Owner Welcome Banner */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-ink to-slate-900 rounded-2xl shadow-lg border border-slate-800 text-white p-6 sm:p-8">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-saffron/10 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl -ml-20 -mb-20 pointer-events-none" />
+        
+        <div className="relative z-10 flex flex-col sm:flex-row gap-6 items-start sm:items-center justify-between">
+          <div className="flex gap-5 items-center">
+            <div className="w-16 h-16 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center shrink-0 backdrop-blur-md shadow-inner">
+              {businessProfile?.logoImage ? (
+                <img src={businessProfile.logoImage} alt="Logo" className="w-12 h-12 object-contain" />
+              ) : (
+                <Building2 size={32} className="text-saffron-lt" />
+              )}
+            </div>
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <h1 className="text-2xl sm:text-3xl font-black tracking-tight leading-none text-white">
+                  Welcome back, {userName || "Admin"}
+                </h1>
+                <span className="flex items-center gap-1 bg-saffron text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                  {role}
+                </span>
+              </div>
+              <p className="text-slate-300 font-medium flex items-center gap-1.5 text-sm">
+                {businessProfile?.name || businessName || "Your Business"}
+                {businessProfile?.isActive && (
+                  <BadgeCheck size={14} className="text-blue-400" />
+                )}
+              </p>
+              
+              <div className="flex flex-wrap items-center gap-4 mt-3 text-xs text-slate-400">
+                {businessProfile?.email && (
+                  <div className="flex items-center gap-1.5">
+                    <Mail size={12} />
+                    {businessProfile.email}
+                  </div>
+                )}
+                {businessProfile?.address && (
+                  <div className="flex items-center gap-1.5">
+                    <MapPin size={12} />
+                    <span className="truncate max-w-[200px]">{businessProfile.address}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex sm:flex-col gap-3 sm:gap-2 w-full sm:w-auto">
+            <div className="flex-1 bg-white/5 border border-white/10 rounded-xl p-3 backdrop-blur-sm">
+              <div className="flex items-center gap-2 mb-1 text-slate-400">
+                <Crown size={14} className="text-amber-400" />
+                <span className="text-[10px] font-bold uppercase tracking-wider">Current Plan</span>
+              </div>
+              <p className="font-bold text-white text-sm capitalize">
+                {businessProfile?.plan || "Free"} Plan
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* KPI row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         {canViewFinance && (
