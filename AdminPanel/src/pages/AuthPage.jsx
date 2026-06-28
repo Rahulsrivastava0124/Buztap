@@ -104,7 +104,7 @@ export default function AuthPage() {
       const targetSlug = result.subdomain || subdomain;
       const targetPath = getDefaultAdminPathByRole(
         result.role || role,
-        result.customRole || customRole,
+        result.customRole,
       );
       if (!targetSlug) {
         toast.error("Could not resolve business URL. Please contact support.");
