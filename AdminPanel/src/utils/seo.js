@@ -161,7 +161,7 @@ export const pageMetaConfig = {
     description:
       "Reset your BuzTap admin account password securely using one-time email verification.",
     keywords: "reset password, admin login, account recovery",
-    url: "/forgot-password",
+    url: "/auth/forget-password",
     robots: "noindex, nofollow, noarchive",
   },
   dashboard: {

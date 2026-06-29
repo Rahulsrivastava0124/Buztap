@@ -1,24 +1,38 @@
 import { useState, useEffect, useRef } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { Mail, Phone, Lock, ArrowRight, Eye, EyeOff } from "lucide-react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import {
+  Mail,
+  Phone,
+  ArrowRight,
+  ShieldCheck,
+  Lock,
+  Zap,
+  Star,
+  TrendingUp,
+} from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "../context/AuthContext";
-import { requestLoginOtp, verifyEmailOtp } from "../services/api";
+import {
+  requestLoginOtp,
+  requestPhoneLoginOtp,
+  verifyEmailOtp,
+} from "../services/api";
 import { getDefaultAdminPathByRole } from "../utils/access";
 import useSEO from "../hooks/useSEO";
+import ForgotPasswordForm from "./ForgotPasswordForm";
 
 export default function AuthPage() {
   useSEO("auth");
 
-  const [loginMethod, setLoginMethod] = useState("phone");
+  // "email" is the primary, passwordless login method. Users can switch to
+  // "phone" via the "Login with number" sub-link.
+  const [loginMethod, setLoginMethod] = useState("email");
   const [identifier, setIdentifier] = useState("");
-  const [password, setPassword] = useState("");
   const [otp, setOtp] = useState("");
   const [resolvedEmail, setResolvedEmail] = useState("");
   const [showOtpModal, setShowOtpModal] = useState(false);
   const [sendingOtp, setSendingOtp] = useState(false);
   const [verifyingOtp, setVerifyingOtp] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
   const [otpCooldown, setOtpCooldown] = useState(0);
@@ -58,6 +72,11 @@ export default function AuthPage() {
 
   const { login, subdomain, role, customRole, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // The forgot-password section lives inside this same login card; the URL
+  // (/auth/forget-password) decides which view is shown.
+  const isForgotView = location.pathname.includes("forget-password");
 
   useEffect(() => {
     if (!isAuthenticated || !subdomain) return;
@@ -66,9 +85,11 @@ export default function AuthPage() {
     });
   }, [isAuthenticated, navigate, role, customRole, subdomain]);
 
-  function validateCredentials() {
+  const isPhone = loginMethod === "phone";
+
+  function validateIdentifier() {
     const errs = {};
-    if (loginMethod === "phone") {
+    if (isPhone) {
       const digits = identifier.replace(/\D/g, "");
       if (!identifier.trim()) {
         errs.identifier = "Phone number is required.";
@@ -77,42 +98,23 @@ export default function AuthPage() {
       } else if (digits.length > 15) {
         errs.identifier = "Phone number is too long.";
       }
-    } else if (loginMethod === "email") {
+    } else {
       if (!identifier.trim()) {
         errs.identifier = "Email address is required.";
       } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier.trim())) {
         errs.identifier = "Enter a valid email address.";
       }
     }
-    if (!password) {
-      errs.password = "Password is required.";
-    } else if (password.length < 6) {
-      errs.password = "Password must be at least 6 characters.";
-    }
     return errs;
   }
 
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    if (submitting || sendingOtp) return;
-    const errs = validateCredentials();
-    if (Object.keys(errs).length > 0) {
-      setErrors(errs);
-      return;
-    }
-
-    await handleSendOtp(true);
-  };
-
-  const completeLogin = async (loginIdentifier, loginPassword, otpToken, loginMode = "admin") => {
+  const completeLogin = async (otpToken) => {
     setErrors({});
     setSubmitting(true);
-    const result = await login(
-      loginIdentifier,
-      loginPassword,
-      otpToken || undefined,
-      loginMode,
-    );
+    const loginIdentifier = isPhone
+      ? identifier.replace(/\D/g, "")
+      : identifier.trim().toLowerCase();
+    const result = await login(loginIdentifier, otpToken);
     if (result.success) {
       const targetSlug = result.subdomain || subdomain;
       const targetPath = getDefaultAdminPathByRole(result.role || role, result.customRole || customRole);
@@ -126,40 +128,21 @@ export default function AuthPage() {
       setShowOtpModal(false);
       navigate(`/${targetSlug}${targetPath}`);
     } else {
-      toast.error("Invalid phone/email or password");
+      toast.error("Unable to sign in. Please try again.");
     }
     setSubmitting(false);
   };
 
 
-  const completeLoginWithOtp = async (otpToken) => {
-    const normalizedIdentifier =
-      loginMethod === "phone"
-        ? identifier.replace(/\D/g, "")
-        : identifier.trim().toLowerCase();
-
-    await completeLogin(
-      normalizedIdentifier,
-      password,
-      otpToken,
-      "admin",
-    );
-  };
   function handleIdentifierChange(e) {
     const raw = e.target.value;
-    const cleaned =
-      loginMethod === "phone" ? raw.replace(/[^\d\s+\-().]/g, "") : raw;
+    const cleaned = isPhone ? raw.replace(/[^\d\s+\-().]/g, "") : raw;
     setIdentifier(cleaned);
     setOtp("");
     setResolvedEmail("");
     setShowOtpModal(false);
     setErrors((prev) => ({ ...prev, otp: "" }));
     if (errors.identifier) setErrors((prev) => ({ ...prev, identifier: "" }));
-  }
-
-  function handlePasswordChange(e) {
-    setPassword(e.target.value);
-    if (errors.password) setErrors((prev) => ({ ...prev, password: "" }));
   }
 
   function switchMethod(method) {
@@ -173,8 +156,14 @@ export default function AuthPage() {
     setErrors({});
   }
 
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (sendingOtp || submitting) return;
+    await handleSendOtp(true);
+  };
+
   async function handleSendOtp(openModal = false) {
-    const errs = validateCredentials();
+    const errs = validateIdentifier();
     if (Object.keys(errs).length > 0) {
       setErrors((prev) => ({ ...prev, ...errs }));
       return;
@@ -182,13 +171,15 @@ export default function AuthPage() {
 
     try {
       setSendingOtp(true);
-      const normalizedIdentifier =
-        loginMethod === "phone"
-          ? identifier.replace(/\D/g, "")
-          : identifier.trim().toLowerCase();
-      const res = await requestLoginOtp(normalizedIdentifier, password);
+      const res = isPhone
+        ? await requestPhoneLoginOtp(identifier.replace(/\D/g, ""))
+        : await requestLoginOtp(identifier.trim().toLowerCase());
       setResolvedEmail(res.resolvedEmail);
-      toast.success("OTP sent to your registered email");
+      toast.success(
+        isPhone
+          ? "OTP sent to the email linked with this number"
+          : "OTP sent to your email",
+      );
       if (openModal) {
         setOtp("");
         setShowOtpModal(true);
@@ -211,7 +202,8 @@ export default function AuthPage() {
       setErrors((prev) => ({ ...prev, otp: "Enter a valid 6-digit OTP." }));
       return;
     }
-    const emailForVerify = resolvedEmail || identifier.trim().toLowerCase();
+    const emailForVerify =
+      resolvedEmail || (isPhone ? "" : identifier.trim().toLowerCase());
     if (!emailForVerify) {
       toast.error("Send OTP first");
       return;
@@ -222,7 +214,7 @@ export default function AuthPage() {
       const res = await verifyEmailOtp(emailForVerify, "login", otpValue);
       setErrors((prev) => ({ ...prev, otp: "" }));
       toast.success("OTP verified");
-      await completeLoginWithOtp(res.otpToken);
+      await completeLogin(res.otpToken);
     } catch (err) {
       toast.error(err?.message || "OTP verification failed");
     } finally {
@@ -310,16 +302,31 @@ export default function AuthPage() {
               <br />
               <span className="text-saffron">Delight guests.</span>
             </h2>
-            <p className="text-[#e8e0d4] text-lg max-w-md leading-relaxed selection:bg-saffron/30">
+            <p className="text-[#e8e0d4] text-lg max-w-md leading-relaxed selection:bg-saffron/30 mb-8">
               Join thousands of restaurants revolutionizing the dining
               experience with instant digital ordering.
             </p>
+
+            <div className="flex flex-wrap items-center gap-x-8 gap-y-3 pt-6 border-t border-white/10">
+              <div className="flex items-center gap-2 text-white/90">
+                <Zap className="h-5 w-5 text-saffron" />
+                <span className="text-sm font-medium">Faster Service</span>
+              </div>
+              <div className="flex items-center gap-2 text-white/90">
+                <Star className="h-5 w-5 text-saffron" />
+                <span className="text-sm font-medium">Happy Guests</span>
+              </div>
+              <div className="flex items-center gap-2 text-white/90">
+                <TrendingUp className="h-5 w-5 text-saffron" />
+                <span className="text-sm font-medium">Higher Revenue</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
       {/* ── Right Side Form ── */}
-      <div className="flex flex-col justify-center p-6 sm:p-12 lg:p-20 relative bg-white min-h-screen md:min-h-0">
+      <div className="flex flex-col justify-center p-6 sm:p-12 lg:p-16 relative bg-gradient-to-br from-[#fbfbfb] to-[#f4f1ec] min-h-screen md:min-h-0">
         {/* Mobile Header */}
         <div className="md:hidden absolute top-6 left-6 right-6 flex items-center justify-end">
           <Link to="/" className="flex items-center gap-2 shrink-0">
@@ -333,68 +340,44 @@ export default function AuthPage() {
           </Link>
         </div>
 
-        <div className="w-full max-w-md mx-auto">
-          <div className="mb-8">
+        <div className="w-full max-w-md mx-auto bg-white rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.08)] border border-black/[0.04] p-7 sm:p-10">
+          {isForgotView ? (
+            <ForgotPasswordForm
+              initialEmail={isPhone ? "" : identifier.trim().toLowerCase()}
+              onBackToLogin={() => navigate("/auth")}
+            />
+          ) : (
+            <>
+          <div className="mb-8 flex flex-col items-center text-center">
+            <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-[#e8720c]/10">
+              <ShieldCheck className="h-7 w-7 text-[#e8720c]" />
+            </div>
             <h1 className="font-display text-3xl font-bold text-[#0f0e0b] mb-2">
               Welcome back
             </h1>
             <p className="text-[#857c6e] text-sm">
-              Enter your details to access your dashboard.
+              {isPhone
+                ? "We'll send a one-time code to the email linked with your number."
+                : "Enter your email and we'll send you a one-time code."}
             </p>
           </div>
 
-          <form className="space-y-4" onSubmit={handleLogin} noValidate>
+          <form className="space-y-4" onSubmit={handleSubmit} noValidate>
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-[#0f0e0b]">
-                Login Method
-              </label>
-              <div className="p-1 rounded-lg bg-[#faf7f2] border border-[#e0d9ce] grid grid-cols-2 gap-1">
-                <button
-                  type="button"
-                  onClick={() => switchMethod("phone")}
-                  className={`py-2 rounded-md text-sm font-semibold transition-colors flex items-center justify-center gap-2 ${
-                    loginMethod === "phone"
-                      ? "bg-[#e8720c] text-white"
-                      : "text-[#6f6658] hover:bg-[#f0ebe0]"
-                  }`}
-                >
-                  <Phone size={14} /> Phone
-                </button>
-                <button
-                  type="button"
-                  onClick={() => switchMethod("email")}
-                  className={`py-2 rounded-md text-sm font-semibold transition-colors flex items-center justify-center gap-2 ${
-                    loginMethod === "email"
-                      ? "bg-[#e8720c] text-white"
-                      : "text-[#6f6658] hover:bg-[#f0ebe0]"
-                  }`}
-                >
-                  <Mail size={14} /> Email
-                </button>
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-[#0f0e0b]">
-                {loginMethod === "phone"
-                  ? "Phone Number"
-                  : "Email Address"}
+                {isPhone ? "Phone Number" : "Email Address"}
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  {loginMethod === "phone" ? (
+                  {isPhone ? (
                     <Phone className="h-4 w-4 text-[#b0a898]" />
                   ) : (
                     <Mail className="h-4 w-4 text-[#b0a898]" />
                   )}
                 </div>
                 <input
-                  type={loginMethod === "phone" ? "tel" : "text"}
-                  inputMode={
-                    loginMethod === "phone"
-                      ? "numeric"
-                      : "email"
-                  }
+                  type={isPhone ? "tel" : "text"}
+                  inputMode={isPhone ? "numeric" : "email"}
                   value={identifier}
                   onChange={handleIdentifierChange}
                   className={`w-full pl-10 pr-4 py-2.5 bg-[#faf7f2] border rounded-lg text-sm text-[#0f0e0b] placeholder-[#b0a898] focus:outline-none focus:ring-1 transition-shadow ${
@@ -402,71 +385,35 @@ export default function AuthPage() {
                       ? "border-red-400 focus:border-red-400 focus:ring-red-200"
                       : "border-[#e0d9ce] focus:border-[#e8720c] focus:ring-[#e8720c]"
                   }`}
-                  placeholder={
-                    loginMethod === "phone"
-                      ? "+91 98765 43210"
-                      : "you@example.com"
-                  }
-                  autoComplete={
-                    loginMethod === "phone"
-                      ? "tel"
-                      : "email"
-                  }
+                  placeholder={isPhone ? "+91 98765 43210" : "you@example.com"}
+                  autoComplete={isPhone ? "tel" : "email"}
                 />
               </div>
               {errors.identifier && (
                 <p className="text-xs text-red-500 mt-1">{errors.identifier}</p>
               )}
-            </div>
 
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-semibold text-[#0f0e0b]">
-                  Password
-                </label>
+              {/* Sub-links: Forgot password & switch login method */}
+              <div className="flex items-center justify-between pt-1">
                 <Link
-                  to="/forgot-password"
-                  className="text-xs font-medium text-[#e8720c] hover:underline"
+                  to="/auth/forget-password"
+                  className="text-xs font-medium text-[#857c6e] hover:text-[#0f0e0b] hover:underline"
                 >
                   Forgot password?
                 </Link>
-              </div>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock className="h-4 w-4 text-[#b0a898]" />
-                </div>
-                <input
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={handlePasswordChange}
-                  className={`w-full pl-10 pr-10 py-2.5 bg-[#faf7f2] border rounded-lg text-sm text-[#0f0e0b] placeholder-[#b0a898] focus:outline-none focus:ring-1 transition-shadow ${
-                    errors.password
-                      ? "border-red-400 focus:border-red-400 focus:ring-red-200"
-                      : "border-[#e0d9ce] focus:border-[#e8720c] focus:ring-[#e8720c]"
-                  }`}
-                  placeholder="••••••••"
-                />
                 <button
                   type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-[#b0a898] hover:text-[#0f0e0b] transition-colors"
-                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  onClick={() => switchMethod(isPhone ? "email" : "phone")}
+                  className="text-xs font-semibold text-[#e8720c] hover:underline"
                 >
-                  {showPassword ? (
-                    <EyeOff className="h-4 w-4" />
-                  ) : (
-                    <Eye className="h-4 w-4" />
-                  )}
+                  {isPhone ? "Login with email" : "Login with number"}
                 </button>
               </div>
-              {errors.password && (
-                <p className="text-xs text-red-500 mt-1">{errors.password}</p>
-              )}
             </div>
 
             <button
               type="submit"
-              disabled={submitting || sendingOtp}
+              disabled={sendingOtp || submitting}
               className="w-full py-3 mt-6 bg-[#e8720c] hover:bg-[#d4620a] disabled:opacity-60 text-white text-sm font-semibold rounded-lg transition-colors shadow-[0_4px_14px_rgba(232,114,12,0.25)] flex items-center justify-center gap-2"
             >
               {sendingOtp ? (
@@ -487,6 +434,13 @@ export default function AuthPage() {
               )}
             </button>
           </form>
+
+          <div className="mt-7 flex items-center justify-center gap-1.5 text-[#9a9183]">
+            <Lock className="h-3.5 w-3.5" />
+            <span className="text-xs font-medium">Secure. Fast. No spam.</span>
+          </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -497,7 +451,7 @@ export default function AuthPage() {
               Verify OTP
             </h2>
             <p className="text-sm text-[#857c6e] mb-5">
-              {loginMethod === "phone"
+              {isPhone
                 ? "We sent a one-time code to the email linked with this phone number."
                 : "We sent a one-time code to your email address."}
             </p>
@@ -565,7 +519,7 @@ export default function AuthPage() {
                 </>
               ) : (
                 <>
-                  Verify & Sign In <ArrowRight size={16} />
+                  Verify &amp; Sign In <ArrowRight size={16} />
                 </>
               )}
             </button>
