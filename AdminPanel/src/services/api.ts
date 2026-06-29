@@ -832,6 +832,18 @@ export async function fetchTables(): Promise<TableRecord[]> {
   }));
 }
 
+export async function fetchDeletedTables(): Promise<TableRecord[]> {
+  const rows = await request<Array<any>>("/tables/deleted");
+  return rows.map((table) => ({
+    id: table.tableId,
+    seats: Number(table.seats || 0),
+    area: table.area || "Main Floor",
+    status: table.status,
+    guestName: table.guestName ?? null,
+    updatedAt: table.updatedAt ?? null,
+  }));
+}
+
 export async function updateTableStatus(
   tableId: string,
   status: TableRecord["status"],
@@ -868,6 +880,24 @@ export async function updateTableArea(
   };
 }
 
+export async function updateTable(
+  oldTableId: string,
+  data: { tableId?: string; area?: string; seats?: number }
+): Promise<TableRecord> {
+  const table = await request<any>(`/tables/${oldTableId}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+  return {
+    id: table.tableId,
+    seats: Number(table.seats || 0),
+    area: table.area || "Main Floor",
+    status: table.status,
+    guestName: table.guestName ?? null,
+    updatedAt: table.updatedAt ?? null,
+  };
+}
+
 export async function createTable(
   data: { tableId: string; seats: number; area: string }
 ): Promise<TableRecord> {
@@ -888,6 +918,12 @@ export async function createTable(
 export async function deleteTable(tableId: string): Promise<void> {
   await request(`/tables/${tableId}`, {
     method: "DELETE",
+  });
+}
+
+export async function restoreTable(tableId: string): Promise<void> {
+  await request(`/tables/${tableId}/restore`, {
+    method: "PUT",
   });
 }
 
@@ -951,10 +987,7 @@ export async function fetchOrders(): Promise<OrderQueueItem[]> {
   const now = Date.now();
   const normalizeTableId = (raw: any) => {
     const value = String(raw || "").trim();
-    if (!value) return null;
-    const digits = value.replace(/\D/g, "");
-    if (!digits) return null;
-    return `T-${String(Number(digits)).padStart(2, "0")}`;
+    return value || null;
   };
 
   return (data.orders || []).map((order) => {

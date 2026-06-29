@@ -81,7 +81,7 @@ async function reconcileTableOccupancy(businessId) {
     });
   });
 
-  const tables = await Table.find({ businessId, isActive: true })
+  const tables = await Table.find({ businessId, isActive: true, deletedAt: null })
     .select("tableId status")
     .lean();
 
@@ -246,6 +246,7 @@ async function getAll(req, res, next) {
     const tables = await Table.find({
       businessId: req.user.businessId,
       isActive: true,
+      deletedAt: null,
     })
       .sort({ tableId: 1 })
       .lean();
@@ -322,8 +323,18 @@ async function create(req, res, next) {
       businessId: req.user.businessId,
       tableId: data.tableId,
     });
-    if (existing)
-      return res.status(409).json({ error: "Table ID already exists" });
+    if (existing) {
+      if (existing.isActive !== false) {
+        return res.status(409).json({ error: "Table ID already exists" });
+      } else {
+        existing.isActive = true;
+        existing.deletedAt = null;
+        existing.area = data.area;
+        existing.seats = data.seats;
+        await existing.save();
+        return res.status(201).json(existing);
+      }
+    }
     const table = await Table.create({
       ...data,
       businessId: req.user.businessId,
@@ -353,11 +364,39 @@ async function remove(req, res, next) {
   try {
     const table = await Table.findOneAndUpdate(
       { tableId: req.params.id, businessId: req.user.businessId },
-      { $set: { isActive: false } },
+      { $set: { isActive: false, deletedAt: new Date() } },
       { new: true },
     );
     if (!table) return res.status(404).json({ error: "Table not found" });
     res.json({ success: true });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function getDeleted(req, res, next) {
+  try {
+    const tables = await Table.find({
+      businessId: req.user.businessId,
+      isActive: false,
+    })
+      .sort({ deletedAt: -1, updatedAt: -1 })
+      .lean();
+    res.json(tables);
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function restore(req, res, next) {
+  try {
+    const table = await Table.findOneAndUpdate(
+      { tableId: req.params.id, businessId: req.user.businessId },
+      { $set: { isActive: true, deletedAt: null } },
+      { new: true },
+    );
+    if (!table) return res.status(404).json({ error: "Table not found" });
+    res.json(table);
   } catch (err) {
     next(err);
   }
@@ -371,4 +410,6 @@ module.exports = {
   create,
   update,
   remove,
+  getDeleted,
+  restore,
 };

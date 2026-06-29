@@ -47,9 +47,7 @@ function OrderDetailDrawer({ orderId, onClose }) {
 
   const formatTableLabel = (raw) => {
     const value = String(raw || "").trim();
-    const digits = value.replace(/\D/g, "");
-    if (!digits) return value || "-";
-    return `T-${String(Number(digits)).padStart(2, "0")}`;
+    return value || "-";
   };
 
   const printInvoice = () => {

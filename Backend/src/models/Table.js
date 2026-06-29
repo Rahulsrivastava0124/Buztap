@@ -20,6 +20,7 @@ const tableSchema = new Schema(
     guestPhone: { type: String, default: null },
     qrCode: { type: String, default: "" },
     isActive: { type: Boolean, default: true },
+    deletedAt: { type: Date, default: null },
   },
   { timestamps: true },
 );

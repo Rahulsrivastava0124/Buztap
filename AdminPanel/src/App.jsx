@@ -68,16 +68,6 @@ export default function App() {
         <Route path="/auth" element={<AuthPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
 
-        {/* Super Admin Routes (Fallback for normal domain) */}
-        <Route path="/superadmin" element={<SuperAdminLoginPage />} />
-        <Route path="/superadmin" element={<SuperAdminLayout />}>
-          <Route path="dashboard" element={<SuperAdminDashboard />} />
-          <Route path="restaurants" element={<SuperAdminRestaurants />} />
-          <Route path="audit-logs" element={<SuperAdminAuditLogs />} />
-          <Route path="system" element={<SuperAdminSystemHealth />} />
-          <Route path="profile" element={<SuperAdminProfile />} />
-        </Route>
-
         {/* Protected Admin Routes — all scoped under /:slug */}
         <Route element={<ProtectedRoute />}>
           <Route path="/:slug" element={<AdminLayout />}>

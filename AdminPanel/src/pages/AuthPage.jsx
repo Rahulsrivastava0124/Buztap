@@ -101,16 +101,6 @@ export default function AuthPage() {
       return;
     }
 
-    const normalizedIdentifier =
-      loginMethod === "phone"
-        ? identifier.replace(/\D/g, "")
-        : identifier.trim().toLowerCase();
-
-    if (loginMethod === "phone") {
-      await completeLogin(normalizedIdentifier, password, undefined, "staff");
-      return;
-    }
-
     await handleSendOtp(true);
   };
 
@@ -143,8 +133,13 @@ export default function AuthPage() {
 
 
   const completeLoginWithOtp = async (otpToken) => {
+    const normalizedIdentifier =
+      loginMethod === "phone"
+        ? identifier.replace(/\D/g, "")
+        : identifier.trim().toLowerCase();
+
     await completeLogin(
-      identifier.trim().toLowerCase(),
+      normalizedIdentifier,
       password,
       otpToken,
       "admin",
@@ -187,7 +182,11 @@ export default function AuthPage() {
 
     try {
       setSendingOtp(true);
-      const res = await requestLoginOtp(identifier.trim(), password);
+      const normalizedIdentifier =
+        loginMethod === "phone"
+          ? identifier.replace(/\D/g, "")
+          : identifier.trim().toLowerCase();
+      const res = await requestLoginOtp(normalizedIdentifier, password);
       setResolvedEmail(res.resolvedEmail);
       toast.success("OTP sent to your registered email");
       if (openModal) {
@@ -482,7 +481,7 @@ export default function AuthPage() {
                 </>
               ) : (
                 <>
-                  {loginMethod === "phone" ? "Sign In" : "Send OTP"}
+                  Send OTP
                   <ArrowRight size={16} />
                 </>
               )}

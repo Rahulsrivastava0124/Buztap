@@ -279,7 +279,7 @@ export default function SuperAdminDashboard() {
               </h3>
             </div>
             <Link
-              to="/superadmin/restaurants"
+              to={window.location.hostname.includes("superadmin") ? "/restaurants" : "/superadmin/restaurants"}
               className="text-xs font-semibold text-saffron hover:underline flex items-center gap-1"
             >
               View all <ArrowRight size={12} />

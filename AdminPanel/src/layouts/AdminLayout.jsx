@@ -27,6 +27,10 @@ import {
   X,
   Users,
   Armchair,
+  Crown,
+  Mail,
+  MapPin,
+  Sparkles,
 } from "lucide-react";
 import { motion as Motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
@@ -142,6 +146,7 @@ function SidebarContent({
   handleLogout,
   brandName,
   logoImage,
+  businessProfile,
 }) {
   const location = useLocation();
   return (
@@ -165,7 +170,7 @@ function SidebarContent({
       </div>
 
       {/* Nav Items */}
-      <nav className="flex-1 px-4 py-6 space-y-1">
+      <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
         {visibleSidebarItems.map((item) => {
           const fullPath = `/${slug}${item.path}`;
           const isActive = location.pathname.startsWith(fullPath);
@@ -193,6 +198,29 @@ function SidebarContent({
             </Link>
           );
         })}
+
+        {/* Premium Advertisement Banner */}
+        {!compactSidebar && (!businessProfile?.plan || businessProfile?.plan.toLowerCase() === "free") && (
+          <div className="mt-8 relative overflow-hidden bg-gradient-to-r from-saffron to-amber-500 rounded-xl shadow-md text-white p-3 flex flex-col gap-2">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-white/20 rounded-full blur-xl -mr-6 -mt-6 pointer-events-none" />
+            <div className="flex items-center gap-2">
+              <Motion.div 
+                animate={{ rotate: [0, 15, -15, 15, 0], scale: [1, 1.1, 1] }}
+                transition={{ repeat: Infinity, duration: 2.5, ease: "easeInOut" }}
+                className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center shrink-0"
+              >
+                <Sparkles size={16} className="text-white" />
+              </Motion.div>
+              <div className="flex-1 min-w-0">
+                <h2 className="text-sm font-bold truncate">Get Premium x5 </h2>
+              </div>
+            </div>
+            <p className="text-white/90 text-xs leading-tight">Unlock advanced analytics & unlimited tables.</p>
+            <button className="w-full mt-1 px-3 py-1.5 bg-white text-saffron font-bold text-xs rounded-lg hover:bg-paper transition-colors shadow-sm">
+              Upgrade Now
+            </button>
+          </div>
+        )}
       </nav>
 
       {/* User / Logout */}
@@ -223,10 +251,12 @@ export default function AdminLayout() {
   const [incomingQrOrders, setIncomingQrOrders] = useState([]);
   const [loadingIncomingOrders, setLoadingIncomingOrders] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [approvingId, setApprovingId] = useState(null);
   const notifiedOrderIdsRef = useRef(new Set());
   const firstLoadRef = useRef(true);
   const notificationRef = useRef(null);
+  const profileMenuRef = useRef(null);
   const audioContextRef = useRef(null);
   const hasUserInteractedRef = useRef(false);
   const visibleSidebarItems = SIDEBAR_ITEMS.filter((item) => {
@@ -425,6 +455,22 @@ export default function AdminLayout() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showNotifications]);
 
+  useEffect(() => {
+    if (!showProfileMenu) return;
+
+    const handleClickOutside = (event) => {
+      if (
+        profileMenuRef.current &&
+        !profileMenuRef.current.contains(event.target)
+      ) {
+        setShowProfileMenu(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showProfileMenu]);
+
   const handleLogout = async () => {
     await logout();
     toast.success("Signed out");
@@ -445,6 +491,7 @@ export default function AdminLayout() {
           handleLogout={handleLogout}
           brandName={brandName}
           logoImage={brandLogo}
+          businessProfile={businessProfile}
         />
         <button
           onClick={() => setCompactSidebar((prev) => !prev)}
@@ -486,6 +533,7 @@ export default function AdminLayout() {
                 handleLogout={handleLogout}
                 brandName={brandName}
                 logoImage={brandLogo}
+                businessProfile={businessProfile}
               />
             </Motion.div>
           </>
@@ -637,31 +685,61 @@ export default function AdminLayout() {
                 </div>
               ) : null}
             </div>
-            <div className="h-8 w-px bg-border" />
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-[#fbdabf] border border-saffron-lt flex items-center justify-center">
-                <span className="text-xs font-bold text-saffron">
-                  {userName || businessName
-                    ? (userName || businessName)
-                        .split(" ")
-                        .slice(0, 2)
-                        .map((w) => w[0])
-                        .join("")
-                        .toUpperCase()
-                    : "?"}
-                </span>
-              </div>
-              <div className="hidden sm:block">
-                <p className="text-xs font-semibold text-ink leading-tight">
-                  {userName || "—"}
-                </p>
-                <p className="text-xs text-muted">{roleLabel}</p>
-              </div>
+            {/* Profile Section */}
+            <div className="relative z-50 ml-2 md:ml-4 pl-4 border-l border-border flex items-center" ref={profileMenuRef}>
+              <button 
+                onClick={() => setShowProfileMenu(!showProfileMenu)}
+                className="flex items-center gap-3 text-left focus:outline-none cursor-pointer"
+              >
+                <div className="hidden md:flex flex-col items-end">
+                  <span className="text-sm font-bold text-ink leading-tight">Welcome back, {userName || "Admin"}</span>
+                  <span className="text-[10px] text-muted font-bold uppercase tracking-wider">{brandName} • {roleLabel}</span>
+                </div>
+                <div className="w-10 h-10 rounded-full bg-saffron/10 flex items-center justify-center border border-saffron/20 shrink-0 shadow-sm overflow-hidden">
+                  {brandLogo ? (
+                    <img src={brandLogo} alt="Logo" className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-saffron font-black text-sm uppercase">{brandName?.charAt(0) || "B"}</span>
+                  )}
+                </div>
+              </button>
+
+              <AnimatePresence>
+                {showProfileMenu && (
+                  <Motion.div
+                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute right-0 top-full mt-2 w-64 bg-white border border-border rounded-xl shadow-xl overflow-hidden"
+                  >
+                    <div className="p-4 border-b border-border bg-paper/50">
+                      <p className="text-sm font-bold text-ink truncate">{userName || "Admin"}</p>
+                      <p className="text-xs text-muted font-medium mb-2">{roleLabel}</p>
+                      
+                      <div className="space-y-1 mt-3">
+                        {businessProfile?.email && (
+                          <div className="flex items-center gap-2 text-xs text-muted">
+                            <Mail size={12} className="shrink-0" />
+                            <span className="truncate">{businessProfile.email}</span>
+                          </div>
+                        )}
+                        {businessProfile?.address && (
+                          <div className="flex items-center gap-2 text-xs text-muted">
+                            <MapPin size={12} className="shrink-0" />
+                            <span className="truncate">{businessProfile.address}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </Motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </div>
         </header>
 
-        {/* Page Area */}
+        {/* Page Content */}
         <main className="flex-1 overflow-x-hidden relative">
           <Outlet />
         </main>
