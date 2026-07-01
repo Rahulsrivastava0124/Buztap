@@ -81,47 +81,40 @@ export default function TablesPage() {
     if (!finalArea) return toast.error("Area is required");
 
     const isNumber = /^\d+$/.test(val);
+    if (!isNumber) {
+      return toast.error("Please enter a valid number of tables (digits only)");
+    }
 
-    if (isNumber) {
-      const count = parseInt(val, 10);
-      if (count > 50) return toast.error("Cannot create more than 50 tables at once");
-      if (count <= 0) return toast.error("Enter a valid number greater than 0");
+    const count = parseInt(val, 10);
+    if (count > 50) return toast.error("Cannot create more than 50 tables at once");
+    if (count <= 0) return toast.error("Enter a valid number greater than 0");
 
-      // Use full area name as prefix (e.g., "Main Floor" -> "Main Floor-")
-      const prefix = `${finalArea.trim()}-`;
+    // Use full area name as prefix (e.g., "Main Floor" -> "Main Floor-")
+    const prefix = `${finalArea.trim()}-`;
 
-      // Find the next available table number for this specific prefix
-      const existingPrefixTables = tables
-        .map(t => t.id)
-        .filter(id => id.startsWith(prefix))
-        .map(id => parseInt(id.replace(prefix, ""), 10))
-        .filter(n => !isNaN(n));
-        
-      let nextNum = existingPrefixTables.length > 0 ? Math.max(...existingPrefixTables) + 1 : 1;
+    // Find the next available table number for this specific prefix
+    const existingPrefixTables = tables
+      .map(t => t.id)
+      .filter(id => id.startsWith(prefix))
+      .map(id => parseInt(id.replace(prefix, ""), 10))
+      .filter(n => !isNaN(n));
+      
+    let nextNum = existingPrefixTables.length > 0 ? Math.max(...existingPrefixTables) + 1 : 1;
 
-      const toastId = toast.loading(`Creating ${count} tables...`);
-      try {
-        const promises = [];
-        for (let i = 0; i < count; i++) {
-          const tId = `${prefix}${nextNum + i}`; // e.g. GT-1, GT-2
-          promises.push(createTable({ tableId: tId, seats: formData.seats, area: finalArea }));
-        }
-        await Promise.all(promises);
-        toast.success(`${count} tables created successfully!`, { id: toastId });
-        
-        queryClient.invalidateQueries({ queryKey: ["tables"] });
-        setIsAddOpen(false);
-        setFormData({ tableId: "", seats: 4, area: "Main Floor", customArea: "" });
-        setIsCustomArea(false);
-      } catch (error) {
-        toast.error("Some tables failed to create", { id: toastId });
+    const toastId = toast.loading(`Creating ${count} tables...`);
+    try {
+      for (let i = 0; i < count; i++) {
+        const tId = `${prefix}${nextNum + i}`; // e.g. GT-1, GT-2
+        await createTable({ tableId: tId, seats: formData.seats, area: finalArea });
       }
-    } else {
-      createMutation.mutate({
-        ...formData,
-        tableId: val,
-        area: finalArea,
-      });
+      toast.success(`${count} tables created successfully!`, { id: toastId });
+      
+      queryClient.invalidateQueries({ queryKey: ["tables"] });
+      setIsAddOpen(false);
+      setFormData({ tableId: "", seats: 4, area: "Main Floor", customArea: "" });
+      setIsCustomArea(false);
+    } catch (error) {
+      toast.error("Some tables failed to create", { id: toastId });
     }
   };
 
@@ -207,14 +200,7 @@ export default function TablesPage() {
     
     for (const [areaName, areaTables] of sortedEntries) {
       areaTables.sort((a, b) => {
-        const aNumMatch = a.id.match(/\d+/);
-        const bNumMatch = b.id.match(/\d+/);
-        if (aNumMatch && bNumMatch) {
-          const aNum = parseInt(aNumMatch[0], 10);
-          const bNum = parseInt(bNumMatch[0], 10);
-          if (aNum !== bNum) return aNum - bNum;
-        }
-        return a.id.localeCompare(b.id);
+        return a.id.localeCompare(b.id, undefined, { numeric: true, sensitivity: 'base' });
       });
     }
     
@@ -345,10 +331,9 @@ export default function TablesPage() {
             <div className="mt-5 flex justify-end">
               <button
                 type="submit"
-                disabled={createMutation.isPending}
                 className="bg-ink hover:bg-ink/90 text-white px-5 py-2 rounded-lg font-bold text-sm"
               >
-                {createMutation.isPending ? "Creating..." : "Save Table"}
+                Save Table
               </button>
             </div>
           </form>

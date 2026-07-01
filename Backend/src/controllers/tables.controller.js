@@ -324,7 +324,7 @@ async function create(req, res, next) {
       tableId: data.tableId,
     });
     if (existing) {
-      if (existing.isActive !== false) {
+      if (existing.deletedAt == null) {
         return res.status(409).json({ error: "Table ID already exists" });
       } else {
         existing.isActive = true;
@@ -378,7 +378,7 @@ async function getDeleted(req, res, next) {
   try {
     const tables = await Table.find({
       businessId: req.user.businessId,
-      isActive: false,
+      deletedAt: { $ne: null },
     })
       .sort({ deletedAt: -1, updatedAt: -1 })
       .lean();

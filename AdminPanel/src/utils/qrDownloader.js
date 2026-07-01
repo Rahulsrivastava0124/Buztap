@@ -22,6 +22,9 @@ export async function downloadQRCodes(tables, businessId, zipName = "Table-QRs.z
     canvas.width = 400;
     canvas.height = 480;
     const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      throw new Error("Failed to get canvas 2D context");
+    }
 
     // Fill background with white
     ctx.fillStyle = "#ffffff";
@@ -55,8 +58,12 @@ export async function downloadQRCodes(tables, businessId, zipName = "Table-QRs.z
     }
 
     // Convert to blob
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       canvas.toBlob((blob) => {
+        if (!blob) {
+          reject(new Error("Failed to generate QR code blob"));
+          return;
+        }
         resolve({ tableId: table.id, blob });
       }, "image/png");
     });

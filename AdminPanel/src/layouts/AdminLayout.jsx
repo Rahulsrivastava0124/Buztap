@@ -27,7 +27,6 @@ import {
   X,
   Users,
   Armchair,
-  Crown,
   Mail,
   MapPin,
   Sparkles,
