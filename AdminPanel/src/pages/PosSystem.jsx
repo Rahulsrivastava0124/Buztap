@@ -71,14 +71,19 @@ function buildTableIdCandidates(rawTableId) {
   const value = String(rawTableId || "").trim();
   if (!value) return [];
   const set = new Set([value]);
-  const digits = value.replace(/\D/g, "");
-  if (digits) {
-    const n = Number(digits);
-    if (Number.isFinite(n) && n > 0) {
-      set.add(String(n));
-      set.add(String(n).padStart(2, "0"));
-      set.add(`T-${String(n)}`);
-      set.add(`T-${String(n).padStart(2, "0")}`);
+  
+  // Only generate numeric fallbacks if the original value looks like a simple number or T-xx
+  const isSimpleId = /^(T-?)?\d+$/i.test(value);
+  if (isSimpleId) {
+    const digits = value.replace(/\D/g, "");
+    if (digits) {
+      const n = Number(digits);
+      if (Number.isFinite(n) && n > 0) {
+        set.add(String(n));
+        set.add(String(n).padStart(2, "0"));
+        set.add(`T-${String(n)}`);
+        set.add(`T-${String(n).padStart(2, "0")}`);
+      }
     }
   }
   return Array.from(set);
