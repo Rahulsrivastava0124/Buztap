@@ -89,8 +89,8 @@ export default function TablesPage() {
     if (count > 50) return toast.error("Cannot create more than 50 tables at once");
     if (count <= 0) return toast.error("Enter a valid number greater than 0");
 
-    // Use full area name as prefix (e.g., "Main Floor" -> "Main Floor-")
-    const prefix = `${finalArea.trim()}-`;
+    // Use full area name as prefix with T (e.g., "Main Floor" -> "Main Floor-T")
+    const prefix = `${finalArea.trim()}-T`;
 
     // Find the next available table number for this specific prefix
     const existingPrefixTables = tables
@@ -149,16 +149,19 @@ export default function TablesPage() {
       return toast.error(`Area '${finalNewName}' already exists. Please choose a unique name.`);
     }
 
-    const oldPrefix = `${oldAreaName.trim()}-`;
-    const newPrefix = `${finalNewName}-`;
+    const oldPrefixWithT = `${oldAreaName.trim()}-T`;
+    const oldPrefixWithoutT = `${oldAreaName.trim()}-`;
+    const newPrefix = `${finalNewName}-T`;
     
     const toastId = toast.loading(`Renaming area to ${finalNewName}...`);
     try {
       const promises = areaTables.map((t) => {
         let newTableId = t.id;
         // Auto-update the prefix if they hadn't custom named it
-        if (t.id.startsWith(oldPrefix)) {
-          newTableId = t.id.replace(oldPrefix, newPrefix);
+        if (t.id.startsWith(oldPrefixWithT)) {
+          newTableId = t.id.replace(oldPrefixWithT, newPrefix);
+        } else if (t.id.startsWith(oldPrefixWithoutT)) {
+          newTableId = t.id.replace(oldPrefixWithoutT, newPrefix);
         }
         return updateTable(t.id, { area: finalNewName, tableId: newTableId });
       });
