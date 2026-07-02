@@ -827,7 +827,10 @@ export default function PosSystem() {
                     acc[area].push(table);
                     return acc;
                   }, {})
-                ).map(([area, areaTables]) => (
+                ).sort((a, b) => a[0].localeCompare(b[0], undefined, { numeric: true, sensitivity: 'base' }))
+                 .map(([area, areaTables]) => {
+                   areaTables.sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true, sensitivity: 'base' }));
+                   return (
                   <div key={area}>
                     <h3 className="font-bold text-ink mb-3 text-lg flex items-center gap-2">
                       <span className="w-2 h-2 rounded-full bg-saffron inline-block"></span>
@@ -917,7 +920,7 @@ export default function PosSystem() {
                       })}
                     </div>
                   </div>
-                ))}
+                )})}
               </div>
             )}
           </div>
