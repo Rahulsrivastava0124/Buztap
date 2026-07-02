@@ -111,7 +111,7 @@ async function generateUniqueSubdomain(businessName) {
 function buildInitialTables(businessId, tableCount) {
   return Array.from({ length: tableCount }, (_, index) => {
     const n = index + 1;
-    const tableId = `Main Floor-${n}`;
+    const tableId = `Main Floor-T${n}`;
     return {
       businessId,
       tableId,
