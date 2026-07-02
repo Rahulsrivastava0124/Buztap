@@ -5,6 +5,7 @@ import toast from "react-hot-toast";
 import { fetchTables, createTable, deleteTable, updateTable, fetchDeletedTables, restoreTable } from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import { downloadQRCodes } from "../utils/qrDownloader";
+import { getTableCode } from "../utils/tableCode";
 import { QrCode } from "lucide-react";
 import ErrorBoundary from "../components/shared/ErrorBoundary";
 import PageShell from "../components/layout/PageShell";
@@ -469,7 +470,7 @@ export default function TablesPage() {
                           <Edit2 size={14} />
                         </button>
                         <Armchair size={24} className="text-saffron mb-2" strokeWidth={1.5} />
-                        <span className="font-black text-lg text-ink leading-none">{table.id}</span>
+                        <span className="font-black text-lg text-ink leading-none">{getTableCode(table)}</span>
                         <span className="text-xs font-medium text-muted mt-1">{table.seats} Seats</span>
                       </div>
                     ))}

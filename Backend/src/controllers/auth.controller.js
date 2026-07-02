@@ -443,6 +443,86 @@ const loginOtpRequestSchema = z
     message: "identifier/email/phone is required",
   });
 
+// Resolve the User attempting to log in from an email or phone identifier.
+// Supports BOTH business owners (role "admin") and staff members
+// (role "manager"/"cashier"/"custom"), so a single login page works for
+// everyone. When several users match, an admin is preferred.
+async function resolveLoginUser({
+  identifier,
+  businessId,
+  populateCustomRole = false,
+}) {
+  const clean = String(identifier || "").trim();
+  const isEmail = /\S+@\S+\.\S+/.test(clean);
+  const normalizedInput = normalizePhone(clean);
+
+  const runQuery = (query) => {
+    const q = User.find(query);
+    return (
+      populateCustomRole
+        ? q.populate("customRole", "name permissions")
+        : q
+    ).lean();
+  };
+
+  // 1. Email → match the user directly, regardless of role.
+  if (isEmail) {
+    const query = { email: clean.toLowerCase() };
+    if (businessId) query.businessId = businessId;
+    const users = await runQuery(query);
+    if (!users.length) return null;
+    return users.find((u) => u.role === "admin") || users[0];
+  }
+
+  // 2. Phone → first try to match a User directly. Staff (and any owner whose
+  //    phone is stored on their user record) are found here.
+  if (normalizedInput) {
+    const userQuery = { phone: { $exists: true, $ne: "" } };
+    if (businessId) userQuery.businessId = businessId;
+    const candidates = await runQuery(userQuery);
+    const matched = candidates.filter((u) => {
+      const c = normalizePhone(u.phone || "");
+      return (
+        c &&
+        (c === normalizedInput ||
+          c.endsWith(normalizedInput) ||
+          normalizedInput.endsWith(c))
+      );
+    });
+    if (matched.length) {
+      return matched.find((u) => u.role === "admin") || matched[0];
+    }
+  }
+
+  // 3. Fall back to resolving the business by phone (an owner's phone often
+  //    lives on the Business record only) and returning its admin user.
+  let business = await Business.findOne({ phone: clean }).lean();
+  if (!business && normalizedInput) {
+    const bizQuery = { phone: { $exists: true, $ne: "" } };
+    if (businessId) bizQuery._id = businessId;
+    const businesses = await Business.find(bizQuery)
+      .select("_id phone")
+      .lean();
+    business =
+      businesses.find((row) => {
+        const c = normalizePhone(row.phone);
+        return (
+          c &&
+          (c === normalizedInput ||
+            c.endsWith(normalizedInput) ||
+            normalizedInput.endsWith(c))
+        );
+      }) || null;
+  }
+  if (businessId && business && String(business._id) !== String(businessId)) {
+    business = null;
+  }
+  if (!business) return null;
+  return runQuery({ businessId: business._id, role: "admin" }).then(
+    (users) => users[0] || null,
+  );
+}
+
 async function requestLoginOtp(req, res, next) {
   try {
     const { identifier, email, phone, password, businessId } =
@@ -458,51 +538,11 @@ async function requestLoginOtp(req, res, next) {
       });
     }
 
-    let user = null;
-
-    if (isEmail) {
-      const query = { email: cleanIdentifier.toLowerCase(), role: "admin" };
-      if (businessId) query.businessId = businessId;
-      user = await User.findOne(query).lean();
-    } else {
-      const normalizedInput = normalizePhone(cleanIdentifier);
-      let business = await Business.findOne({ phone: cleanIdentifier }).lean();
-
-      if (!business && normalizedInput) {
-        const candidateQuery = { phone: { $exists: true, $ne: "" } };
-        if (businessId) candidateQuery._id = businessId;
-
-        const candidates = await Business.find(candidateQuery)
-          .select("_id phone")
-          .lean();
-
-        business =
-          candidates.find((row) => {
-            const candidate = normalizePhone(row.phone);
-            if (!candidate) return false;
-            return (
-              candidate === normalizedInput ||
-              candidate.endsWith(normalizedInput) ||
-              normalizedInput.endsWith(candidate)
-            );
-          }) || null;
-      }
-
-      if (
-        businessId &&
-        business &&
-        String(business._id) !== String(businessId)
-      ) {
-        business = null;
-      }
-
-      if (business) {
-        user = await User.findOne({
-          businessId: business._id,
-          role: "admin",
-        }).lean();
-      }
-    }
+    // Resolve either a business owner (admin) or a staff member.
+    const user = await resolveLoginUser({
+      identifier: cleanIdentifier,
+      businessId,
+    });
 
     if (!user) {
       return res
@@ -580,59 +620,19 @@ async function login(req, res, next) {
       }
     }
 
-    let user = null;
-    let resolvedBusiness = null;
-
-    if (isEmail) {
-      const query = { email: cleanIdentifier.toLowerCase(), role: "admin" };
-      if (businessId) query.businessId = businessId;
-      user = await User.findOne(query).lean();
-      if (user?.businessId) {
-        resolvedBusiness = await Business.findById(user.businessId).lean();
-      }
-    } else {
-      // Look up business by phone in a formatting-tolerant way
-      const normalizedInput = normalizePhone(cleanIdentifier);
-      let business = await Business.findOne({ phone: cleanIdentifier }).lean();
-
-      if (!business && normalizedInput) {
-        const candidateQuery = { phone: { $exists: true, $ne: "" } };
-        if (businessId) candidateQuery._id = businessId;
-
-        const candidates = await Business.find(candidateQuery)
-          .select("_id phone")
-          .lean();
-
-        business =
-          candidates.find((row) => {
-            const candidate = normalizePhone(row.phone);
-            if (!candidate) return false;
-            return (
-              candidate === normalizedInput ||
-              candidate.endsWith(normalizedInput) ||
-              normalizedInput.endsWith(candidate)
-            );
-          }) || null;
-      }
-
-      if (
-        businessId &&
-        business &&
-        String(business._id) !== String(businessId)
-      ) {
-        business = null;
-      }
-
-      if (business) {
-        resolvedBusiness = business;
-        user = await User.findOne({
-          businessId: business._id,
-          role: "admin",
-        }).populate("customRole", "name permissions").lean();
-      }
-    }
+    // Resolve either a business owner (admin) or a staff member.
+    const user = await resolveLoginUser({
+      identifier: cleanIdentifier,
+      businessId,
+      populateCustomRole: true,
+    });
 
     if (!user) return res.status(401).json({ error: "Invalid credentials" });
+
+    let resolvedBusiness = null;
+    if (user.businessId) {
+      resolvedBusiness = await Business.findById(user.businessId).lean();
+    }
 
     // Require OTP for phone logins (verified against the user's registered email)
     if (isPhone) {
@@ -708,37 +708,12 @@ const phoneOtpRequestSchema = z.object({
 async function requestPhoneLoginOtp(req, res, next) {
   try {
     const { phone } = phoneOtpRequestSchema.parse(req.body);
-    const normalizedInput = normalizePhone(phone);
 
-    let business = await Business.findOne({ phone }).lean();
-    if (!business && normalizedInput) {
-      const candidates = await Business.find({
-        phone: { $exists: true, $ne: "" },
-      })
-        .select("_id phone")
-        .lean();
-      business =
-        candidates.find((row) => {
-          const c = normalizePhone(row.phone);
-          if (!c) return false;
-          return (
-            c === normalizedInput ||
-            c.endsWith(normalizedInput) ||
-            normalizedInput.endsWith(c)
-          );
-        }) || null;
-    }
-
-    if (!business) {
-      return res
-        .status(404)
-        .json({ error: "No account found for this phone number" });
-    }
-
-    const user = await User.findOne({
-      businessId: business._id,
-      role: "admin",
-    }).populate("customRole", "name permissions").lean();
+    // Resolve either a business owner (admin) or a staff member by phone.
+    const user = await resolveLoginUser({
+      identifier: phone,
+      populateCustomRole: true,
+    });
     if (!user?.email) {
       return res
         .status(404)
