@@ -69,7 +69,7 @@ const originMatchers = allowedOrigins.map((o) => {
   if (o.includes("*")) {
     // e.g. https://*.buztap.com → match any single subdomain
     const escaped = o
-      .replace(/[.+?^${}()|[\]\\]/g, "\\$&") // escape regex special chars
+      .replace(/[.*+?^${}()|[\]\\]/g, "\\$&") // escape regex special chars (added *)
       .replace("\\*", "[^.]+"); // turn \* back into wildcard
     return new RegExp(`^${escaped}$`);
   }

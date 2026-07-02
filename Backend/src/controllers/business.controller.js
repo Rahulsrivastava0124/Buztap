@@ -161,7 +161,7 @@ async function ensureTableRecords(businessId, targetCount) {
       usedIds.add(pointer);
       newRows.push({
         businessId,
-        tableId: `T-${String(pointer).padStart(2, "0")}`,
+        tableId: `Main Floor-${pointer}`,
         seats: 4,
         area: "Main Floor",
         status: "Free",

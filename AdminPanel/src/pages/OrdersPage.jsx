@@ -22,6 +22,7 @@ import StatCard from "../components/shared/StatCard";
 import OrderStatusBadge from "../components/shared/OrderStatusBadge";
 import ErrorBoundary from "../components/shared/ErrorBoundary";
 import PageShell from "../components/layout/PageShell";
+import { getTableCodeFromId } from "../utils/tableCode";
 
 function OrderDetailDrawer({ orderId, onClose }) {
   const queryClient = useQueryClient();
@@ -47,9 +48,8 @@ function OrderDetailDrawer({ orderId, onClose }) {
 
   const formatTableLabel = (raw) => {
     const value = String(raw || "").trim();
-    const digits = value.replace(/\D/g, "");
-    if (!digits) return value || "-";
-    return `T-${String(Number(digits)).padStart(2, "0")}`;
+    if (!value) return "-";
+    return getTableCodeFromId(value);
   };
 
   const printInvoice = () => {

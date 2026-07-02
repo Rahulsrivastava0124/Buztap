@@ -133,6 +133,7 @@ export default function AuthPage() {
     setSubmitting(false);
   };
 
+
   function handleIdentifierChange(e) {
     const raw = e.target.value;
     const cleaned = isPhone ? raw.replace(/[^\d\s+\-().]/g, "") : raw;
@@ -427,7 +428,7 @@ export default function AuthPage() {
                 </>
               ) : (
                 <>
-                  Submit
+                  Send OTP
                   <ArrowRight size={16} />
                 </>
               )}

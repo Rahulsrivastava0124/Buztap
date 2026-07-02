@@ -96,174 +96,187 @@ export default function SuperAdminLoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-paper flex items-center justify-center p-4 font-[Inter,sans-serif]">
-      <div
-        className="absolute inset-0 opacity-[0.03]"
-        style={{
-          backgroundImage: `radial-gradient(circle at 1px 1px, #0f0e0b 1px, transparent 0)`,
-          backgroundSize: "32px 32px",
-        }}
-      />
+    <div className="min-h-screen bg-[#faf7f2] flex flex-col md:grid md:grid-cols-2 font-[Inter,sans-serif]">
+      {/* ── Left Side Image / Brand ── */}
+      <div className="hidden md:flex flex-col relative bg-black">
+        <img
+          src="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?q=80&w=1400"
+          alt="Restaurant kitchen"
+          className="w-full h-full object-cover opacity-70"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
 
-      <Motion.div
-        initial={{ opacity: 0, y: 20, scale: 0.97 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 0.4, ease: "easeOut" }}
-        className="relative w-full max-w-md"
-      >
-        <div className="absolute -inset-1 bg-gradient-to-br from-saffron/20 via-transparent to-saffron/10 rounded-3xl blur-xl" />
+        <div className="absolute inset-0 p-12 flex flex-col justify-between">
+          <div className="flex items-center gap-2.5 shrink-0 w-fit">
+            <span className="rounded-2xl overflow-hidden bg-white/10 border border-white/15 shadow-sm p-1">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-saffron to-saffron2 flex items-center justify-center shadow-md shadow-saffron/20 shrink-0">
+                <Shield size={18} className="text-white" />
+              </div>
+            </span>
+          </div>
 
-        <div className="relative bg-white rounded-2xl border border-border shadow-[0_20px_60px_rgba(15,14,11,0.12)] overflow-hidden">
-          <div className="h-1.5 bg-gradient-to-r from-saffron via-saffron2 to-saffron" />
-
-          <div className="p-8 sm:p-10">
-            <div className="flex justify-center mb-6">
-              <Motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ delay: 0.2, type: "spring", bounce: 0.5 }}
-                className="w-16 h-16 rounded-2xl bg-gradient-to-br from-saffron to-saffron2 flex items-center justify-center shadow-lg shadow-saffron/25"
-              >
-                <Shield size={28} className="text-white" />
-              </Motion.div>
-            </div>
-
-            <div className="text-center mb-6">
-              <h1 className="text-2xl font-bold text-ink tracking-tight">
-                Super Admin Login
-              </h1>
-              <p className="text-sm text-muted mt-1.5">
-                {showOtp ? "Enter the verification code sent to your email" : "Enter your credentials to access the dashboard"}
-              </p>
-            </div>
-            
-            <AnimatePresence mode="wait">
-              {!showOtp ? (
-                <Motion.form
-                  key="login-form"
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 20 }}
-                  onSubmit={handleLogin}
-                  className="space-y-5"
-                >
-                  <InputField
-                    icon={Mail}
-                    type="email"
-                    value={form.email}
-                    onChange={(v) => setForm((p) => ({ ...p, email: v }))}
-                    placeholder="Admin Email"
-                    autoFocus
-                  />
-                  <InputField
-                    icon={Lock}
-                    type="password"
-                    value={form.password}
-                    onChange={(v) => setForm((p) => ({ ...p, password: v }))}
-                    placeholder="Password"
-                  />
-                  <SubmitButton loading={loading} text="Get OTP" />
-                </Motion.form>
-              ) : (
-                <Motion.form
-                  key="otp-form"
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                  onSubmit={handleVerifyOtp}
-                  className="space-y-5"
-                >
-                  <InputField
-                    icon={KeyRound}
-                    type="text"
-                    value={otp}
-                    onChange={(v) => setOtp(v.replace(/\D/g, "").slice(0, 6))}
-                    placeholder="6-digit OTP"
-                    autoFocus
-                  />
-                  <SubmitButton loading={loading} text="Verify & Login" />
-                  
-                  <div className="text-center pt-2">
-                    <button
-                      type="button"
-                      onClick={handleResendOtp}
-                      disabled={otpCooldown > 0 || loading}
-                      className="text-sm text-saffron hover:text-saffron2 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {otpCooldown > 0 ? `Resend OTP in ${otpCooldown}s` : "Resend OTP"}
-                    </button>
-                  </div>
-                  <div className="text-center">
-                    <button
-                      type="button"
-                      onClick={() => setShowOtp(false)}
-                      className="text-xs text-muted hover:text-ink transition-colors"
-                    >
-                      Back to Login
-                    </button>
-                  </div>
-                </Motion.form>
-              )}
-            </AnimatePresence>
-
-            <p className="text-center text-xs text-muted2 mt-6">
-              Authorized personnel only
+          <div>
+            <h2 className="font-display text-4xl lg:text-5xl font-bold text-white leading-[1.1] mb-6">
+              Manage BuzTap.
+              <br />
+              <span className="text-saffron">Empower Growth.</span>
+            </h2>
+            <p className="text-[#e8e0d4] text-lg max-w-md leading-relaxed selection:bg-saffron/30">
+              Super admin portal for platform operations, audit logs, and global analytics.
             </p>
           </div>
         </div>
-      </Motion.div>
-    </div>
-  );
-}
+      </div>
 
-// ── Shared Components ────────────────────────────────────────────────────────
+      {/* ── Right Side Form ── */}
+      <div className="flex flex-col justify-center p-6 sm:p-12 lg:p-20 relative bg-white min-h-screen md:min-h-0">
+        <div className="w-full max-w-md mx-auto">
+          <div className="mb-8">
+            <h1 className="font-display text-3xl font-bold text-[#0f0e0b] mb-2">
+              Super Admin Login
+            </h1>
+            <p className="text-[#857c6e] text-sm">
+              {showOtp ? "Enter the verification code sent to your email" : "Enter your credentials to access the dashboard."}
+            </p>
+          </div>
 
-function InputField({
-  icon: Icon,
-  type,
-  value,
-  onChange,
-  placeholder,
-  autoFocus,
-}) {
-  return (
-    <div className="space-y-1.5">
-      <div className="relative">
-        <Icon
-          size={16}
-          className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted2"
-        />
-        <input
-          type={type}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder}
-          autoFocus={autoFocus}
-          className="w-full pl-10 pr-4 py-3 bg-paper border border-border rounded-xl text-sm text-ink placeholder-muted2 focus:outline-none focus:border-saffron focus:ring-2 focus:ring-saffron/20 transition-all"
-        />
+          <AnimatePresence mode="wait">
+            {!showOtp ? (
+              <Motion.form
+                key="login-form"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                onSubmit={handleLogin}
+                className="space-y-5"
+              >
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-[#0f0e0b]">
+                    Admin Email
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Mail className="h-4 w-4 text-[#b0a898]" />
+                    </div>
+                    <input
+                      type="email"
+                      value={form.email}
+                      onChange={(e) => setForm({ ...form, email: e.target.value })}
+                      placeholder="admin@platform.com"
+                      autoFocus
+                      className="w-full pl-10 pr-4 py-2.5 bg-[#faf7f2] border border-[#e0d9ce] rounded-lg text-sm text-[#0f0e0b] placeholder-[#b0a898] focus:outline-none focus:border-[#e8720c] focus:ring-1 focus:ring-[#e8720c] transition-shadow"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-[#0f0e0b]">
+                    Password
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Lock className="h-4 w-4 text-[#b0a898]" />
+                    </div>
+                    <input
+                      type="password"
+                      value={form.password}
+                      onChange={(e) => setForm({ ...form, password: e.target.value })}
+                      placeholder="••••••••"
+                      className="w-full pl-10 pr-4 py-2.5 bg-[#faf7f2] border border-[#e0d9ce] rounded-lg text-sm text-[#0f0e0b] placeholder-[#b0a898] focus:outline-none focus:border-[#e8720c] focus:ring-1 focus:ring-[#e8720c] transition-shadow"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-[#e8720c] hover:bg-[#d06509] text-white text-sm font-semibold rounded-lg disabled:opacity-60 disabled:cursor-not-allowed transition-all"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      Please wait...
+                    </>
+                  ) : (
+                    <>
+                      Get OTP
+                      <ArrowRight size={16} />
+                    </>
+                  )}
+                </button>
+              </Motion.form>
+            ) : (
+              <Motion.form
+                key="otp-form"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                onSubmit={handleVerifyOtp}
+                className="space-y-5"
+              >
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-[#0f0e0b]">
+                    6-digit OTP
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <KeyRound className="h-4 w-4 text-[#b0a898]" />
+                    </div>
+                    <input
+                      type="text"
+                      value={otp}
+                      onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                      placeholder="Enter OTP"
+                      autoFocus
+                      className="w-full pl-10 pr-4 py-2.5 bg-[#faf7f2] border border-[#e0d9ce] rounded-lg text-sm text-[#0f0e0b] placeholder-[#b0a898] focus:outline-none focus:border-[#e8720c] focus:ring-1 focus:ring-[#e8720c] transition-shadow"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-[#e8720c] hover:bg-[#d06509] text-white text-sm font-semibold rounded-lg disabled:opacity-60 disabled:cursor-not-allowed transition-all"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      Please wait...
+                    </>
+                  ) : (
+                    "Verify & Login"
+                  )}
+                </button>
+                
+                <div className="text-center pt-2">
+                  <button
+                    type="button"
+                    onClick={handleResendOtp}
+                    disabled={otpCooldown > 0 || loading}
+                    className="text-sm text-[#e8720c] hover:underline font-medium transition-colors disabled:opacity-50 disabled:no-underline"
+                  >
+                    {otpCooldown > 0 ? `Resend OTP in ${otpCooldown}s` : "Resend OTP"}
+                  </button>
+                </div>
+                <div className="text-center">
+                  <button
+                    type="button"
+                    onClick={() => setShowOtp(false)}
+                    className="text-xs text-[#857c6e] hover:text-[#0f0e0b] transition-colors"
+                  >
+                    Back to Login
+                  </button>
+                </div>
+              </Motion.form>
+            )}
+          </AnimatePresence>
+
+          <p className="text-center text-xs text-[#b0a898] mt-10">
+            Authorized personnel only
+          </p>
+        </div>
       </div>
     </div>
   );
 }
 
-function SubmitButton({ loading, text }) {
-  return (
-    <button
-      type="submit"
-      disabled={loading}
-      className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-gradient-to-r from-saffron to-saffron2 text-white text-sm font-semibold rounded-xl hover:shadow-lg hover:shadow-saffron/25 disabled:opacity-60 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer"
-    >
-      {loading ? (
-        <>
-          <Loader2 size={16} className="animate-spin" />
-          Please wait...
-        </>
-      ) : (
-        <>
-          {text}
-          <ArrowRight size={16} />
-        </>
-      )}
-    </button>
-  );
-}

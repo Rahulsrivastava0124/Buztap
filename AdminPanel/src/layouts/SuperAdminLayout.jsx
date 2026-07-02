@@ -20,12 +20,14 @@ import {
   isSuperAdminLoggedIn,
 } from "../services/superadminApi";
 
+const basePath = window.location.hostname.includes("superadmin") ? "" : "/superadmin";
+
 const SIDEBAR_ITEMS = [
-  { path: "/superadmin/dashboard", icon: LayoutDashboard, label: "Dashboard" },
-  { path: "/superadmin/restaurants", icon: Store, label: "Restaurants" },
-  { path: "/superadmin/audit-logs", icon: ListFilter, label: "Audit Logs" },
-  { path: "/superadmin/system", icon: Activity, label: "System Health" },
-  { path: "/superadmin/profile", icon: UserCircle, label: "Profile" },
+  { path: `${basePath}/dashboard`, icon: LayoutDashboard, label: "Dashboard" },
+  { path: `${basePath}/restaurants`, icon: Store, label: "Restaurants" },
+  { path: `${basePath}/audit-logs`, icon: ListFilter, label: "Audit Logs" },
+  { path: `${basePath}/system`, icon: Activity, label: "System Health" },
+  { path: `${basePath}/profile`, icon: UserCircle, label: "Profile" },
 ];
 
 function SidebarContent({ compactSidebar, handleLogout }) {
@@ -36,7 +38,7 @@ function SidebarContent({ compactSidebar, handleLogout }) {
       <div
         className={`h-16 flex items-center border-b border-border ${compactSidebar ? "px-3 justify-center" : "px-6"}`}
       >
-        <Link to="/superadmin/dashboard" className="flex items-center gap-2.5">
+        <Link to={`${basePath}/dashboard`} className="flex items-center gap-2.5">
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-saffron to-saffron2 flex items-center justify-center shadow-md shadow-saffron/20 shrink-0">
             <Shield size={18} className="text-white" />
           </div>
@@ -56,8 +58,8 @@ function SidebarContent({ compactSidebar, handleLogout }) {
         {SIDEBAR_ITEMS.map((item) => {
           const isActive =
             location.pathname === item.path ||
-            (item.path === "/superadmin/restaurants" &&
-              location.pathname.startsWith("/superadmin/restaurants"));
+            (item.path === `${basePath}/restaurants` &&
+              location.pathname.startsWith(`${basePath}/restaurants`));
           return (
             <Link
               key={item.path}
@@ -102,7 +104,7 @@ export default function SuperAdminLayout() {
   // Auth guard
   useEffect(() => {
     if (!isSuperAdminLoggedIn()) {
-      navigate("/superadmin", { replace: true });
+      navigate(window.location.hostname.includes("superadmin") ? "/" : "/superadmin", { replace: true });
     }
   }, [navigate]);
 
@@ -118,7 +120,7 @@ export default function SuperAdminLayout() {
   const handleLogout = () => {
     superAdminLogout();
     toast.success("Signed out");
-    navigate("/superadmin", { replace: true });
+    navigate(window.location.hostname.includes("superadmin") ? "/" : "/superadmin", { replace: true });
   };
 
   const pageTitle = location.pathname.includes("/dashboard")

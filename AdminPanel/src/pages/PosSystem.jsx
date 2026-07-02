@@ -37,6 +37,7 @@ import {
 import { usePosStore } from "../features/pos/store/usePosStore";
 import usePOSHotkeys from "../hooks/usePOSHotkeys";
 import { useAuth } from "../context/AuthContext";
+import { getTableCode } from "../utils/tableCode";
 
 const TABLE_STATUS_STYLES = {
   Occupied: "border-warning bg-warning/10 text-ink",
@@ -71,14 +72,19 @@ function buildTableIdCandidates(rawTableId) {
   const value = String(rawTableId || "").trim();
   if (!value) return [];
   const set = new Set([value]);
-  const digits = value.replace(/\D/g, "");
-  if (digits) {
-    const n = Number(digits);
-    if (Number.isFinite(n) && n > 0) {
-      set.add(String(n));
-      set.add(String(n).padStart(2, "0"));
-      set.add(`T-${String(n)}`);
-      set.add(`T-${String(n).padStart(2, "0")}`);
+  
+  // Only generate numeric fallbacks if the original value looks like a simple number or T-xx
+  const isSimpleId = /^(T-?)?\d+$/i.test(value);
+  if (isSimpleId) {
+    const digits = value.replace(/\D/g, "");
+    if (digits) {
+      const n = Number(digits);
+      if (Number.isFinite(n) && n > 0) {
+        set.add(String(n));
+        set.add(String(n).padStart(2, "0"));
+        set.add(`T-${String(n)}`);
+        set.add(`T-${String(n).padStart(2, "0")}`);
+      }
     }
   }
   return Array.from(set);
@@ -827,7 +833,10 @@ export default function PosSystem() {
                     acc[area].push(table);
                     return acc;
                   }, {})
-                ).map(([area, areaTables]) => (
+                ).sort((a, b) => a[0].localeCompare(b[0], undefined, { numeric: true, sensitivity: 'base' }))
+                 .map(([area, areaTables]) => {
+                   areaTables.sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true, sensitivity: 'base' }));
+                   return (
                   <div key={area}>
                     <h3 className="font-bold text-ink mb-3 text-lg flex items-center gap-2">
                       <span className="w-2 h-2 rounded-full bg-saffron inline-block"></span>
@@ -875,7 +884,7 @@ export default function PosSystem() {
                               isActive ? "ring-2 ring-saffron/30 shadow-md" : ""
                             }`}
                           >
-                            <span className="text-2xl font-black">{table.id}</span>
+                            <span className="text-2xl font-black">{getTableCode(table)}</span>
                             <span className="flex items-center gap-1.5 text-xs font-medium">
                               <span
                                 className={`w-2 h-2 rounded-full ${statusDotClass}`}
@@ -917,7 +926,7 @@ export default function PosSystem() {
                       })}
                     </div>
                   </div>
-                ))}
+                )})}
               </div>
             )}
           </div>
@@ -953,7 +962,7 @@ export default function PosSystem() {
                       <span
                         className={`text-sm font-bold px-2.5 py-1 rounded-lg border ${TABLE_STATUS_STYLES[detailTable.status]}`}
                       >
-                        {detailTable.id}
+                        {getTableCode(detailTable)}
                       </span>
                       {detailTable.seats > 0 && (
                         <span className="text-xs text-muted">

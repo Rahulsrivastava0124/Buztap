@@ -27,13 +27,7 @@ function buildTableIdCandidates(rawTableId) {
 function normalizeTableId(value) {
   const raw = String(value || "").trim();
   if (!raw) return null;
-
-  const digits = raw.replace(/\D/g, "");
-  if (!digits) return raw;
-
-  const n = Number(digits);
-  if (!Number.isFinite(n) || n <= 0) return raw;
-  return `T-${String(n).padStart(2, "0")}`;
+  return raw;
 }
 
 /**

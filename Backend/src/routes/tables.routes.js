@@ -9,6 +9,8 @@ const {
   create,
   update,
   remove,
+  getDeleted,
+  restore,
 } = require("../controllers/tables.controller");
 
 const router = Router();
@@ -16,8 +18,10 @@ const router = Router();
 router.use(authenticate, requireRole("cashier"));
 
 router.get("/", getAll);
+router.get("/deleted", requireRole("manager"), getDeleted);
 router.post("/", requireRole("manager"), create);
 router.get("/:id", getOne);
+router.put("/:id/restore", requireRole("manager"), restore);
 router.put("/:id", requireRole("manager"), update);
 router.delete("/:id", requireRole("manager"), remove);
 router.put("/:id/status", updateStatus);
